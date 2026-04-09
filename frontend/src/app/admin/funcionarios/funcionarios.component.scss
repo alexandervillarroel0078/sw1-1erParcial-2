@@ -1,0 +1,112 @@
+.toolbar {
+  border-radius: 16px;
+  margin-bottom: 14px;
+
+  .mat-icon {
+    margin-right: 6px;
+  }
+}
+
+.toolbar__title {
+  font-weight: 800;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.toolbar__search {
+  width: min(360px, 42vw);
+  margin-right: 12px;
+}
+
+.table-card {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(25, 118, 210, 0.08);
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+}
+
+.col-avatar {
+  width: 64px;
+  padding-right: 0;
+}
+
+.col-acciones {
+  width: 120px;
+  text-align: right;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  background: rgba(25, 118, 210, 0.14);
+  color: #1565c0;
+  border: 1px solid rgba(25, 118, 210, 0.22);
+}
+
+.chip {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.chip-rol--admin {
+  background: rgba(25, 118, 210, 0.16) !important;
+  color: #1565c0 !important;
+}
+
+.chip-rol--func {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+
+.chip-estado--on {
+  background: rgba(99, 153, 34, 0.14) !important;
+  color: #639922 !important;
+}
+
+.chip-estado--off {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
+mat-paginator {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 700px) {
+  .toolbar {
+    height: auto;
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .toolbar__search {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .col-acciones {
+    width: auto;
+  }
+}

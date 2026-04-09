@@ -1,0 +1,63 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav
+    class="sidenav"
+    [mode]="isHandset ? 'over' : 'side'"
+    [opened]="isHandset ? false : true"
+    #drawer
+  >
+    <div class="sidenav__brand">
+      <div class="brand-icon" aria-hidden="true">
+        <mat-icon>account_tree</mat-icon>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">Workflow</div>
+        <div class="brand-subtitle">Administrador</div>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <mat-nav-list class="nav">
+      @for (item of navItems; track item.link) {
+        <a
+          mat-list-item
+          [routerLink]="item.link"
+          routerLinkActive="active"
+          (click)="onNavClick(drawer)"
+        >
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    <mat-toolbar color="primary" class="topbar">
+      <button
+        mat-icon-button
+        type="button"
+        class="topbar__menu"
+        (click)="drawer.toggle()"
+        *ngIf="isHandset"
+        aria-label="Abrir menú"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <div class="topbar__title">{{ resolveTitleFromUrl(router.url) }}</div>
+      <span class="spacer"></span>
+
+      <div class="user">
+        <div class="user__name">{{ usuarioNombre }}</div>
+        <div class="user__avatar" aria-hidden="true">{{ avatarIniciales }}</div>
+        <button mat-button type="button" (click)="logout()">Cerrar sesión</button>
+      </div>
+    </mat-toolbar>
+
+    <main class="main">
+      <router-outlet></router-outlet>
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+

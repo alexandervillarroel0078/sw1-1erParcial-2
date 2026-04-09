@@ -1,0 +1,90 @@
+<div class="login-page">
+  <mat-card class="login-card" appearance="outlined">
+    <div class="brand">
+      <div class="brand__icon" aria-hidden="true">
+        <mat-icon>account_tree</mat-icon>
+      </div>
+      <div class="brand__title">Diseñador de Políticas de Negocio</div>
+      <div class="brand__subtitle">Iniciá sesión para continuar</div>
+    </div>
+
+    <form class="form" [formGroup]="form" (ngSubmit)="submit()">
+      <mat-button-toggle-group
+        class="role-toggle"
+        formControlName="rol"
+        aria-label="Seleccionar rol"
+        [disabled]="loading"
+        (change)="demoFill()"
+      >
+        <mat-button-toggle value="ADMINISTRADOR">Administrador</mat-button-toggle>
+        <mat-button-toggle value="FUNCIONARIO">Funcionario</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Correo electrónico</mat-label>
+        <input
+          matInput
+          type="email"
+          autocomplete="email"
+          formControlName="correo"
+          [disabled]="loading"
+        />
+        @if (form.controls.correo.touched && form.controls.correo.hasError('required')) {
+          <mat-error>El correo es obligatorio</mat-error>
+        }
+        @if (form.controls.correo.touched && form.controls.correo.hasError('email')) {
+          <mat-error>Ingresá un correo válido</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Contraseña</mat-label>
+        <input
+          matInput
+          [type]="hidePassword ? 'password' : 'text'"
+          autocomplete="current-password"
+          formControlName="password"
+          [disabled]="loading"
+        />
+        <button
+          type="button"
+          mat-icon-button
+          matSuffix
+          [disabled]="loading"
+          (click)="hidePassword = !hidePassword"
+          [attr.aria-label]="hidePassword ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+        >
+          <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+        </button>
+        @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+          <mat-error>La contraseña es obligatoria</mat-error>
+        }
+      </mat-form-field>
+
+      @if (errorMessage) {
+        <div class="error" role="alert">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage }}</span>
+        </div>
+      }
+
+      <button
+        class="submit"
+        mat-raised-button
+        color="primary"
+        type="submit"
+        [disabled]="loading || form.invalid"
+      >
+        @if (loading) {
+          <mat-spinner diameter="18"></mat-spinner>
+          <span>Ingresando…</span>
+        } @else {
+          <span>Iniciar sesión</span>
+        }
+      </button>
+
+      <div class="help">Sistema de Workflow v1.0</div>
+    </form>
+  </mat-card>
+</div>
+

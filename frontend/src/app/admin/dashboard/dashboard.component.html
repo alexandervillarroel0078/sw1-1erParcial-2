@@ -1,0 +1,105 @@
+<div class="dash">
+  @if (metrics$ | async; as m) {
+    <div class="metrics">
+      <mat-card class="metric metric--blue" appearance="outlined">
+        <div class="metric__label">Procesos activos</div>
+        <div class="metric__value">{{ m.procesosActivos }}</div>
+      </mat-card>
+
+      <mat-card class="metric metric--red" appearance="outlined">
+        <div class="metric__label">Tareas pendientes</div>
+        <div class="metric__value">{{ m.tareasPendientes }}</div>
+      </mat-card>
+
+      <mat-card class="metric metric--neutral" appearance="outlined">
+        <div class="metric__label">Políticas activas</div>
+        <div class="metric__value">{{ m.politicasActivas }}</div>
+      </mat-card>
+
+      <mat-card class="metric metric--yellow" appearance="outlined">
+        <div class="metric__label">Tiempo promedio</div>
+        <div class="metric__value">{{ m.tiempoPromedio }}</div>
+      </mat-card>
+    </div>
+  }
+
+  <div class="grid">
+    <mat-card class="panel" appearance="outlined">
+      <div class="panel__header">
+        <div class="panel__title">Procesos recientes</div>
+      </div>
+
+      <div class="table-wrap">
+        @if (procesosRecientes$ | async; as procesos) {
+          <table mat-table [dataSource]="procesos" class="table">
+          <ng-container matColumnDef="proceso">
+            <th mat-header-cell *matHeaderCellDef>Nombre del proceso</th>
+            <td mat-cell *matCellDef="let r">{{ r.proceso }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="cliente">
+            <th mat-header-cell *matHeaderCellDef>Cliente</th>
+            <td mat-cell *matCellDef="let r">{{ r.cliente }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let r">
+              <mat-chip
+                class="badge"
+                [ngClass]="'badge--' + estadoSemaforo(r.estado)"
+                selected
+              >
+                {{ estadoLabel(r.estado) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="tiempo">
+            <th mat-header-cell *matHeaderCellDef>Tiempo transcurrido</th>
+            <td mat-cell *matCellDef="let r">{{ r.tiempo }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="procesosColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: procesosColumns"></tr>
+          </table>
+        }
+      </div>
+    </mat-card>
+
+    <mat-card class="panel" appearance="outlined">
+      <div class="panel__header">
+        <div class="panel__title">Cuellos de botella detectados</div>
+      </div>
+
+      <div class="table-wrap">
+        @if (cuellosBotella$ | async; as cuellos) {
+          <table mat-table [dataSource]="cuellos" class="table">
+          <ng-container matColumnDef="actividad">
+            <th mat-header-cell *matHeaderCellDef>Actividad</th>
+            <td mat-cell *matCellDef="let r">{{ r.actividad }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="tiempoPromedio">
+            <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
+            <td mat-cell *matCellDef="let r">{{ r.tiempoPromedio }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="severidad">
+            <th mat-header-cell *matHeaderCellDef>Severidad</th>
+            <td mat-cell *matCellDef="let r">
+              <mat-chip class="badge" [ngClass]="'badge--' + r.severidad" selected>
+                {{ r.severidad | titlecase }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="cuellosColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: cuellosColumns"></tr>
+          </table>
+        }
+      </div>
+    </mat-card>
+  </div>
+</div>
+

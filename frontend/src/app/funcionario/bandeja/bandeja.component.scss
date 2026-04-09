@@ -1,0 +1,155 @@
+.contadores {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.contador {
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: center;
+
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.75;
+    margin-bottom: 6px;
+  }
+
+  &__value {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+}
+
+.contador--rojo .contador__value {
+  color: #e24b4a;
+}
+
+.contador--amarillo .contador__value {
+  color: #ef9f27;
+}
+
+.contador--verde .contador__value {
+  color: #639922;
+}
+
+.filtros {
+  width: 100%;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vacio {
+  text-align: center;
+  padding: 32px 16px;
+  opacity: 0.65;
+  margin: 0;
+}
+
+.tarjeta {
+  display: grid;
+  grid-template-columns: 6px 1fr;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.tarjeta__stripe {
+  min-height: 100%;
+}
+
+.stripe--pendiente {
+  background: #e24b4a;
+}
+
+.stripe--en_atencion {
+  background: #ef9f27;
+}
+
+.stripe--completado {
+  background: #639922;
+}
+
+.tarjeta__body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tarjeta__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tarjeta__actividad {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.tarjeta__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meta__k {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.65;
+  margin-bottom: 2px;
+}
+
+.meta__v {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.badge {
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.badge--pendiente {
+  background: rgba(226, 75, 74, 0.14) !important;
+  color: #e24b4a !important;
+}
+
+.badge--en_atencion {
+  background: rgba(239, 159, 39, 0.16) !important;
+  color: #ef9f27 !important;
+}
+
+.badge--completado {
+  background: rgba(99, 153, 34, 0.16) !important;
+  color: #639922 !important;
+}
+
+.tarjeta__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .contadores {
+    grid-template-columns: 1fr;
+  }
+
+  .tarjeta__meta {
+    grid-template-columns: 1fr;
+  }
+}

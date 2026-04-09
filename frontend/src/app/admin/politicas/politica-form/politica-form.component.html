@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>{{ titulo }}</h2>
+
+<div mat-dialog-content class="content">
+  <form [formGroup]="form" class="form">
+    <mat-form-field appearance="outline">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="nombre" />
+      @if (form.controls.nombre.touched && form.controls.nombre.hasError('required')) {
+        <mat-error>El nombre es obligatorio</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Subtítulo</mat-label>
+      <input matInput formControlName="subtitulo" />
+    </mat-form-field>
+
+    <div class="colors">
+      <div class="colors__label">Color tema</div>
+      <mat-radio-group class="colors__group" formControlName="colorTema">
+        @for (c of colores; track c.value) {
+          <mat-radio-button class="colors__item" [value]="c.value">
+            <span class="swatch" [style.background]="c.value" aria-hidden="true"></span>
+            <span>{{ c.label }}</span>
+          </mat-radio-button>
+        }
+      </mat-radio-group>
+    </div>
+  </form>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Cancelar</button>
+  <button mat-raised-button color="primary" type="button" (click)="save()">
+    Guardar
+  </button>
+</div>
+

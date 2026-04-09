@@ -1,0 +1,82 @@
+@if (vm$ | async; as vm) {
+  <div class="contadores">
+    <mat-card class="contador contador--rojo" appearance="outlined">
+      <div class="contador__label">Pendientes</div>
+      <div class="contador__value">{{ vm.pendientes }}</div>
+    </mat-card>
+    <mat-card class="contador contador--amarillo" appearance="outlined">
+      <div class="contador__label">En atención</div>
+      <div class="contador__value">{{ vm.enAtencion }}</div>
+    </mat-card>
+    <mat-card class="contador contador--verde" appearance="outlined">
+      <div class="contador__label">Completadas</div>
+      <div class="contador__value">{{ vm.completadas }}</div>
+    </mat-card>
+  </div>
+
+  <mat-button-toggle-group
+    class="filtros"
+    [formControl]="filtro"
+    aria-label="Filtrar tareas"
+  >
+    <mat-button-toggle value="todas">Todas</mat-button-toggle>
+    <mat-button-toggle value="pendiente">Pendientes</mat-button-toggle>
+    <mat-button-toggle value="en_atencion">En atención</mat-button-toggle>
+    <mat-button-toggle value="completado">Completadas</mat-button-toggle>
+  </mat-button-toggle-group>
+
+  <div class="lista">
+    @if (vm.lista.length === 0) {
+      <p class="vacio">No hay tareas en esta vista.</p>
+    }
+    @for (t of vm.lista; track t.id) {
+      <mat-card class="tarjeta" appearance="outlined">
+        <div class="tarjeta__stripe" [ngClass]="t.stripeClass"></div>
+        <div class="tarjeta__body">
+          <div class="tarjeta__head">
+            <h3 class="tarjeta__actividad">{{ t.actividadEtiqueta }}</h3>
+            <mat-chip class="badge" [ngClass]="t.badgeClass" selected>
+              {{ t.estadoLabel }}
+            </mat-chip>
+          </div>
+          <div class="tarjeta__meta">
+            <div class="meta">
+              <span class="meta__k">Política</span>
+              <span class="meta__v">{{ t.politicaNombre }}</span>
+            </div>
+            <div class="meta">
+              <span class="meta__k">Cliente</span>
+              <span class="meta__v">{{ t.clienteNombre ?? '—' }}</span>
+            </div>
+            <div class="meta">
+              <span class="meta__k">Días abierto</span>
+              <span class="meta__v">{{ t.diasAbierto ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="tarjeta__acciones">
+            @if (t.estado === 'pendiente') {
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                (click)="atender(t.id)"
+              >
+                Atender
+              </button>
+            }
+            @if (t.estado === 'en_atencion') {
+              <button
+                mat-stroked-button
+                color="accent"
+                type="button"
+                (click)="reportar(t.id)"
+              >
+                Reportar
+              </button>
+            }
+          </div>
+        </div>
+      </mat-card>
+    }
+  </div>
+}

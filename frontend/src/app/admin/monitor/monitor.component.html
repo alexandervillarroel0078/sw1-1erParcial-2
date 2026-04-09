@@ -1,0 +1,82 @@
+@if (vm$ | async; as vm) {
+  <mat-toolbar class="toolbar" color="primary">
+    <div class="toolbar__top">
+      <div class="toolbar__title">Monitor de Procesos</div>
+    </div>
+
+    <div class="toolbar__filters">
+      <mat-button-toggle-group
+        class="filtro-estado"
+        [formControl]="estadoFiltro"
+        aria-label="Filtrar por estado"
+      >
+        <mat-button-toggle value="todos">Todos</mat-button-toggle>
+        <mat-button-toggle value="iniciado">Iniciado</mat-button-toggle>
+        <mat-button-toggle value="en_proceso">En proceso</mat-button-toggle>
+        <mat-button-toggle value="demorado">Demorado</mat-button-toggle>
+        <mat-button-toggle value="completado">Completado</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <mat-form-field class="filtro-politica" appearance="outline">
+        <mat-label>Política</mat-label>
+        <mat-select [formControl]="politicaFiltro">
+          <mat-option value="todos">Todas</mat-option>
+          @for (p of vm.politicas; track p.id) {
+            <mat-option [value]="p.id">{{ p.nombre }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </mat-toolbar>
+
+  <p class="hint">Los datos se actualizan automáticamente cada 30 segundos.</p>
+
+  <div class="lista">
+    @if (vm.rows.length === 0) {
+      <div class="empty">No hay trámites que coincidan con los filtros.</div>
+    }
+    @for (row of vm.rows; track row.tramiteId) {
+      <mat-card class="card" appearance="outlined">
+        <div class="card__stripe" [style.background]="row.stripeColor"></div>
+        <div class="card__body">
+          <div class="card__head">
+            <div class="card__politica">{{ row.politicaNombre }}</div>
+            <mat-chip class="badge" [ngClass]="row.badgeClass" selected>
+              {{ row.estadoLabel }}
+            </mat-chip>
+          </div>
+
+          <div class="card__meta">
+            <div class="meta">
+              <span class="meta__label">Trámite</span>
+              <span class="meta__value">{{ row.tramiteId }}</span>
+            </div>
+            <div class="meta">
+              <span class="meta__label">Cliente</span>
+              <span class="meta__value">{{ row.clienteNombre }}</span>
+            </div>
+            <div class="meta">
+              <span class="meta__label">Tiempo</span>
+              <span class="meta__value">
+                {{ row.diasTranscurridos }}
+                {{ row.diasTranscurridos === 1 ? 'día' : 'días' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="actividad">
+            <span class="actividad__label">Actividad actual</span>
+            <span class="actividad__value">{{ row.actividadActual }}</span>
+          </div>
+
+          <mat-progress-bar
+            mode="determinate"
+            [value]="row.progreso"
+            [color]="row.progressColor"
+          ></mat-progress-bar>
+          <div class="progreso-pct">{{ row.progreso }}% avance</div>
+        </div>
+      </mat-card>
+    }
+  </div>
+}

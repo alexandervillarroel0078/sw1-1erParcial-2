@@ -1,0 +1,28 @@
+ export interface Nodo {
+  id: string;
+  tipo: 'START' | 'END' | 'ACTIVIDAD' | 'DECISION' | 'FORK_BAR' | 'JOIN_BAR';
+  etiqueta: string;
+  posicionX: number;
+  posicionY: number;
+  departamentoId?: string;
+  ancho?: number;
+  alto?: number;
+}
+
+export interface Arista {
+  id: string;
+  desdeNodoId: string;
+  haciaNodoId: string;
+  etiqueta?: string;
+}
+
+export interface Politica {
+  id?: string;
+  nombre: string;
+  subtitulo?: string;
+  colorTema?: string;
+  activa: boolean;
+  fechaCreacion?: Date;
+  nodos?: Nodo[];
+  aristas?: Arista[];
+}

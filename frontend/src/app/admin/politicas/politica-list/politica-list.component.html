@@ -1,0 +1,86 @@
+<mat-toolbar class="toolbar" color="primary">
+  <div class="toolbar__title">Políticas de Negocio</div>
+  <span class="spacer"></span>
+
+  <mat-form-field class="toolbar__search" appearance="outline">
+    <mat-label>Buscar</mat-label>
+    <input matInput [formControl]="search" placeholder="Nombre o subtítulo" />
+    @if (search.value) {
+      <button
+        mat-icon-button
+        matSuffix
+        type="button"
+        aria-label="Limpiar búsqueda"
+        (click)="search.setValue('')"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </mat-form-field>
+
+  <button mat-raised-button color="accent" type="button" (click)="nuevaPolitica()">
+    <mat-icon>add</mat-icon>
+    Nueva Política
+  </button>
+</mat-toolbar>
+
+<div class="page">
+  @if (vm$ | async; as vm) {
+    <div class="grid">
+      @for (p of vm.cards; track p.id ?? p.nombre) {
+        <mat-card class="card" appearance="outlined">
+          <div class="card__stripe" [style.background]="p.colorTema || '#1976d2'"></div>
+
+          <div class="card__body">
+            <div class="card__header">
+              <div class="card__title">{{ p.nombre }}</div>
+              <span
+                class="status"
+                [ngClass]="p.activa ? 'status--active' : 'status--inactive'"
+              >
+                {{ estadoLabel(p.activa) }}
+              </span>
+            </div>
+
+            @if (p.subtitulo) {
+              <div class="card__subtitle">{{ p.subtitulo }}</div>
+            }
+
+            <div class="meta">
+              <div class="meta__item">
+                <span class="meta__label">Nodos</span>
+                <span class="meta__value">{{ p.nodosCount }}</span>
+              </div>
+              <div class="meta__item">
+                <span class="meta__label">Departamentos</span>
+                <span class="meta__value">{{ p.depsCount }}</span>
+              </div>
+              <div class="meta__item">
+                <span class="meta__label">Creación</span>
+                <span class="meta__value">{{ p.fechaCreacion | date: 'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button mat-stroked-button color="primary" type="button" (click)="irEditor(p)">
+                <mat-icon>edit</mat-icon>
+                Editar
+              </button>
+
+              <button mat-button type="button" (click)="activarDesactivar(p)">
+                <mat-icon>{{ p.activa ? 'toggle_off' : 'toggle_on' }}</mat-icon>
+                {{ p.activa ? 'Desactivar' : 'Activar' }}
+              </button>
+
+              <button mat-button color="warn" type="button" (click)="eliminar(p)">
+                <mat-icon>delete</mat-icon>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </mat-card>
+      }
+    </div>
+  }
+</div>
+

@@ -1,0 +1,135 @@
+<div class="nuevo-tramite">
+  <h1 class="nuevo-tramite__titulo">Iniciar nuevo trámite</h1>
+
+  <form [formGroup]="form" (ngSubmit)="iniciarTramite()" class="nuevo-tramite__form">
+    <!-- SECCIÓN 1 — Datos del cliente -->
+    <mat-card class="nuevo-tramite__card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Datos del cliente</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="nuevo-tramite__grid">
+          <mat-form-field appearance="outline" class="nuevo-tramite__campo nuevo-tramite__campo--full">
+            <mat-label>Nombre completo</mat-label>
+            <input
+              matInput
+              formControlName="nombreCompleto"
+              autocomplete="name"
+            />
+            @if (
+              form.controls.nombreCompleto.invalid &&
+              form.controls.nombreCompleto.touched
+            ) {
+              <mat-error>El nombre completo es obligatorio.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="nuevo-tramite__campo">
+            <mat-label>Teléfono</mat-label>
+            <input
+              matInput
+              formControlName="telefono"
+              type="tel"
+              autocomplete="tel"
+            />
+            @if (
+              form.controls.telefono.invalid && form.controls.telefono.touched
+            ) {
+              <mat-error>El teléfono es obligatorio.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="nuevo-tramite__campo">
+            <mat-label>Email</mat-label>
+            <input
+              matInput
+              formControlName="email"
+              type="email"
+              autocomplete="email"
+            />
+            @if (form.controls.email.invalid && form.controls.email.touched) {
+              <mat-error>Ingrese un email válido.</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- SECCIÓN 2 — Selección de política -->
+    <mat-card class="nuevo-tramite__card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Seleccionar política</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field appearance="outline" class="nuevo-tramite__campo nuevo-tramite__campo--full">
+          <mat-label>Política activa</mat-label>
+          <mat-select
+            formControlName="politicaId"
+            placeholder="Elija una política"
+          >
+            @for (pol of politicasActivas$ | async; track pol.id) {
+              <mat-option [value]="pol.id">{{ pol.nombre }}</mat-option>
+            }
+          </mat-select>
+          @if (
+            form.controls.politicaId.invalid && form.controls.politicaId.touched
+          ) {
+            <mat-error>Debe seleccionar una política.</mat-error>
+          }
+        </mat-form-field>
+
+        @if (politicaSeleccionada$ | async; as pol) {
+          <section class="nuevo-tramite__detalle" aria-live="polite">
+            <h2 class="nuevo-tramite__pol-nombre">{{ pol.nombre }}</h2>
+            @if (pol.subtitulo) {
+              <p class="nuevo-tramite__pol-sub">{{ pol.subtitulo }}</p>
+            }
+
+            <h3 class="nuevo-tramite__subtitulo-seccion">Actividades</h3>
+            <ol class="nuevo-tramite__actividades">
+              @for (nombre of listaActividades(pol); track $index) {
+                <li>{{ nombre }}</li>
+              }
+            </ol>
+
+            <p class="nuevo-tramite__tiempo">
+              <mat-icon class="nuevo-tramite__tiempo-icon" aria-hidden="true"
+                >schedule</mat-icon
+              >
+              <span>Tiempo estimado: <strong>{{ tiempoEstimado(pol) }}</strong></span>
+            </p>
+          </section>
+        } @else {
+          <p class="nuevo-tramite__ayuda">
+            Elija una política para ver sus actividades y el tiempo estimado.
+          </p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <div class="nuevo-tramite__acciones">
+      <button
+        mat-stroked-button
+        type="button"
+        color="primary"
+        (click)="cancelar()"
+        [disabled]="enviando()"
+      >
+        Cancelar
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        color="primary"
+        [disabled]="enviando()"
+      >
+        @if (enviando()) {
+          <span class="nuevo-tramite__spinner">
+            <mat-spinner diameter="22" />
+          </span>
+        }
+        Iniciar trámite
+      </button>
+    </div>
+  </form>
+</div>
