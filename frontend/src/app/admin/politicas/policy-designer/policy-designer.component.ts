@@ -147,6 +147,9 @@ export class PolicyDesignerComponent {
   private politicaId: string | null = null;
   private politicaBase: Politica | null = null;
 
+  /** Id de política en ruta (para navegar al diseñador de formulario por actividad). */
+  readonly politicaRutaId = signal<string | null>(null);
+
   private historialPasado: ReturnType<typeof snapshotFrom>[] = [];
   private historialFuturo: ReturnType<typeof snapshotFrom>[] = [];
 
@@ -486,6 +489,17 @@ export class PolicyDesignerComponent {
 
   volver(): void {
     void this.router.navigate(['/admin/politicas']);
+  }
+
+  irADisenarFormulario(nodoActividadId: string): void {
+    const pid = this.politicaRutaId();
+    if (!pid) return;
+    void this.router.navigate([
+      '/admin/politicas',
+      pid,
+      'formulario',
+      nodoActividadId,
+    ]);
   }
 
   onNombrePoliticaBlur(): void {
@@ -1041,6 +1055,7 @@ export class PolicyDesignerComponent {
     this.historialPasado = [];
     this.historialFuturo = [];
     this.politicaId = p?.id ? p.id : idRuta || null;
+    this.politicaRutaId.set(this.politicaId);
     this.politicaBase = p?.id ? p : null;
     this.nombrePolitica.set(p?.nombre?.trim() ? p.nombre : 'Nueva política');
     if (p?.nodos?.length) {

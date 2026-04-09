@@ -278,6 +278,16 @@
                     (blur)="commitPropiedadesNodo()"
                   />
                 </mat-form-field>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="pd-props__form-designer"
+                  [disabled]="!politicaRutaId()"
+                  (click)="irADisenarFormulario(sn.id)"
+                >
+                  <mat-icon>dynamic_form</mat-icon>
+                  Diseñar formulario
+                </button>
               }
               <button
                 mat-stroked-button

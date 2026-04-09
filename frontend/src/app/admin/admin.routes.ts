@@ -24,6 +24,13 @@ export const ADMIN_ROUTES: Routes = [
           ),
       },
       {
+        path: 'politicas/:politicaId/formulario/:nodoId',
+        loadComponent: () =>
+          import('./politicas/formulario-designer/formulario-designer.component').then(
+            (m) => m.FormularioDesignerComponent,
+          ),
+      },
+      {
         path: 'politicas/:id/editor',
         loadComponent: () =>
           import('./politicas/policy-designer/policy-designer.component').then(
