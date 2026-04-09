@@ -1,0 +1,600 @@
+<div class="pd-root">
+  <mat-toolbar class="pd-toolbar" color="primary">
+    <button mat-icon-button type="button" (click)="volver()" aria-label="Volver">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <mat-form-field class="pd-toolbar__nombre" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Nombre de la política</mat-label>
+      <input
+        matInput
+        [ngModel]="nombrePolitica()"
+        (ngModelChange)="setNombrePolitica($event)"
+        (blur)="onNombrePoliticaBlur()"
+      />
+    </mat-form-field>
+    <span class="pd-toolbar__spacer"></span>
+    <button mat-stroked-button type="button" class="pd-toolbar__btn" (click)="guardar()">
+      Guardar
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      class="pd-toolbar__btn"
+      (click)="deshacer()"
+      [disabled]="!puedeDeshacer()"
+    >
+      Deshacer
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      class="pd-toolbar__btn"
+      (click)="rehacer()"
+      [disabled]="!puedeRehacer()"
+    >
+      Rehacer
+    </button>
+    <button mat-stroked-button type="button" class="pd-toolbar__btn" (click)="validar()">
+      Validar
+    </button>
+  </mat-toolbar>
+
+  <div class="pd-body">
+    <!-- Panel izquierdo: paleta -->
+    <aside class="pd-palette" aria-label="Nodos disponibles">
+      <h2 class="pd-palette__title">Nodos</h2>
+      <p class="pd-palette__hint">Clic para agregar al centro del lienzo</p>
+      @for (item of tiposPaleta; track item.tipo) {
+        <button
+          type="button"
+          class="pd-palette__item"
+          [disabled]="item.tipo === 'START' && tieneStart()"
+          [matTooltip]="
+            item.tipo === 'START' && tieneStart()
+              ? 'Solo puede haber un START'
+              : 'Agregar ' + item.label
+          "
+          (click)="agregarNodo(item.tipo)"
+        >
+          <span class="pd-palette__preview" [attr.data-tipo]="item.tipo"></span>
+          <span class="pd-palette__label">{{ item.label }}</span>
+        </button>
+      }
+    </aside>
+
+    <!-- Canvas central -->
+    <div class="pd-canvas-wrap">
+      @if (modoConexion()) {
+        <div class="pd-canvas__banner">
+          Elegí el puerto <strong>entrada</strong> de otro nodo para completar la conexión
+          (Esc cancela)
+        </div>
+      }
+      <svg
+        class="pd-svg"
+        (wheel)="onCanvasWheel($event)"
+        (click)="clickCanvas($event)"
+      >
+        <defs>
+          <pattern
+            id="pd-grid-dots"
+            width="20"
+            height="20"
+            patternUnits="userSpaceOnUse"
+          >
+            <circle cx="2" cy="2" r="1.2" class="pd-grid-dot" />
+          </pattern>
+        </defs>
+        <g
+          #viewportG
+          [attr.transform]="transformViewport()"
+        >
+          <rect
+            class="pd-canvas-bg"
+            x="-8000"
+            y="-8000"
+            width="16000"
+            height="16000"
+            fill="url(#pd-grid-dots)"
+            (pointerdown)="onFondoPointerDown($event)"
+          />
+          @for (ar of aristas(); track ar.id) {
+            <path
+              class="pd-arista"
+              fill="none"
+              [attr.d]="pathArista(ar)"
+            />
+          }
+          @for (n of nodos(); track n.id) {
+            <g
+              class="pd-node-root"
+              [class.pd-node-root--selected]="seleccionId() === n.id"
+              [attr.transform]="'translate(' + n.x + ',' + n.y + ')'"
+            >
+              <g cdkDrag (cdkDragEnded)="onDragEnd($event, n)">
+                <g
+                  cdkDragHandle
+                  class="pd-drag-handle"
+                  (click)="seleccionarNodo(n, $event)"
+                >
+                  @switch (n.tipo) {
+                    @case ('START') {
+                      <circle cx="0" cy="0" r="24" class="pd-shape pd-shape--start" />
+                    }
+                    @case ('END') {
+                      <circle cx="0" cy="0" r="26" class="pd-shape pd-shape--end-outer" />
+                      <circle cx="0" cy="0" r="18" class="pd-shape pd-shape--end-inner" />
+                    }
+                    @case ('ACTIVIDAD') {
+                      <rect
+                        x="-64"
+                        y="-28"
+                        width="128"
+                        height="56"
+                        rx="10"
+                        class="pd-shape pd-shape--actividad"
+                      />
+                    }
+                    @case ('DECISION') {
+                      <polygon
+                        points="0,-44 44,0 0,44 -44,0"
+                        class="pd-shape pd-shape--decision"
+                      />
+                    }
+                    @case ('FORK_BAR') {
+                      <rect
+                        x="-60"
+                        y="-10"
+                        width="120"
+                        height="20"
+                        rx="3"
+                        class="pd-shape pd-shape--bar"
+                      />
+                    }
+                    @case ('JOIN_BAR') {
+                      <rect
+                        x="-60"
+                        y="-10"
+                        width="120"
+                        height="20"
+                        rx="3"
+                        class="pd-shape pd-shape--bar"
+                      />
+                    }
+                  }
+                  <text
+                    class="pd-node-label"
+                    text-anchor="middle"
+                    dy="4"
+                    pointer-events="none"
+                    [attr.fill]="n.tipo === 'DECISION' ? '#1a1a1a' : '#ffffff'"
+                  >
+                    {{
+                      n.etiqueta.length > 14
+                        ? n.etiqueta.slice(0, 12) + '…'
+                        : n.etiqueta
+                    }}
+                  </text>
+                </g>
+                @let pin = puertoLocal(n, 'in');
+                @let pout = puertoLocal(n, 'out');
+                <circle
+                  class="pd-port pd-port--in"
+                  [class.pd-port--link-target]="modoConexion()"
+                  [attr.cx]="pin.cx"
+                  [attr.cy]="pin.cy"
+                  r="6"
+                  (click)="onPuertoClick(n, 'in', $event)"
+                />
+                <circle
+                  class="pd-port pd-port--out"
+                  [class.pd-port--link-origin]="puertoOrigenActivo(n)"
+                  [attr.cx]="pout.cx"
+                  [attr.cy]="pout.cy"
+                  r="6"
+                  (click)="onPuertoClick(n, 'out', $event)"
+                />
+              </g>
+            </g>
+          }
+        </g>
+      </svg>
+    </div>
+
+    <!-- Panel derecho: pestañas -->
+    <aside class="pd-props" aria-label="Panel del diseñador">
+      <mat-tab-group
+        class="pd-tabs"
+        [selectedIndex]="tabPanelDerecho()"
+        (selectedIndexChange)="onTabDerechoChange($event)"
+        animationDuration="200ms"
+      >
+        <mat-tab label="Propiedades">
+          <div class="pd-tab-body">
+            <h2 class="pd-props__title">Propiedades</h2>
+            @if (nodoSeleccionado(); as sn) {
+              <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+              <mat-form-field appearance="outline" class="pd-props__field">
+                <mat-label>Nombre / etiqueta</mat-label>
+                <input
+                  matInput
+                  [ngModel]="sn.etiqueta"
+                  (ngModelChange)="patchEtiqueta($event)"
+                  (blur)="commitPropiedadesNodo()"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="pd-props__field">
+                <mat-label>Departamento</mat-label>
+                <mat-select
+                  [ngModel]="sn.departamento ?? ''"
+                  (ngModelChange)="patchDepartamento($event)"
+                  (closed)="commitPropiedadesNodo()"
+                >
+                  <mat-option value="">— Sin asignar —</mat-option>
+                  @for (d of departamentos$ | async; track d.id) {
+                    @if (d.activo) {
+                      <mat-option [value]="d.id">{{ d.nombre }}</mat-option>
+                    }
+                  }
+                </mat-select>
+              </mat-form-field>
+              @if (sn.tipo === 'ACTIVIDAD') {
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>SLA (horas)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    step="1"
+                    [ngModel]="sn.slaHoras ?? null"
+                    (ngModelChange)="patchSla($event)"
+                    (blur)="commitPropiedadesNodo()"
+                  />
+                </mat-form-field>
+              }
+              <button
+                mat-stroked-button
+                color="warn"
+                type="button"
+                class="pd-props__delete"
+                [disabled]="sn.tipo === 'START'"
+                (click)="eliminarNodoSeleccionado()"
+              >
+                Eliminar nodo
+              </button>
+            } @else {
+              <p class="pd-props__empty">Seleccioná un nodo</p>
+            }
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Asistente">
+          <div class="pd-tab-body">
+            <mat-button-toggle-group
+              class="pd-asistente-toggle"
+              [ngModel]="asistenteSub()"
+              (ngModelChange)="asistenteSub.set($event)"
+              hideSingleSelectionIndicator
+            >
+              <mat-button-toggle value="wizard">Flujo asistido</mat-button-toggle>
+              <mat-button-toggle value="ia">IA</mat-button-toggle>
+            </mat-button-toggle-group>
+
+            @if (asistenteSub() === 'wizard') {
+            <div class="pd-wizard">
+            <h2 class="pd-props__title">Asistente de flujo</h2>
+            <p class="pd-wizard__hint">
+              Elegí un nodo origen en el canvas; el asistente agrega elementos a la
+              derecha o en paralelo.
+            </p>
+            <p class="pd-wizard__paso">Paso {{ wizardPaso() }} de 3</p>
+
+            @if (!nodoSeleccionado()) {
+              <p class="pd-props__empty">Seleccioná un nodo para comenzar</p>
+            } @else {
+              @if (wizardPaso() === 1) {
+                <p class="pd-wizard__pregunta">¿Qué agregás?</p>
+                <div class="pd-wizard__opciones">
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    class="pd-wizard__btn"
+                    (click)="wizardElegirAgregar('ACTIVIDAD')"
+                  >
+                    ACTIVIDAD
+                  </button>
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    type="button"
+                    class="pd-wizard__btn"
+                    (click)="wizardElegirAgregar('DECISION')"
+                  >
+                    DECISIÓN
+                  </button>
+                </div>
+              }
+
+              @if (wizardPaso() === 2 && wizardAddTipo() === 'ACTIVIDAD') {
+                <p class="pd-wizard__pregunta">¿Cómo continúa el flujo?</p>
+                <div class="pd-wizard__grid4">
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    [class.pd-wizard__pick]="wizardFlujo() === 'directo'"
+                    (click)="wizardElegirFlujo('directo')"
+                  >
+                    Directo
+                  </button>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    [class.pd-wizard__pick]="wizardFlujo() === 'paralelo'"
+                    (click)="wizardElegirFlujo('paralelo')"
+                  >
+                    Paralelo
+                  </button>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    [class.pd-wizard__pick]="wizardFlujo() === 'existente'"
+                    (click)="wizardElegirFlujo('existente')"
+                  >
+                    Ir a existente
+                  </button>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    [class.pd-wizard__pick]="wizardFlujo() === 'fin'"
+                    (click)="wizardElegirFlujo('fin')"
+                  >
+                    Fin
+                  </button>
+                </div>
+              }
+
+              @if (wizardPaso() === 2 && wizardAddTipo() === 'DECISION') {
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Condición</mat-label>
+                  <input
+                    matInput
+                    placeholder='ej: ¿Documentos completos?'
+                    [ngModel]="wizardCondicion()"
+                    (ngModelChange)="wizardCondicion.set($event)"
+                  />
+                </mat-form-field>
+              }
+
+              @if (wizardPaso() === 3 && wizardAddTipo() === 'ACTIVIDAD') {
+                @if (wizardFlujo() === 'directo' || wizardFlujo() === 'fin') {
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Nombre de la actividad</mat-label>
+                    <input
+                      matInput
+                      [ngModel]="wizardNombreActividad()"
+                      (ngModelChange)="wizardNombreActividad.set($event)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Departamento</mat-label>
+                    <mat-select
+                      [ngModel]="wizardDeptoActividad()"
+                      (ngModelChange)="wizardDeptoActividad.set($event)"
+                    >
+                      <mat-option value="">— Elegir —</mat-option>
+                      @for (d of departamentos$ | async; track d.id) {
+                        @if (d.activo) {
+                          <mat-option [value]="d.id!">{{ d.nombre }}</mat-option>
+                        }
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                @if (wizardFlujo() === 'paralelo') {
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Cantidad de ramas</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="2"
+                      max="5"
+                      [ngModel]="wizardParaleloCount()"
+                      (ngModelChange)="wizardParaleloCountChange(+$event)"
+                    />
+                  </mat-form-field>
+                  @for (item of wizardParaleloItems(); track $index) {
+                    <div class="pd-wizard__rama">
+                      <span class="pd-wizard__rama-t">Rama {{ $index + 1 }}</span>
+                      <mat-form-field appearance="outline" class="pd-props__field">
+                        <mat-label>Nombre</mat-label>
+                        <input
+                          matInput
+                          [ngModel]="item.nombre"
+                          (ngModelChange)="patchParaleloItem($index, 'nombre', $event)"
+                        />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="pd-props__field">
+                        <mat-label>Depto</mat-label>
+                        <mat-select
+                          [ngModel]="item.depto"
+                          (ngModelChange)="patchParaleloItem($index, 'depto', $event)"
+                        >
+                          <mat-option value="">— Elegir —</mat-option>
+                          @for (d of departamentos$ | async; track d.id) {
+                            @if (d.activo) {
+                              <mat-option [value]="d.id!">{{ d.nombre }}</mat-option>
+                            }
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+                  }
+                }
+                @if (wizardFlujo() === 'existente') {
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Actividad existente</mat-label>
+                    <mat-select
+                      [ngModel]="wizardExistenteId()"
+                      (ngModelChange)="wizardExistenteId.set($event)"
+                    >
+                      @for (nx of actividadesParaEnlace(); track nx.id) {
+                        <mat-option [value]="nx.id">{{ nx.etiqueta }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+              }
+
+              @if (wizardPaso() === 3 && wizardAddTipo() === 'DECISION') {
+                <h3 class="pd-wizard__sub">Rama Sí</h3>
+                <mat-checkbox
+                  [ngModel]="wizardSiEsFin()"
+                  (ngModelChange)="wizardSiEsFin.set($event)"
+                >
+                  Terminar en FIN
+                </mat-checkbox>
+                @if (!wizardSiEsFin()) {
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Nombre actividad</mat-label>
+                    <input
+                      matInput
+                      [ngModel]="wizardSiNombre()"
+                      (ngModelChange)="wizardSiNombre.set($event)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Departamento</mat-label>
+                    <mat-select
+                      [ngModel]="wizardSiDepto()"
+                      (ngModelChange)="wizardSiDepto.set($event)"
+                    >
+                      <mat-option value="">— Elegir —</mat-option>
+                      @for (d of departamentos$ | async; track d.id) {
+                        @if (d.activo) {
+                          <mat-option [value]="d.id!">{{ d.nombre }}</mat-option>
+                        }
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                <h3 class="pd-wizard__sub">Rama No</h3>
+                <mat-radio-group
+                  class="pd-wizard__radio"
+                  [ngModel]="wizardNoModo()"
+                  (ngModelChange)="wizardNoModo.set($event)"
+                >
+                  <mat-radio-button value="actividad">Actividad</mat-radio-button>
+                  <mat-radio-button value="fin">Fin</mat-radio-button>
+                  <mat-radio-button value="bucle">Bucle (volver a decisión)</mat-radio-button>
+                </mat-radio-group>
+                @if (wizardNoModo() === 'actividad') {
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Nombre actividad</mat-label>
+                    <input
+                      matInput
+                      [ngModel]="wizardNoNombre()"
+                      (ngModelChange)="wizardNoNombre.set($event)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="pd-props__field">
+                    <mat-label>Departamento</mat-label>
+                    <mat-select
+                      [ngModel]="wizardNoDepto()"
+                      (ngModelChange)="wizardNoDepto.set($event)"
+                    >
+                      <mat-option value="">— Elegir —</mat-option>
+                      @for (d of departamentos$ | async; track d.id) {
+                        @if (d.activo) {
+                          <mat-option [value]="d.id!">{{ d.nombre }}</mat-option>
+                        }
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+              }
+
+              @if (wizardPaso() > 1) {
+                <div class="pd-wizard__nav">
+                  <button mat-button type="button" (click)="wizardAnterior()">
+                    Anterior
+                  </button>
+                  @if (wizardPaso() === 2) {
+                    <button
+                      mat-flat-button
+                      color="primary"
+                      type="button"
+                      (click)="wizardSiguiente()"
+                    >
+                      Siguiente
+                    </button>
+                  }
+                  @if (wizardPaso() === 3) {
+                    <button
+                      mat-flat-button
+                      color="accent"
+                      type="button"
+                      (click)="wizardAplicar()"
+                    >
+                      Aplicar al diagrama
+                    </button>
+                  }
+                </div>
+              }
+            }
+            </div>
+            } @else {
+            <div class="pd-chat">
+            <h2 class="pd-props__title">Chat IA</h2>
+            <p class="pd-chat__hint">
+              Instrucciones de ejemplo: «conecta validación con aprobación», «agrega una
+              actividad de revisión técnica»
+            </p>
+            <div class="pd-chat__lista" role="log" aria-live="polite">
+              @for (m of chatMensajes(); track $index) {
+                <div
+                  class="pd-chat__msg"
+                  [class.pd-chat__msg--user]="m.rol === 'usuario'"
+                >
+                  {{ m.texto }}
+                </div>
+              }
+            </div>
+            <div class="pd-chat__input-row">
+              <mat-form-field appearance="outline" class="pd-chat__field">
+                <mat-label>Instrucción</mat-label>
+                <input
+                  matInput
+                  placeholder="conecta validación con aprobación"
+                  [ngModel]="chatBorrador()"
+                  (ngModelChange)="chatBorrador.set($event)"
+                  (keydown.enter)="$event.preventDefault(); chatEnviar()"
+                />
+              </mat-form-field>
+              <button
+                mat-icon-button
+                type="button"
+                [color]="escuchandoVoz() ? 'warn' : undefined"
+                [attr.aria-pressed]="escuchandoVoz()"
+                aria-label="Dictar"
+                (click)="alternarMicrofono()"
+              >
+                <mat-icon>{{ escuchandoVoz() ? 'mic' : 'mic_none' }}</mat-icon>
+              </button>
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="chatEnviar()"
+              >
+                Enviar
+              </button>
+            </div>
+            </div>
+            }
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </aside>
+  </div>
+</div>

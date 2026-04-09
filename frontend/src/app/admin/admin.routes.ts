@@ -26,7 +26,7 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'politicas/:id/editor',
         loadComponent: () =>
-          import('./politicas/policy-designer.component').then(
+          import('./politicas/policy-designer/policy-designer.component').then(
             (m) => m.PolicyDesignerComponent,
           ),
       },
