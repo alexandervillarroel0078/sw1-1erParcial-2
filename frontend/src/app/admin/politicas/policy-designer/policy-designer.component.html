@@ -1,9 +1,21 @@
 <div class="pd-root">
-  <mat-toolbar class="pd-toolbar" color="primary">
-    <button mat-icon-button type="button" (click)="volver()" aria-label="Volver">
+  <header class="pd-toolbar" role="toolbar" aria-label="Acciones del diseñador">
+    <button
+      mat-button
+      type="button"
+      class="pd-toolbar__volver"
+      (click)="volver()"
+      aria-label="Volver a políticas"
+    >
       <mat-icon>arrow_back</mat-icon>
+      Volver
     </button>
-    <mat-form-field class="pd-toolbar__nombre" appearance="outline" subscriptSizing="dynamic">
+
+    <mat-form-field
+      class="pd-toolbar__nombre"
+      appearance="outline"
+      subscriptSizing="dynamic"
+    >
       <mat-label>Nombre de la política</mat-label>
       <input
         matInput
@@ -12,32 +24,47 @@
         (blur)="onNombrePoliticaBlur()"
       />
     </mat-form-field>
-    <span class="pd-toolbar__spacer"></span>
-    <button mat-stroked-button type="button" class="pd-toolbar__btn" (click)="guardar()">
-      Guardar
-    </button>
-    <button
-      mat-stroked-button
-      type="button"
-      class="pd-toolbar__btn"
-      (click)="deshacer()"
-      [disabled]="!puedeDeshacer()"
-    >
-      Deshacer
-    </button>
-    <button
-      mat-stroked-button
-      type="button"
-      class="pd-toolbar__btn"
-      (click)="rehacer()"
-      [disabled]="!puedeRehacer()"
-    >
-      Rehacer
-    </button>
-    <button mat-stroked-button type="button" class="pd-toolbar__btn" (click)="validar()">
-      Validar
-    </button>
-  </mat-toolbar>
+
+    <div class="pd-toolbar__actions">
+      <button
+        mat-stroked-button
+        type="button"
+        class="pd-toolbar__action"
+        (click)="deshacer()"
+        [disabled]="!puedeDeshacer()"
+      >
+        Deshacer
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        class="pd-toolbar__action"
+        (click)="rehacer()"
+        [disabled]="!puedeRehacer()"
+      >
+        Rehacer
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        class="pd-toolbar__action pd-toolbar__action--validar"
+        (click)="validar()"
+      >
+        <mat-icon class="pd-toolbar__btn-icon">check_circle</mat-icon>
+        Validar
+      </button>
+      <button
+        mat-raised-button
+        color="primary"
+        type="button"
+        class="pd-toolbar__action pd-toolbar__action--guardar"
+        (click)="guardar()"
+      >
+        <mat-icon class="pd-toolbar__btn-icon">save</mat-icon>
+        Guardar
+      </button>
+    </div>
+  </header>
 
   <div class="pd-body">
     <!-- Panel izquierdo: paleta -->

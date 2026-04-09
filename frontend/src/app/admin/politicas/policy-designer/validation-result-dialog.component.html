@@ -1,0 +1,75 @@
+<h2 mat-dialog-title class="vd-title">Validación del flujo</h2>
+
+<mat-dialog-content class="vd-content">
+  <section class="vd-block vd-block--error" aria-label="Errores">
+    <h3 class="vd-block__head">
+      <mat-icon class="vd-block__icon" aria-hidden="true">error</mat-icon>
+      Errores
+    </h3>
+    @if (data.errores.length === 0) {
+      <p class="vd-block__empty">Ninguno</p>
+    } @else {
+      <ul class="vd-list">
+        @for (t of data.errores; track $index) {
+          <li class="vd-list__item">
+            <mat-icon class="vd-item-icon vd-item-icon--error" aria-hidden="true"
+              >cancel</mat-icon
+            >
+            {{ t }}
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section class="vd-block vd-block--warn" aria-label="Advertencias">
+    <h3 class="vd-block__head">
+      <mat-icon class="vd-block__icon" aria-hidden="true">warning</mat-icon>
+      Advertencias
+    </h3>
+    @if (data.advertencias.length === 0) {
+      <p class="vd-block__empty">Ninguna</p>
+    } @else {
+      <ul class="vd-list">
+        @for (t of data.advertencias; track $index) {
+          <li class="vd-list__item">
+            <mat-icon class="vd-item-icon vd-item-icon--warn" aria-hidden="true"
+              >warning</mat-icon
+            >
+            {{ t }}
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section class="vd-block vd-block--ok" aria-label="Aspectos correctos">
+    <h3 class="vd-block__head">
+      <mat-icon class="vd-block__icon" aria-hidden="true">check_circle</mat-icon>
+      Correcto
+    </h3>
+    @if (data.correcto.length === 0) {
+      <p class="vd-block__empty">—</p>
+    } @else {
+      <ul class="vd-list">
+        @for (t of data.correcto; track $index) {
+          <li class="vd-list__item">
+            <mat-icon class="vd-item-icon vd-item-icon--ok" aria-hidden="true"
+              >check_circle</mat-icon
+            >
+            {{ t }}
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="vd-actions">
+  @if (!data.tieneErrores) {
+    <button mat-flat-button type="button" color="primary" (click)="guardarDeTodasFormas()">
+      Guardar de todas formas
+    </button>
+  }
+  <button mat-stroked-button type="button" (click)="cerrar()">Cerrar</button>
+</mat-dialog-actions>

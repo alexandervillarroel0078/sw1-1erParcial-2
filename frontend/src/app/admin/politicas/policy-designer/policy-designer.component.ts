@@ -20,14 +20,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { map, switchMap } from 'rxjs';
+import { map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import type { Arista, Nodo, Politica } from '../../../core/models/politica.model';
@@ -46,6 +46,11 @@ import {
   posicionParalelas,
   posicionFinDesde,
 } from './policy-designer-layout';
+import {
+  buildValidation as buildValidationFlujo,
+  type ValidacionFlujoResultado,
+} from './policy-designer-validation';
+import { ValidationResultDialogComponent } from './validation-result-dialog.component';
 
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
@@ -99,7 +104,6 @@ type RecVoz = {
     FormsModule,
     DragDropModule,
     AsyncPipe,
-    MatToolbarModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -122,6 +126,7 @@ export class PolicyDesignerComponent {
   private readonly politicaService = inject(PoliticaService);
   private readonly departamentoService = inject(DepartamentoService);
   private readonly snack = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly viewportRef = viewChild<ElementRef<SVGGElement>>('viewportG');
@@ -396,20 +401,14 @@ export class PolicyDesignerComponent {
       });
       return;
     }
-    const base = this.politicaBase ?? ({} as Politica);
-    const politica: Politica = {
-      ...base,
-      id: this.politicaId,
-      nombre: this.nombrePolitica(),
-      activa: base.activa ?? true,
-      nodos: this.nodos().map(mapCanvasToNodo),
-      aristas: this.aristas().map((a) => ({ ...a })) as Arista[],
-    };
-    this.politicaService
-      .actualizarPolitica(this.politicaId, politica)
-      .subscribe(() => {
-        this.snack.open('Política guardada', 'Cerrar', { duration: 2500 });
+    const v = this.buildValidation(this.nodos(), this.aristas());
+    if (v.tieneErrores) {
+      this.snack.open('Corregí los errores antes de guardar', 'Cerrar', {
+        duration: 4500,
       });
+      return;
+    }
+    this.ejecutarGuardadoPolitica();
   }
 
   deshacer(): void {
@@ -429,24 +428,60 @@ export class PolicyDesignerComponent {
   }
 
   validar(): void {
-    const nodos = this.nodos();
-    const errores: string[] = [];
-    if (!nodos.some((n) => n.tipo === 'START')) errores.push('Falta nodo START');
-    if (!nodos.some((n) => n.tipo === 'END')) errores.push('Falta nodo END');
-    for (const n of nodos) {
-      if (n.tipo === 'ACTIVIDAD' && !n.departamento?.trim()) {
-        errores.push(`Actividad “${n.etiqueta}” sin departamento`);
-      }
-    }
-    if (errores.length === 0) {
-      this.snack.open('Validación OK: no se detectaron problemas básicos', 'Cerrar', {
+    const data = this.buildValidation(this.nodos(), this.aristas());
+    this.dialog
+      .open(ValidationResultDialogComponent, {
+        width: '560px',
+        maxWidth: '95vw',
+        data,
+      })
+      .afterClosed()
+      .pipe(take(1))
+      .subscribe((r) => {
+        if (r === 'guardar') {
+          this.ejecutarGuardadoPolitica();
+        }
+      });
+  }
+
+  /** Persiste la política (tras validar sin errores). */
+  private ejecutarGuardadoPolitica(): void {
+    if (!this.politicaId) {
+      this.snack.open('Política sin id: no se puede guardar', 'Cerrar', {
         duration: 3500,
       });
-    } else {
-      this.snack.open(errores.slice(0, 3).join(' · '), 'Cerrar', {
-        duration: 6000,
-      });
+      return;
     }
+    const nodos = this.nodos().map(mapCanvasToNodo);
+    const aristas = this.aristas().map((a) => ({ ...a })) as Arista[];
+    const base = this.politicaBase ?? ({} as Politica);
+    const politica: Politica = {
+      ...base,
+      id: this.politicaId,
+      nombre: this.nombrePolitica(),
+      activa: base.activa ?? true,
+      nodos,
+      aristas,
+    };
+    this.politicaService
+      .actualizarPolitica(this.politicaId, politica)
+      .subscribe(() => {
+        this.snack.open('Política guardada correctamente', 'Cerrar', {
+          duration: 2800,
+        });
+        console.log(JSON.stringify({ nodos, aristas }, null, 2));
+        // TODO: reemplazar console.log por llamada HTTP al API cuando el backend esté listo
+      });
+  }
+
+  /**
+   * Evalúa reglas de negocio del diagrama (errores bloquean guardar).
+   */
+  buildValidation(
+    nodos: NodoCanvas[],
+    aristas: AristaCanvas[],
+  ): ValidacionFlujoResultado {
+    return buildValidationFlujo(nodos, aristas);
   }
 
   volver(): void {
@@ -1102,3 +1137,6 @@ function etiquetaDefault(tipo: NodoCanvasTipo): string {
       return 'Nodo';
   }
 }
+
+export { buildValidation } from './policy-designer-validation';
+export type { ValidacionFlujoResultado } from './policy-designer-validation';

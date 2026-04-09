@@ -11,39 +11,63 @@
   background: #eceff1;
 }
 .pd-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   flex-shrink: 0;
-  gap: 8px;
+  display: flex;
   flex-wrap: wrap;
-  padding: 8px 0;
-  height: auto;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 10px 14px;
   min-height: 56px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
+
+.pd-toolbar__volver {
+  flex-shrink: 0;
+  margin: 0 -6px 0 -8px;
+}
+
+.pd-toolbar__volver mat-icon {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 .pd-toolbar__nombre {
-  flex: 1 1 200px;
+  flex: 1 1 220px;
   min-width: 0;
-  max-width: 420px;
+  max-width: 480px;
 }
-.pd-toolbar__nombre ::ng-deep .mat-mdc-text-field-wrapper {
-  background: rgba(255, 255, 255, 0.12);
-}
+
 .pd-toolbar__nombre ::ng-deep .mat-mdc-form-field-subscript-wrapper {
   display: none;
 }
-.pd-toolbar__nombre ::ng-deep .mdc-notched-outline > * {
-  border-color: rgba(255, 255, 255, 0.35);
+
+.pd-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
-.pd-toolbar__nombre ::ng-deep .mat-mdc-input-element {
-  color: #fff;
+
+.pd-toolbar__action {
+  flex-shrink: 0;
 }
-.pd-toolbar__nombre ::ng-deep .mat-mdc-floating-label {
-  color: rgba(255, 255, 255, 0.85);
+
+.pd-toolbar__btn-icon {
+  margin-right: 6px;
+  vertical-align: middle;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
 }
-.pd-toolbar__spacer {
-  flex: 1;
-}
-.pd-toolbar__btn {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
+
+.pd-toolbar__action--validar .mat-icon {
+  color: #2e7d32;
 }
 .pd-body {
   flex: 1;
