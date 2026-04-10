@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, take } from 'rxjs';
 
@@ -34,8 +33,6 @@ import { Usuario } from '../../core/models/usuario.model';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-
   readonly form = this.fb.nonNullable.group({
     rol: this.fb.nonNullable.control<Usuario['rol']>('ADMINISTRADOR', {
       validators: [Validators.required],
@@ -63,7 +60,7 @@ export class LoginComponent {
 
     this.loading = true;
     this.auth
-      .login({ correo, password })
+      .login({ correo, password }, rol)
       .pipe(
         take(1),
         finalize(() => {
@@ -71,20 +68,7 @@ export class LoginComponent {
         }),
       )
       .subscribe({
-        next: (res) => {
-          if (res.usuario.rol !== rol) {
-            this.errorMessage =
-              'El rol seleccionado no coincide con las credenciales.';
-            this.auth.logout();
-            return;
-          }
-
-          const destino =
-            res.usuario.rol === 'ADMINISTRADOR'
-              ? '/admin/dashboard'
-              : '/funcionario/bandeja';
-          void this.router.navigateByUrl(destino);
-        },
+        next: () => {},
         error: (err: unknown) => {
           const msg =
             err instanceof Error ? err.message : 'Credenciales inválidas';

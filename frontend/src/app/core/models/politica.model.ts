@@ -5,6 +5,8 @@ export interface Nodo {
   posicionX: number;
   posicionY: number;
   departamentoId?: string;
+  /** Nombre legible del departamento (persistencia / API) */
+  departamentoTexto?: string;
   /** Calle del diseñador (swimlane); opcional en persistencia */
   calleId?: string;
   ancho?: number;

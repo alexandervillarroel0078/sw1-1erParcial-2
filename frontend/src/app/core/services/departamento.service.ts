@@ -1,69 +1,62 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Observable } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
+import { environment } from '../../../environments/environment';
 import { Departamento } from '../models/departamento.model';
-
-function uuid(): string {
-  // reemplazar con IDs del backend cuando esté listo
-  return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random()}`;
-}
+import { AuthService } from './auth.service';
+import { handleApiError } from '../utils/api-error.util';
 
 @Injectable({ providedIn: 'root' })
 export class DepartamentoService {
-  private departamentos: Departamento[] = [
-    { id: 'dep-atencion', nombre: 'Atención al Cliente', activo: true },
-    { id: 'dep-validacion', nombre: 'Validación Técnica', activo: true },
-    { id: 'dep-juridico', nombre: 'Jurídico', activo: true },
-    { id: 'dep-direccion', nombre: 'Dirección', activo: true },
-    { id: 'dep-soporte', nombre: 'Soporte', activo: true },
-  ];
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+  private readonly snack = inject(MatSnackBar);
+
+  private readonly base = `${environment.apiUrl}/admin/departamentos`;
 
   getDepartamentos(): Observable<Departamento[]> {
-    return of([...this.departamentos]);
+    return this.http.get<Departamento[]>(this.base).pipe(
+      catchError((err) => handleApiError(this.auth, this.snack, err)),
+    );
   }
 
   crearDepartamento(d: Departamento): Observable<Departamento> {
-    const nuevo: Departamento = {
-      nombre: d.nombre.trim(),
-      activo: d.activo ?? true,
-      id: d.id ?? uuid(),
-    };
-    this.departamentos = [nuevo, ...this.departamentos];
-    return of(structuredClone(nuevo));
+    return this.http
+      .post<Departamento>(this.base, {
+        nombre: d.nombre.trim(),
+        activo: d.activo ?? true,
+      })
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 
-  actualizarDepartamento(id: string, d: Partial<Departamento>): Observable<Departamento> {
-    const idx = this.departamentos.findIndex((x) => x.id === id);
-    if (idx < 0) {
-      return of({
-        id,
-        nombre: (d.nombre ?? '').trim(),
-        activo: d.activo ?? true,
-      });
+  actualizarDepartamento(
+    id: string,
+    d: Partial<Departamento>,
+  ): Observable<Departamento> {
+    const body: Record<string, unknown> = {};
+    if (d.nombre !== undefined) {
+      body['nombre'] = d.nombre.trim();
     }
-    const prev = this.departamentos[idx];
-    const actualizado: Departamento = {
-      ...prev,
-      ...d,
-      id,
-      nombre: d.nombre !== undefined ? d.nombre.trim() : prev.nombre,
-    };
-    this.departamentos = this.departamentos.map((x) => (x.id === id ? actualizado : x));
-    return of(structuredClone(actualizado));
+    if (d.activo !== undefined) {
+      body['activo'] = d.activo;
+    }
+    return this.http
+      .put<Departamento>(`${this.base}/${id}`, body)
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 
   eliminarDepartamento(id: string): Observable<void> {
-    this.departamentos = this.departamentos.filter((d) => d.id !== id);
-    return of(void 0);
+    return this.http
+      .delete<void>(`${this.base}/${id}`)
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 
   activarDesactivar(id: string): Observable<Departamento> {
-    const dep = this.departamentos.find((d) => d.id === id);
-    if (!dep) {
-      return of({ id, nombre: '', activo: false });
-    }
-    const actualizado: Departamento = { ...dep, activo: !dep.activo };
-    this.departamentos = this.departamentos.map((x) => (x.id === id ? actualizado : x));
-    return of(structuredClone(actualizado));
+    return this.http
+      .patch<Departamento>(`${this.base}/${id}/activar-desactivar`, {})
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 }

@@ -24,6 +24,8 @@ export interface NodoCanvas {
   y: number;
   /** id de departamento (mock) */
   departamento?: string;
+  /** Nombre del departamento para guardado y UI */
+  departamentoTexto?: string;
   /** Calle asignada (ACTividades por posición en el canvas) */
   calleId?: string;
   /** Solo aplica visual/lógica a ACTIVIDAD */

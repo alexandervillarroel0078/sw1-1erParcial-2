@@ -1,94 +1,85 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Observable } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 
+import { environment } from '../../../environments/environment';
 import { Tramite } from '../models/tramite.model';
 import { AuthService } from './auth.service';
+import { handleApiError } from '../utils/api-error.util';
 
-function uuid(): string {
-  // reemplazar con IDs del backend cuando esté listo
-  return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random()}`;
-}
+const ESTADO_TRAMITE: Record<string, Tramite['estado']> = {
+  INICIADO: 'iniciado',
+  EN_PROCESO: 'en_proceso',
+  DEMORADO: 'demorado',
+  COMPLETADO: 'completado',
+  CANCELADO: 'cancelado',
+  iniciado: 'iniciado',
+  en_proceso: 'en_proceso',
+  demorado: 'demorado',
+  completado: 'completado',
+  cancelado: 'cancelado',
+};
 
 @Injectable({ providedIn: 'root' })
 export class TramiteService {
+  private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly snack = inject(MatSnackBar);
 
-  private tramites: Tramite[] = [
-    {
-      id: 'tra-1',
-      politicaId: 'pol-1',
-      politicaNombre: 'Aprobación de Vacaciones',
-      clienteId: 'cli-1',
-      creadoPorUsuarioId: 'u-admin-1',
-      estado: 'en_proceso',
-      esParalelo: false,
-      creadoEn: new Date('2026-03-20T10:00:00Z'),
-      actualizadoEn: new Date('2026-03-21T10:00:00Z'),
-      actividadActual: 'Revisar solicitud',
-      pasoActual: 2,
-      totalPasos: 4,
-    },
-    {
-      id: 'tra-2',
-      politicaId: 'pol-3',
-      politicaNombre: 'Reclamo y Resolución',
-      clienteId: 'cli-2',
-      creadoPorUsuarioId: 'u-func-2',
-      estado: 'demorado',
-      esParalelo: true,
-      creadoEn: new Date('2026-03-25T10:00:00Z'),
-      actualizadoEn: new Date('2026-03-28T10:00:00Z'),
-      actividadActual: 'Análisis técnico',
-      pasoActual: 3,
-      totalPasos: 6,
-    },
-    {
-      id: 'tra-3',
-      politicaId: 'pol-2',
-      politicaNombre: 'Alta de Cliente',
-      clienteId: 'cli-1',
-      creadoPorUsuarioId: 'u-func-1',
-      estado: 'iniciado',
-      esParalelo: false,
-      creadoEn: new Date('2026-04-08T10:00:00Z'),
-      actualizadoEn: new Date('2026-04-08T10:00:00Z'),
-      actividadActual: 'Capturar datos',
-      pasoActual: 1,
-      totalPasos: 3,
-    },
-    {
-      id: 'tra-4',
-      politicaId: 'pol-1',
-      politicaNombre: 'Aprobación de Vacaciones',
-      clienteId: 'cli-2',
-      creadoPorUsuarioId: 'u-admin-1',
-      estado: 'completado',
-      esParalelo: false,
-      creadoEn: new Date('2026-02-10T10:00:00Z'),
-      actualizadoEn: new Date('2026-02-15T10:00:00Z'),
-      actividadActual: 'Finalizado',
-      pasoActual: 4,
-      totalPasos: 4,
-    },
-  ];
+  private mapTramite(raw: Tramite & { estado?: string }): Tramite {
+    const estadoKey = raw.estado ?? 'iniciado';
+    const estado = ESTADO_TRAMITE[estadoKey] ?? 'iniciado';
+    return {
+      ...raw,
+      estado,
+      creadoEn:
+        raw.creadoEn != null
+          ? typeof raw.creadoEn === 'string'
+            ? new Date(raw.creadoEn)
+            : raw.creadoEn
+          : undefined,
+      actualizadoEn:
+        raw.actualizadoEn != null
+          ? typeof raw.actualizadoEn === 'string'
+            ? new Date(raw.actualizadoEn)
+            : raw.actualizadoEn
+          : undefined,
+    };
+  }
+
+  private buildCreateBody(t: Tramite): Record<string, string | undefined> {
+    const body: Record<string, string | undefined> = {
+      politicaId: t.politicaId,
+    };
+    const cid = t.clienteId?.trim() ?? '';
+    if (cid && !cid.startsWith('cli-')) {
+      body['clienteId'] = cid;
+    } else {
+      body['clienteNombreCompleto'] = 'Cliente trámite';
+    }
+    return body;
+  }
 
   getTramites(): Observable<Tramite[]> {
-    // reemplazar con HTTP cuando el backend esté listo
-    return of([...this.tramites]);
+    return this.http
+      .get<Tramite[]>(`${environment.apiUrl}/admin/tramites`)
+      .pipe(
+        map((list) => list.map((x) => this.mapTramite(x))),
+        catchError((err) => handleApiError(this.auth, this.snack, err)),
+      );
   }
 
   crearTramite(t: Tramite): Observable<Tramite> {
-    // reemplazar con HTTP cuando el backend esté listo
-    const usuario = this.auth.getUsuario();
-    const nuevo: Tramite = {
-      ...t,
-      id: t.id ?? uuid(),
-      creadoPorUsuarioId: t.creadoPorUsuarioId ?? usuario.id,
-      creadoEn: t.creadoEn ?? new Date(),
-      actualizadoEn: new Date(),
-    };
-    this.tramites = [nuevo, ...this.tramites];
-    return of(structuredClone(nuevo));
+    return this.http
+      .post<Tramite>(
+        `${environment.apiUrl}/funcionario/tramites`,
+        this.buildCreateBody(t),
+      )
+      .pipe(
+        map((x) => this.mapTramite(x)),
+        catchError((err) => handleApiError(this.auth, this.snack, err)),
+      );
   }
 }
-

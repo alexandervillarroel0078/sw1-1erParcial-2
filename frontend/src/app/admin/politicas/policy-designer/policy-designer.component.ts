@@ -1,16 +1,16 @@
-import { AsyncPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
+  OnInit,
   computed,
   effect,
   inject,
   signal,
   untracked,
   viewChild,
-  ElementRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -89,6 +89,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     x: n.posicionX,
     y: n.posicionY,
     departamento: n.departamentoId,
+    departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
     slaHoras: undefined,
   };
@@ -102,6 +103,7 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     posicionX: Math.round(n.x),
     posicionY: Math.round(n.y),
     departamentoId: n.departamento,
+    departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
   };
 }
@@ -126,7 +128,6 @@ type RecVoz = {
   imports: [
     FormsModule,
     DragDropModule,
-    AsyncPipe,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -143,7 +144,7 @@ type RecVoz = {
   styleUrl: './policy-designer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PolicyDesignerComponent {
+export class PolicyDesignerComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly politicaService = inject(PoliticaService);
@@ -249,8 +250,6 @@ export class PolicyDesignerComponent {
   private panPrevia: { x: number; y: number } | null = null;
 
 
-  readonly departamentos$ = this.departamentoService.getDepartamentos();
-
   readonly nodoSeleccionado = computed(() => {
     const id = this.seleccionId();
     if (!id) return null;
@@ -316,11 +315,6 @@ export class PolicyDesignerComponent {
   ];
 
   constructor() {
-    this.departamentoService
-      .getDepartamentos()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((d) => this.departamentosLista.set(d));
-
     this.route.paramMap
       .pipe(
         switchMap((pm) => {
@@ -347,6 +341,22 @@ export class PolicyDesignerComponent {
         this.resaltarTimer = null;
       }
     });
+  }
+
+  ngOnInit(): void {
+    this.cargarDepartamentos();
+  }
+
+  private cargarDepartamentos(): void {
+    this.departamentoService
+      .getDepartamentos()
+      .pipe(take(1))
+      .subscribe((d) => this.departamentosLista.set(d));
+  }
+
+  private nombreDepartamento(depId: string | undefined): string | undefined {
+    if (!depId) return undefined;
+    return this.departamentosLista().find((x) => x.id === depId)?.nombre;
   }
 
   puertoLocal = puertoLocal;
@@ -384,6 +394,7 @@ export class PolicyDesignerComponent {
           ...n,
           calleId: hit.id,
           departamento: hit.departamentoId,
+          departamentoTexto: hit.nombre,
         };
       }
     }
@@ -526,6 +537,7 @@ export class PolicyDesignerComponent {
           ...actualizado,
           calleId: hit.id,
           departamento: hit.departamentoId,
+          departamentoTexto: hit.nombre,
         };
         this.flashCalleId.set(hit.id);
         window.setTimeout(() => this.flashCalleId.set(null), 650);
@@ -534,6 +546,7 @@ export class PolicyDesignerComponent {
           ...actualizado,
           calleId: undefined,
           departamento: undefined,
+          departamentoTexto: undefined,
         };
       }
     }
@@ -726,25 +739,37 @@ export class PolicyDesignerComponent {
     );
   }
 
-  patchDepartamento(v: string): void {
+  patchDepartamentoActividad(depId: string): void {
     const id = this.seleccionId();
     if (!id) return;
     const n = this.nodos().find((x) => x.id === id);
-    if (n?.tipo === 'ACTIVIDAD') return;
+    if (!n || n.tipo !== 'ACTIVIDAD') return;
+    const trimmed = (depId ?? '').trim();
+    const dept = trimmed
+      ? this.departamentosLista().find((d) => d.id === trimmed)
+      : undefined;
+    this.pushSnapshot();
     this.nodos.update((arr) =>
-      arr.map((x) => (x.id === id ? { ...x, departamento: v || undefined } : x)),
+      arr.map((x) => {
+        if (x.id !== id) return x;
+        if (!dept?.id) {
+          return {
+            ...x,
+            departamento: undefined,
+            departamentoTexto: undefined,
+            calleId: undefined,
+          };
+        }
+        const calle = this.calles().find((c) => c.departamentoId === dept.id);
+        return {
+          ...x,
+          departamento: dept.id,
+          departamentoTexto: dept.nombre,
+          calleId: calle?.id ?? x.calleId,
+        };
+      }),
     );
-  }
-
-  textoDepartamentoActividad(n: NodoCanvas): string {
-    if (n.tipo !== 'ACTIVIDAD') return '';
-    const cal = this.calles().find((c) => c.id === n.calleId);
-    if (cal) return cal.nombre;
-    if (n.departamento) {
-      const d = this.departamentosLista().find((x) => x.id === n.departamento);
-      return d?.nombre ?? '—';
-    }
-    return 'Sin departamento asignado';
+    this.syncHistorialFlags();
   }
 
   tieneCalleParaDepartamento(depId: string | undefined): boolean {
@@ -1113,13 +1138,15 @@ export class PolicyDesignerComponent {
 
     if (flujo === 'directo') {
       const p = posicionDerechaOrigen(origen);
+      const deptoId = this.wizardDeptoActividad();
       const a = crearNodoVacio(
         'ACTIVIDAD',
         p.x,
         p.y,
         this.wizardNombreActividad().trim(),
         `nd-${uuid()}`,
-        this.wizardDeptoActividad(),
+        deptoId,
+        this.nombreDepartamento(deptoId),
       );
       pushN(a);
       pushA(origen.id, a.id);
@@ -1131,13 +1158,15 @@ export class PolicyDesignerComponent {
 
     if (flujo === 'fin') {
       const p = posicionDerechaOrigen(origen);
+      const deptoFinId = this.wizardDeptoActividad();
       const a = crearNodoVacio(
         'ACTIVIDAD',
         p.x,
         p.y,
         this.wizardNombreActividad().trim(),
         `nd-${uuid()}`,
-        this.wizardDeptoActividad(),
+        deptoFinId,
+        this.nombreDepartamento(deptoFinId),
       );
       pushN(a);
       pushA(origen.id, a.id);
@@ -1171,13 +1200,15 @@ export class PolicyDesignerComponent {
     const posActs = posicionParalelas(fork, items.length);
     const actIds: string[] = [];
     for (let i = 0; i < items.length; i++) {
+      const did = items[i].depto;
       const act = crearNodoVacio(
         'ACTIVIDAD',
         posActs[i].x,
         posActs[i].y,
         items[i].nombre.trim(),
         `nd-${uuid()}`,
-        items[i].depto,
+        did,
+        this.nombreDepartamento(did),
       );
       pushN(act);
       pushA(fork.id, act.id);
@@ -1243,13 +1274,15 @@ export class PolicyDesignerComponent {
       pushA(dec.id, end.id, 'Sí');
       ultimoId = end.id;
     } else {
+      const siDepto = this.wizardSiDepto();
       const sa = crearNodoVacio(
         'ACTIVIDAD',
         siPos.x,
         siPos.y,
         this.wizardSiNombre().trim(),
         `nd-${uuid()}`,
-        this.wizardSiDepto(),
+        siDepto,
+        this.nombreDepartamento(siDepto),
       );
       pushN(sa);
       pushA(dec.id, sa.id, 'Sí');
@@ -1271,13 +1304,15 @@ export class PolicyDesignerComponent {
       pushA(dec.id, dec.id, 'No');
       ultimoId = dec.id;
     } else {
+      const noDepto = this.wizardNoDepto();
       const na = crearNodoVacio(
         'ACTIVIDAD',
         noPos.x,
         noPos.y,
         this.wizardNoNombre().trim(),
         `nd-${uuid()}`,
-        this.wizardNoDepto(),
+        noDepto,
+        this.nombreDepartamento(noDepto),
       );
       pushN(na);
       pushA(dec.id, na.id, 'No');

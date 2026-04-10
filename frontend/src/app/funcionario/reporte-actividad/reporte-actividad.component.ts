@@ -100,13 +100,19 @@ export class ReporteActividadComponent implements OnDestroy {
           return this.tareaService.getTareaById(id);
         }),
       )
-      .subscribe((t) => {
-        this.cargando.set(false);
-        if (!t) {
+      .subscribe({
+        next: (t) => {
+          this.cargando.set(false);
+          if (!t) {
+            void this.router.navigate(['/funcionario/bandeja']);
+            return;
+          }
+          this.tarea.set(t);
+        },
+        error: () => {
+          this.cargando.set(false);
           void this.router.navigate(['/funcionario/bandeja']);
-          return;
-        }
-        this.tarea.set(t);
+        },
       });
 
     if (isPlatformBrowser(this.platformId)) {

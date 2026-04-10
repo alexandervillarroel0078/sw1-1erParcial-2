@@ -6,6 +6,8 @@ export interface Usuario {
   departamentoId?: string;
   activo: boolean;
   creadoEn?: Date;
+  /** Solo envío al crear/actualizar usuario vía API admin */
+  password?: string;
 }
 
 export interface LoginRequest {
@@ -15,6 +17,6 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  usuario: Usuario;
-  cliente: null;
+  usuario: Usuario | null;
+  cliente: unknown;
 }

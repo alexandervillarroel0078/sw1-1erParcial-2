@@ -18,6 +18,7 @@ public class NodoPolitica {
 	private double posicionX;
 	private double posicionY;
 	private String departamentoId;
+	private String departamentoTexto;
 	private String calleId;
 	private Double ancho;
 	private Double alto;

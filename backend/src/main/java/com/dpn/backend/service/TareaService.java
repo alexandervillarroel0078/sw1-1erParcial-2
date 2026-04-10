@@ -26,6 +26,12 @@ public class TareaService {
 				.toList();
 	}
 
+	public List<TareaDTO> listarTodas() {
+		return tareaRepository.findAll().stream()
+				.map(EntityMapper::toTareaDTO)
+				.toList();
+	}
+
 	public TareaDTO obtenerPorId(String id, String usuarioId) {
 		Tarea t = tareaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));

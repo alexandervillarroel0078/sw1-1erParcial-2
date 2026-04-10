@@ -2,7 +2,15 @@ import { AsyncPipe, DatePipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { combineLatest, map, startWith, switchMap, take, EMPTY } from 'rxjs';
+import {
+  BehaviorSubject,
+  combineLatest,
+  EMPTY,
+  map,
+  startWith,
+  switchMap,
+  take,
+} from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -53,7 +61,11 @@ export class PoliticaListComponent {
 
   readonly search = this.fb.nonNullable.control('');
 
-  private readonly politicas$ = this.politicaService.getPoliticas();
+  private readonly recargarPoliticas$ = new BehaviorSubject<void>(undefined);
+
+  private readonly politicas$ = this.recargarPoliticas$.pipe(
+    switchMap(() => this.politicaService.getPoliticas()),
+  );
 
   readonly vm$ = combineLatest([
     this.politicas$,
@@ -72,6 +84,10 @@ export class PoliticaListComponent {
       return { cards, total: cards.length };
     }),
   );
+
+  cargarPoliticas(): void {
+    this.recargarPoliticas$.next(undefined);
+  }
 
   nuevaPolitica(): void {
     const ref = this.dialog.open(PoliticaFormComponent, {
@@ -93,7 +109,9 @@ export class PoliticaListComponent {
           nodos: [],
           aristas: [],
           fechaCreacion: new Date(),
-        }).pipe(take(1)).subscribe();
+        })
+          .pipe(take(1))
+          .subscribe(() => this.cargarPoliticas());
       });
   }
 
@@ -117,7 +135,7 @@ export class PoliticaListComponent {
             colorTema: result.colorTema,
           })
           .pipe(take(1))
-          .subscribe();
+          .subscribe(() => this.cargarPoliticas());
       });
   }
 
@@ -128,7 +146,10 @@ export class PoliticaListComponent {
 
   activarDesactivar(p: Politica): void {
     if (!p.id) return;
-    this.politicaService.activarDesactivar(p.id).pipe(take(1)).subscribe();
+    this.politicaService
+      .activarDesactivar(p.id)
+      .pipe(take(1))
+      .subscribe(() => this.cargarPoliticas());
   }
 
   eliminar(p: Politica): void {
@@ -150,7 +171,7 @@ export class PoliticaListComponent {
         take(1),
         switchMap((ok) => (ok ? this.politicaService.eliminarPolitica(p.id!) : EMPTY)),
       )
-      .subscribe();
+      .subscribe(() => this.cargarPoliticas());
   }
 
   estadoLabel(activa: boolean): string {

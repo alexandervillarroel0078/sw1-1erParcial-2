@@ -10,6 +10,10 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
+  if (req.url.includes('/auth/')) {
+    return next(req);
+  }
+
   const token = localStorage.getItem(DPN_TOKEN_KEY) ?? '';
   if (!token) {
     return next(req);

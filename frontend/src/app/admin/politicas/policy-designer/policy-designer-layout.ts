@@ -69,6 +69,7 @@ export function crearNodoVacio(
   etiqueta: string,
   id: string,
   departamento?: string,
+  departamentoTexto?: string,
 ): NodoCanvas {
   return {
     id,
@@ -77,5 +78,6 @@ export function crearNodoVacio(
     x,
     y,
     departamento,
+    departamentoTexto,
   };
 }

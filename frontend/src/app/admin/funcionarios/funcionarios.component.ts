@@ -158,6 +158,7 @@ export class FuncionariosComponent implements AfterViewInit {
             departamentoId: r.departamentoId,
             activo: true,
             creadoEn: new Date(),
+            password: r.password,
           })
           .pipe(take(1))
           .subscribe(() => this.refresh$.next());
@@ -187,6 +188,7 @@ export class FuncionariosComponent implements AfterViewInit {
             correo: r.correo,
             rol: r.rol,
             departamentoId: r.departamentoId,
+            ...(r.password ? { password: r.password } : {}),
           })
           .pipe(take(1))
           .subscribe(() => this.refresh$.next());
