@@ -1,4 +1,9 @@
-import type { AristaCanvas, NodoCanvas, NodoCanvasTipo } from './policy-designer.models';
+import type {
+  AristaCanvas,
+  CalleCanvas,
+  NodoCanvas,
+  NodoCanvasTipo,
+} from './policy-designer.models';
 
 const PORT = 8;
 
@@ -60,6 +65,8 @@ export function snapshotFrom(
   zoom: number,
   panX: number,
   panY: number,
+  calles: CalleCanvas[],
+  orientacionCalles: 'vertical' | 'horizontal',
 ): {
   nombrePolitica: string;
   nodos: NodoCanvas[];
@@ -67,6 +74,8 @@ export function snapshotFrom(
   zoom: number;
   panX: number;
   panY: number;
+  calles: CalleCanvas[];
+  orientacionCalles: 'vertical' | 'horizontal';
 } {
   return {
     nombrePolitica,
@@ -75,5 +84,7 @@ export function snapshotFrom(
     zoom,
     panX,
     panY,
+    calles: structuredClone(calles),
+    orientacionCalles,
   };
 }

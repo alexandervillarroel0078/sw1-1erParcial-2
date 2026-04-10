@@ -87,6 +87,73 @@
           <span class="pd-palette__label">{{ item.label }}</span>
         </button>
       }
+
+      <h2 class="pd-palette__title pd-palette__title--dept">Departamentos</h2>
+      @if (calles().length === 0) {
+        <p class="pd-palette__hint pd-palette__hint--swim">
+          Agregá departamentos para organizar el flujo en calles
+        </p>
+      }
+      <button
+        mat-stroked-button
+        type="button"
+        color="primary"
+        class="pd-depto-add"
+        (click)="agregarCalleRapida()"
+      >
+        <mat-icon>add</mat-icon>
+        Agregar calle
+      </button>
+      <div class="pd-depto-list">
+        @for (d of departamentosLista(); track d.id) {
+          @if (d.activo && d.id) {
+            <div
+              class="pd-depto-row"
+              [class.pd-depto-row--on]="tieneCalleParaDepartamento(d.id)"
+            >
+              <mat-checkbox
+                [checked]="tieneCalleParaDepartamento(d.id)"
+                (change)="onDeptoCalleCheckbox(d, $event)"
+              />
+              <button
+                type="button"
+                mat-button
+                class="pd-depto-row__name"
+                (click)="onClickDepartamentoPaleta(d)"
+              >
+                {{ d.nombre }}
+              </button>
+              @if (tieneCalleParaDepartamento(d.id)) {
+                <mat-icon class="pd-depto-row__ok" aria-hidden="true">check_circle</mat-icon>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="pd-swim-orient">
+        <span class="pd-swim-orient__title">Orientación</span>
+        <div class="pd-swim-orient__row">
+          <button
+            mat-stroked-button
+            type="button"
+            class="pd-swim-orient__btn"
+            [class.pd-swim-orient__btn--on]="orientacionCalles() === 'horizontal'"
+            (click)="setOrientacionCalles('horizontal')"
+          >
+            ⇆ Horizontal
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            class="pd-swim-orient__btn"
+            [class.pd-swim-orient__btn--on]="orientacionCalles() === 'vertical'"
+            (click)="setOrientacionCalles('vertical')"
+          >
+            ⇅ Vertical
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Canvas central -->
@@ -125,6 +192,155 @@
             fill="url(#pd-grid-dots)"
             (pointerdown)="onFondoPointerDown($event)"
           />
+
+          @if (calles().length > 0 && orientacionCalles() === 'vertical') {
+            <g class="pd-swim-layer">
+              @for (
+                c of callesOrdenadasVm();
+                track c.id;
+                let i = $index;
+                let laneCount = $count
+              ) {
+                @let bw = swimBounds.w / laneCount;
+                @let x0 = swimBounds.x + i * bw;
+                <g
+                  class="pd-swim-lane"
+                  [class.pd-swim-lane--flash]="flashCalleId() === c.id"
+                  [class.pd-swim-lane--resalte]="resaltarCalleId() === c.id"
+                >
+                  <rect
+                    class="pd-swim-head"
+                    [attr.x]="x0"
+                    [attr.y]="swimBounds.y"
+                    [attr.width]="bw"
+                    [attr.height]="swimHeaderV"
+                    [attr.fill]="c.color"
+                    opacity="0.9"
+                  />
+                  <rect
+                    class="pd-swim-body"
+                    [attr.x]="x0"
+                    [attr.y]="swimBounds.y + swimHeaderV"
+                    [attr.width]="bw"
+                    [attr.height]="swimBounds.h - swimHeaderV"
+                    [attr.fill]="c.color"
+                    opacity="0.32"
+                  />
+                  @if (i > 0) {
+                    <line
+                      class="pd-swim-divider"
+                      [attr.x1]="x0"
+                      [attr.y1]="swimBounds.y"
+                      [attr.x2]="x0"
+                      [attr.y2]="swimBounds.y + swimBounds.h"
+                    />
+                  }
+                  <text
+                    class="pd-swim-title"
+                    [attr.x]="x0 + 8"
+                    [attr.y]="swimBounds.y + 26"
+                  >
+                    {{ c.nombre }}
+                  </text>
+                  <g
+                    class="pd-swim-close"
+                    (click)="eliminarCalleCabeceraClick(c.id, $event)"
+                  >
+                    <rect
+                      [attr.x]="x0 + bw - 32"
+                      [attr.y]="swimBounds.y + 4"
+                      width="28"
+                      height="32"
+                      fill="transparent"
+                    />
+                    <text
+                      class="pd-swim-close-x"
+                      [attr.x]="x0 + bw - 18"
+                      [attr.y]="swimBounds.y + 26"
+                      text-anchor="middle"
+                    >
+                      ×
+                    </text>
+                  </g>
+                </g>
+              }
+            </g>
+          }
+
+          @if (calles().length > 0 && orientacionCalles() === 'horizontal') {
+            <g class="pd-swim-layer">
+              @for (
+                c of callesOrdenadasVm();
+                track c.id;
+                let j = $index;
+                let rowCount = $count
+              ) {
+                @let rh = swimBounds.h / rowCount;
+                @let y0 = swimBounds.y + j * rh;
+                <g
+                  class="pd-swim-lane"
+                  [class.pd-swim-lane--flash]="flashCalleId() === c.id"
+                  [class.pd-swim-lane--resalte]="resaltarCalleId() === c.id"
+                >
+                  <rect
+                    class="pd-swim-head pd-swim-head--hz"
+                    [attr.x]="swimBounds.x"
+                    [attr.y]="y0"
+                    [attr.width]="swimLabelH"
+                    [attr.height]="rh"
+                    [attr.fill]="c.color"
+                    opacity="0.9"
+                  />
+                  <rect
+                    class="pd-swim-body"
+                    [attr.x]="swimBounds.x + swimLabelH"
+                    [attr.y]="y0"
+                    [attr.width]="swimBounds.w - swimLabelH"
+                    [attr.height]="rh"
+                    [attr.fill]="c.color"
+                    opacity="0.32"
+                  />
+                  @if (j > 0) {
+                    <line
+                      class="pd-swim-divider"
+                      [attr.x1]="swimBounds.x"
+                      [attr.y1]="y0"
+                      [attr.x2]="swimBounds.x + swimBounds.w"
+                      [attr.y2]="y0"
+                    />
+                  }
+                  <text
+                    class="pd-swim-title pd-swim-title--hz"
+                    [attr.x]="swimBounds.x + 8"
+                    [attr.y]="y0 + rh / 2 + 5"
+                  >
+                    {{ c.nombre }}
+                  </text>
+                  <g
+                    class="pd-swim-close"
+                    (click)="eliminarCalleCabeceraClick(c.id, $event)"
+                  >
+                    <rect
+                      [attr.x]="swimBounds.x + swimBounds.w - 36"
+                      [attr.y]="y0 + 4"
+                      width="32"
+                      height="28"
+                      fill="transparent"
+                    />
+                    <text
+                      class="pd-swim-close-x"
+                      [attr.x]="swimBounds.x + swimBounds.w - 20"
+                      [attr.y]="y0 + 22"
+                      text-anchor="middle"
+                    >
+                      ×
+                    </text>
+                  </g>
+                </g>
+              }
+            </g>
+          }
+
           @for (ar of aristas(); track ar.id) {
             <path
               class="pd-arista"
@@ -250,22 +466,16 @@
                   (blur)="commitPropiedadesNodo()"
                 />
               </mat-form-field>
-              <mat-form-field appearance="outline" class="pd-props__field">
-                <mat-label>Departamento</mat-label>
-                <mat-select
-                  [ngModel]="sn.departamento ?? ''"
-                  (ngModelChange)="patchDepartamento($event)"
-                  (closed)="commitPropiedadesNodo()"
-                >
-                  <mat-option value="">— Sin asignar —</mat-option>
-                  @for (d of departamentos$ | async; track d.id) {
-                    @if (d.activo) {
-                      <mat-option [value]="d.id">{{ d.nombre }}</mat-option>
-                    }
-                  }
-                </mat-select>
-              </mat-form-field>
               @if (sn.tipo === 'ACTIVIDAD') {
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Departamento</mat-label>
+                  <input
+                    matInput
+                    readonly
+                    [value]="textoDepartamentoActividad(sn)"
+                  />
+                  <mat-hint>Asignado por posición en el canvas</mat-hint>
+                </mat-form-field>
                 <mat-form-field appearance="outline" class="pd-props__field">
                   <mat-label>SLA (horas)</mat-label>
                   <input

@@ -72,7 +72,7 @@
 .pd-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 200px 1fr 250px;
+  grid-template-columns: 232px 1fr 250px;
   min-height: 0;
 }
 @media (max-width: 960px) {
@@ -82,10 +82,13 @@
   }
 }
 .pd-palette {
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border-right: 1px solid #00000014;
   padding: 12px;
   overflow-y: auto;
+  min-height: 0;
 }
 .pd-palette__title {
   margin: 0 0 4px;
@@ -97,6 +100,107 @@
   font-size: 11px;
   color: #0000008c;
   line-height: 1.35;
+}
+
+.pd-palette__title--dept {
+  margin-top: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+}
+
+.pd-palette__hint--swim {
+  font-style: italic;
+  color: #0000006a;
+}
+
+.pd-depto-add {
+  width: 100%;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+
+.pd-depto-add mat-icon {
+  margin-right: 4px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.pd-depto-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pd-depto-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.pd-depto-row--on {
+  background: rgba(46, 125, 50, 0.08);
+  border-color: rgba(46, 125, 50, 0.25);
+}
+
+.pd-depto-row__name {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 13px;
+  padding: 0 4px;
+  line-height: 1.25;
+}
+
+.pd-depto-row__ok {
+  flex-shrink: 0;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #2e7d32;
+}
+
+.pd-swim-orient {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #00000014;
+}
+
+.pd-swim-orient__title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0000008c;
+  margin-bottom: 8px;
+}
+
+.pd-swim-orient__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pd-swim-orient__btn {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.pd-swim-orient__btn--on {
+  border-color: #1976d2;
+  background: rgba(25, 118, 210, 0.1);
+  color: #0d47a1;
+  font-weight: 600;
 }
 .pd-palette__item {
   display: flex;
@@ -464,4 +568,64 @@
   font-size: 14px;
   color: #00000080;
   line-height: 1.5;
+}
+
+/* —— Swimlanes (SVG) —— */
+.pd-swim-layer {
+  pointer-events: none;
+}
+
+.pd-swim-head,
+.pd-swim-body {
+  stroke: rgba(0, 0, 0, 0.07);
+  stroke-width: 1;
+}
+
+.pd-swim-divider {
+  stroke: rgba(25, 118, 210, 0.4);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.pd-swim-title {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #0c447c;
+  pointer-events: none;
+}
+
+.pd-swim-title--hz {
+  font-size: 12px;
+}
+
+.pd-swim-close {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.pd-swim-close-x {
+  font-size: 20px;
+  font-weight: 700;
+  fill: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.pd-swim-lane--resalte .pd-swim-body {
+  stroke: #1976d2 !important;
+  stroke-width: 3;
+}
+
+.pd-swim-lane--flash .pd-swim-body {
+  animation: pd-swim-flash 0.65s ease-out;
+}
+
+@keyframes pd-swim-flash {
+  0% {
+    stroke: #1976d2;
+    stroke-width: 4;
+  }
+  100% {
+    stroke: rgba(0, 0, 0, 0.07);
+    stroke-width: 1;
+  }
 }

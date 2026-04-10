@@ -25,15 +25,29 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
-import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatCheckboxChange, MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import type { Arista, Nodo, Politica } from '../../../core/models/politica.model';
+import type { Departamento } from '../../../core/models/departamento.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { PoliticaService } from '../../../core/services/politica.service';
-import type { AristaCanvas, NodoCanvas, NodoCanvasTipo } from './policy-designer.models';
+import type {
+  AristaCanvas,
+  CalleCanvas,
+  NodoCanvas,
+  NodoCanvasTipo,
+} from './policy-designer.models';
+import {
+  SWIM_HEADER_V,
+  SWIM_LABEL_H,
+  SWIM_WORLD_BOUNDS,
+  callesOrdenadas as ordenarCalles,
+  hitTestCalleHorizontal,
+  hitTestCalleVertical,
+} from './policy-designer-swimlanes';
 import {
   pathBezierEntreNodos,
   puertoLocal,
@@ -68,6 +82,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     x: n.posicionX,
     y: n.posicionY,
     departamento: n.departamentoId,
+    calleId: n.calleId,
     slaHoras: undefined,
   };
 }
@@ -80,6 +95,7 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     posicionX: Math.round(n.x),
     posicionY: Math.round(n.y),
     departamentoId: n.departamento,
+    calleId: n.calleId,
   };
 }
 
@@ -134,6 +150,19 @@ export class PolicyDesignerComponent {
   readonly nombrePolitica = signal('Nueva política');
   readonly nodos = signal<NodoCanvas[]>([]);
   readonly aristas = signal<AristaCanvas[]>([]);
+  readonly calles = signal<CalleCanvas[]>([]);
+  readonly orientacionCalles = signal<'vertical' | 'horizontal'>('vertical');
+  readonly flashCalleId = signal<string | null>(null);
+  readonly resaltarCalleId = signal<string | null>(null);
+  readonly departamentosLista = signal<Departamento[]>([]);
+  private resaltarTimer: number | null = null;
+
+  readonly swimBounds = SWIM_WORLD_BOUNDS;
+  readonly swimHeaderV = SWIM_HEADER_V;
+  readonly swimLabelH = SWIM_LABEL_H;
+
+  readonly callesOrdenadasVm = computed(() => ordenarCalles(this.calles()));
+
   readonly zoom = signal(1);
   readonly panX = signal(0);
   readonly panY = signal(0);
@@ -230,6 +259,11 @@ export class PolicyDesignerComponent {
   ];
 
   constructor() {
+    this.departamentoService
+      .getDepartamentos()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((d) => this.departamentosLista.set(d));
+
     this.route.paramMap
       .pipe(
         switchMap((pm) => {
@@ -249,7 +283,13 @@ export class PolicyDesignerComponent {
       untracked(() => this.reiniciarWizardFormulario());
     });
 
-    this.destroyRef.onDestroy(() => this.detenerReconocimientoVoz());
+    this.destroyRef.onDestroy(() => {
+      this.detenerReconocimientoVoz();
+      if (this.resaltarTimer) {
+        clearTimeout(this.resaltarTimer);
+        this.resaltarTimer = null;
+      }
+    });
   }
 
   puertoLocal = puertoLocal;
@@ -269,13 +309,27 @@ export class PolicyDesignerComponent {
     }
     const { x, y } = this.centroVisibleMundo();
     const base = etiquetaDefault(tipo);
-    const n: NodoCanvas = {
+    let n: NodoCanvas = {
       id: `nd-${uuid()}`,
       tipo,
       etiqueta: base,
       x,
       y,
     };
+    if (tipo === 'ACTIVIDAD' && this.calles().length > 0) {
+      const sorted = ordenarCalles(this.calles());
+      const hit =
+        this.orientacionCalles() === 'vertical'
+          ? hitTestCalleVertical(n.x, n.y, sorted)
+          : hitTestCalleHorizontal(n.x, n.y, sorted);
+      if (hit?.departamentoId) {
+        n = {
+          ...n,
+          calleId: hit.id,
+          departamento: hit.departamentoId,
+        };
+      }
+    }
     this.pushSnapshot();
     this.nodos.update((ns) => [...ns, n]);
     this.seleccionId.set(n.id);
@@ -335,11 +389,34 @@ export class PolicyDesignerComponent {
     const { x, y } = ev.distance;
     const dx = x / z;
     const dy = y / z;
+    const nx = n.x + dx;
+    const ny = n.y + dy;
+    let actualizado: NodoCanvas = { ...n, x: nx, y: ny };
+    if (n.tipo === 'ACTIVIDAD' && this.calles().length > 0) {
+      const sorted = ordenarCalles(this.calles());
+      const hit =
+        this.orientacionCalles() === 'vertical'
+          ? hitTestCalleVertical(nx, ny, sorted)
+          : hitTestCalleHorizontal(nx, ny, sorted);
+      if (hit?.departamentoId) {
+        actualizado = {
+          ...actualizado,
+          calleId: hit.id,
+          departamento: hit.departamentoId,
+        };
+        this.flashCalleId.set(hit.id);
+        window.setTimeout(() => this.flashCalleId.set(null), 650);
+      } else {
+        actualizado = {
+          ...actualizado,
+          calleId: undefined,
+          departamento: undefined,
+        };
+      }
+    }
     this.pushSnapshot();
     this.nodos.update((arr) =>
-      arr.map((node) =>
-        node.id === n.id ? { ...node, x: node.x + dx, y: node.y + dy } : node,
-      ),
+      arr.map((node) => (node.id === n.id ? actualizado : node)),
     );
     ev.source.reset();
     this.syncHistorialFlags();
@@ -465,6 +542,8 @@ export class PolicyDesignerComponent {
       activa: base.activa ?? true,
       nodos,
       aristas,
+      callesDiseno: this.calles().map((c) => ({ ...c })),
+      orientacionCalles: this.orientacionCalles(),
     };
     this.politicaService
       .actualizarPolitica(this.politicaId, politica)
@@ -527,9 +606,131 @@ export class PolicyDesignerComponent {
   patchDepartamento(v: string): void {
     const id = this.seleccionId();
     if (!id) return;
+    const n = this.nodos().find((x) => x.id === id);
+    if (n?.tipo === 'ACTIVIDAD') return;
     this.nodos.update((arr) =>
-      arr.map((n) => (n.id === id ? { ...n, departamento: v || undefined } : n)),
+      arr.map((x) => (x.id === id ? { ...x, departamento: v || undefined } : x)),
     );
+  }
+
+  textoDepartamentoActividad(n: NodoCanvas): string {
+    if (n.tipo !== 'ACTIVIDAD') return '';
+    const cal = this.calles().find((c) => c.id === n.calleId);
+    if (cal) return cal.nombre;
+    if (n.departamento) {
+      const d = this.departamentosLista().find((x) => x.id === n.departamento);
+      return d?.nombre ?? '—';
+    }
+    return 'Sin departamento asignado';
+  }
+
+  tieneCalleParaDepartamento(depId: string | undefined): boolean {
+    if (!depId) return false;
+    return this.calles().some((c) => c.departamentoId === depId);
+  }
+
+  agregarCalleDesdeDepartamento(d: Departamento): void {
+    if (!d.id) return;
+    const existente = this.calles().find((c) => c.departamentoId === d.id);
+    if (existente) {
+      this.resaltarCalleId.set(existente.id);
+      if (this.resaltarTimer) clearTimeout(this.resaltarTimer);
+      this.resaltarTimer = window.setTimeout(() => {
+        this.resaltarCalleId.set(null);
+        this.resaltarTimer = null;
+      }, 2000);
+      return;
+    }
+    const colores = ['#e3f2fd', '#e8f5e9', '#fff9c4', '#f3e5f5', '#ffe0b2'];
+    const orden = this.calles().length;
+    const calle: CalleCanvas = {
+      id: `cal-${uuid()}`,
+      nombre: d.nombre,
+      color: colores[orden % colores.length],
+      orden,
+      departamentoId: d.id,
+    };
+    this.pushSnapshot();
+    this.calles.update((c) => [...c, calle]);
+    this.sincronizarCallesEnActividades();
+    this.syncHistorialFlags();
+  }
+
+  /** Asocia calleId en actividades según departamento cuando hay calles en el lienzo */
+  private sincronizarCallesEnActividades(): void {
+    if (!this.calles().length) return;
+    const lanes = this.calles();
+    this.nodos.update((ns) =>
+      ns.map((n) => {
+        if (n.tipo !== 'ACTIVIDAD' || !n.departamento) return n;
+        const c = lanes.find((l) => l.departamentoId === n.departamento);
+        return { ...n, calleId: c?.id };
+      }),
+    );
+  }
+
+  onClickDepartamentoPaleta(d: Departamento): void {
+    this.agregarCalleDesdeDepartamento(d);
+  }
+
+  onDeptoCalleCheckbox(d: Departamento, ev: MatCheckboxChange): void {
+    if (!d.id) return;
+    if (ev.checked) {
+      this.agregarCalleDesdeDepartamento(d);
+    } else {
+      this.intentarEliminarCallePorDepartamento(d.id);
+    }
+  }
+
+  agregarCalleRapida(): void {
+    const deps = this.departamentosLista().filter((x) => x.activo && x.id);
+    const libre = deps.find(
+      (d) => !this.calles().some((c) => c.departamentoId === d.id),
+    );
+    if (!libre) {
+      this.snack.open(
+        'No hay más departamentos activos para agregar como calle',
+        'Cerrar',
+        { duration: 3200 },
+      );
+      return;
+    }
+    this.agregarCalleDesdeDepartamento(libre);
+  }
+
+  setOrientacionCalles(o: 'vertical' | 'horizontal'): void {
+    if (this.orientacionCalles() === o) return;
+    this.pushSnapshot();
+    this.orientacionCalles.set(o);
+    this.syncHistorialFlags();
+  }
+
+  eliminarCalleCabeceraClick(calleId: string, ev: Event): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.intentarEliminarCallePorId(calleId);
+  }
+
+  private intentarEliminarCallePorDepartamento(departamentoId: string): void {
+    const c = this.calles().find((x) => x.departamentoId === departamentoId);
+    if (c) this.intentarEliminarCallePorId(c.id);
+  }
+
+  private intentarEliminarCallePorId(calleId: string): void {
+    const ocupada = this.nodos().some(
+      (n) => n.tipo === 'ACTIVIDAD' && n.calleId === calleId,
+    );
+    if (ocupada) {
+      this.snack.open(
+        'Mové los nodos antes de eliminar esta calle',
+        'Cerrar',
+        { duration: 4200 },
+      );
+      return;
+    }
+    this.pushSnapshot();
+    this.calles.update((c) => c.filter((x) => x.id !== calleId));
+    this.syncHistorialFlags();
   }
 
   patchParaleloItem(
@@ -978,6 +1179,7 @@ export class PolicyDesignerComponent {
   }
 
   private finalizarWizard(ultimoNodoId: string): void {
+    this.sincronizarCallesEnActividades();
     this.syncHistorialFlags();
     this.seleccionId.set(ultimoNodoId);
     this.reiniciarWizardFormulario();
@@ -1058,8 +1260,21 @@ export class PolicyDesignerComponent {
     this.politicaRutaId.set(this.politicaId);
     this.politicaBase = p?.id ? p : null;
     this.nombrePolitica.set(p?.nombre?.trim() ? p.nombre : 'Nueva política');
+    const callesDiseno = (p?.callesDiseno ?? []).map((c) => ({ ...c }));
+    this.calles.set(callesDiseno);
+    this.orientacionCalles.set(p?.orientacionCalles ?? 'vertical');
+    this.flashCalleId.set(null);
+    this.resaltarCalleId.set(null);
     if (p?.nodos?.length) {
-      this.nodos.set(p.nodos.map(mapNodoToCanvas));
+      let nodosCanvas = p.nodos.map(mapNodoToCanvas);
+      if (callesDiseno.length > 0) {
+        nodosCanvas = nodosCanvas.map((n) => {
+          if (n.tipo !== 'ACTIVIDAD' || !n.departamento || n.calleId) return n;
+          const cal = callesDiseno.find((c) => c.departamentoId === n.departamento);
+          return cal ? { ...n, calleId: cal.id } : n;
+        });
+      }
+      this.nodos.set(nodosCanvas);
       this.aristas.set((p.aristas ?? []).map((a) => ({ ...a })));
     } else {
       this.nodos.set([
@@ -1105,6 +1320,8 @@ export class PolicyDesignerComponent {
       this.zoom(),
       this.panX(),
       this.panY(),
+      this.calles(),
+      this.orientacionCalles(),
     );
   }
 
@@ -1121,11 +1338,15 @@ export class PolicyDesignerComponent {
     this.nombrePolitica.set(s.nombrePolitica);
     this.nodos.set(structuredClone(s.nodos));
     this.aristas.set(structuredClone(s.aristas));
+    this.calles.set(structuredClone(s.calles));
+    this.orientacionCalles.set(s.orientacionCalles);
     this.zoom.set(s.zoom);
     this.panX.set(s.panX);
     this.panY.set(s.panY);
     this.seleccionId.set(null);
     this.conexionDesde.set(null);
+    this.flashCalleId.set(null);
+    this.resaltarCalleId.set(null);
   }
 
   private syncHistorialFlags(): void {
