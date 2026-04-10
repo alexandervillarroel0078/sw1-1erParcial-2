@@ -5,7 +5,11 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
-import { Politica } from '../models/politica.model';
+import {
+  Politica,
+  normalizeNodoTipo,
+  normalizeOrientacionCalles,
+} from '../models/politica.model';
 import { AuthService } from './auth.service';
 import { handleApiError } from '../utils/api-error.util';
 
@@ -16,6 +20,7 @@ export class PoliticaService {
   private readonly snack = inject(MatSnackBar);
 
   private readonly base = `${environment.apiUrl}/admin/politicas`;
+  private readonly funcionarioPoliticas = `${environment.apiUrl}/funcionario/politicas`;
 
   private mapPolitica(p: Politica): Politica {
     return {
@@ -26,6 +31,14 @@ export class PoliticaService {
             ? new Date(p.fechaCreacion)
             : p.fechaCreacion
           : undefined,
+      orientacionCalles:
+        p.orientacionCalles != null
+          ? normalizeOrientacionCalles(p.orientacionCalles as string)
+          : undefined,
+      nodos: p.nodos?.map((n) => ({
+        ...n,
+        tipo: normalizeNodoTipo(n.tipo as string),
+      })),
     };
   }
 
@@ -34,6 +47,15 @@ export class PoliticaService {
       map((list) => list.map((x) => this.mapPolitica(x))),
       catchError((err) => handleApiError(this.auth, this.snack, err)),
     );
+  }
+
+  getPoliticasActivas(): Observable<Politica[]> {
+    return this.http
+      .get<Politica[]>(`${this.funcionarioPoliticas}/activas`)
+      .pipe(
+        map((list) => list.map((x) => this.mapPolitica(x))),
+        catchError((err) => handleApiError(this.auth, this.snack, err)),
+      );
   }
 
   getPoliticaById(id: string): Observable<Politica> {
@@ -55,8 +77,14 @@ export class PoliticaService {
       colorTema: politica.colorTema,
       activa: politica.activa,
       fechaCreacion: politica.fechaCreacion,
-      orientacionCalles: politica.orientacionCalles,
-      nodos: politica.nodos ?? [],
+      orientacionCalles:
+        politica.orientacionCalles != null
+          ? normalizeOrientacionCalles(politica.orientacionCalles as string)
+          : undefined,
+      nodos: (politica.nodos ?? []).map((n) => ({
+        ...n,
+        tipo: normalizeNodoTipo(n.tipo as string),
+      })),
       aristas: politica.aristas ?? [],
       callesDiseno: politica.callesDiseno ?? [],
     };
@@ -70,9 +98,16 @@ export class PoliticaService {
     const body = {
       ...politica,
       id,
-      nodos: politica.nodos ?? [],
+      nodos: (politica.nodos ?? []).map((n) => ({
+        ...n,
+        tipo: normalizeNodoTipo(n.tipo as string),
+      })),
       aristas: politica.aristas ?? [],
       callesDiseno: politica.callesDiseno ?? [],
+      orientacionCalles:
+        politica.orientacionCalles != null
+          ? normalizeOrientacionCalles(politica.orientacionCalles as string)
+          : undefined,
     };
     return this.http.put<Politica>(`${this.base}/${id}`, body).pipe(
       map((x) => this.mapPolitica(x)),

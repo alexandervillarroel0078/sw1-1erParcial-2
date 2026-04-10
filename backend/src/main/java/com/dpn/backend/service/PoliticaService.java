@@ -21,6 +21,11 @@ public class PoliticaService {
 		return politicaRepository.findAllByOrderByFechaCreacionDesc();
 	}
 
+	/** Listado para funcionarios: solo políticas activas. */
+	public List<Politica> listarActivas() {
+		return politicaRepository.findByActivaTrue();
+	}
+
 	public Politica obtenerPorId(String id) {
 		return politicaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Política no encontrada"));

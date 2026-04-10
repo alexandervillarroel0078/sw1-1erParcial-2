@@ -89,3 +89,19 @@ public class PoliticaController {
 		return formularioActividadService.guardar(body);
 	}
 }
+
+/**
+ * Ruta de funcionario: no puede vivir en el mismo {@link RequestMapping} que
+ * {@link PoliticaController} (/api/admin/...), por eso es un bean aparte en este archivo.
+ */
+@RestController
+@RequiredArgsConstructor
+class FuncionarioPoliticaActivasEndpoint {
+
+	private final PoliticaService politicaService;
+
+	@GetMapping("/api/funcionario/politicas/activas")
+	public ResponseEntity<List<Politica>> getPoliticasActivas() {
+		return ResponseEntity.ok(politicaService.listarActivas());
+	}
+}

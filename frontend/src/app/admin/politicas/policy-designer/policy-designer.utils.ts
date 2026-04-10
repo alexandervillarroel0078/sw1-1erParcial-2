@@ -1,3 +1,4 @@
+import type { OrientacionCalles } from '../../../core/models/politica.model';
 import type {
   AristaCanvas,
   CalleCanvas,
@@ -66,7 +67,7 @@ export function snapshotFrom(
   panX: number,
   panY: number,
   calles: CalleCanvas[],
-  orientacionCalles: 'vertical' | 'horizontal',
+  orientacionCalles: OrientacionCalles,
 ): {
   nombrePolitica: string;
   nodos: NodoCanvas[];
@@ -75,7 +76,7 @@ export function snapshotFrom(
   panX: number;
   panY: number;
   calles: CalleCanvas[];
-  orientacionCalles: 'vertical' | 'horizontal';
+  orientacionCalles: OrientacionCalles;
 } {
   return {
     nombrePolitica,

@@ -20,13 +20,14 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
+  combineLatest,
   distinctUntilChanged,
   finalize,
   map,
-  of,
   shareReplay,
   startWith,
   switchMap,
+  take,
 } from 'rxjs';
 
 import { Politica } from '../../core/models/politica.model';
@@ -68,16 +69,20 @@ export class NuevoProcesoComponent {
     politicaId: ['', Validators.required],
   });
 
-  readonly politicasActivas$ = this.politicaService.getPoliticas().pipe(
-    map((lista) => lista.filter((p) => p.activa && p.id)),
+  readonly politicasActivas$ = this.politicaService.getPoliticasActivas().pipe(
+    map((lista) => lista.filter((p) => p.id)),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  readonly politicaSeleccionada$ = this.form.controls.politicaId.valueChanges.pipe(
-    startWith(this.form.controls.politicaId.value),
-    distinctUntilChanged(),
-    switchMap((id) =>
-      id ? this.politicaService.getPoliticaById(id) : of(null),
+  readonly politicaSeleccionada$ = combineLatest([
+    this.politicasActivas$,
+    this.form.controls.politicaId.valueChanges.pipe(
+      startWith(this.form.controls.politicaId.value),
+      distinctUntilChanged(),
+    ),
+  ]).pipe(
+    map(([lista, id]) =>
+      id ? lista.find((p) => p.id === id) ?? null : null,
     ),
     map((p) => (p && p.id ? p : null)),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -94,10 +99,11 @@ export class NuevoProcesoComponent {
     }
     const { politicaId } = this.form.getRawValue();
     this.enviando.set(true);
-    this.politicaService
-      .getPoliticaById(politicaId)
+    this.politicasActivas$
       .pipe(
-        switchMap((p) => {
+        take(1),
+        switchMap((lista) => {
+          const p = lista.find((x) => x.id === politicaId);
           if (!p?.id) {
             throw new Error('Política no encontrada');
           }

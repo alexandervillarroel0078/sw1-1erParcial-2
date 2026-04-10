@@ -1,6 +1,39 @@
+/** Coincide con enum Java `TipoNodo` (JSON en MAYÚSCULAS). */
+export type NodoTipo =
+  | 'START'
+  | 'END'
+  | 'ACTIVIDAD'
+  | 'DECISION'
+  | 'FORK_BAR'
+  | 'JOIN_BAR';
+
+/** Coincide con enum Java `OrientacionCalles` (JSON en MAYÚSCULAS). */
+export type OrientacionCalles = 'VERTICAL' | 'HORIZONTAL';
+
+const NODO_TIPOS_VALIDOS = new Set<string>([
+  'START',
+  'END',
+  'ACTIVIDAD',
+  'DECISION',
+  'FORK_BAR',
+  'JOIN_BAR',
+]);
+
+export function normalizeOrientacionCalles(
+  v: string | undefined | null,
+): OrientacionCalles {
+  const s = (v ?? 'VERTICAL').toString().trim().toUpperCase();
+  return s === 'HORIZONTAL' ? 'HORIZONTAL' : 'VERTICAL';
+}
+
+export function normalizeNodoTipo(t: string | undefined | null): NodoTipo {
+  const s = (t ?? 'ACTIVIDAD').toString().trim().toUpperCase();
+  return (NODO_TIPOS_VALIDOS.has(s) ? s : 'ACTIVIDAD') as NodoTipo;
+}
+
 export interface Nodo {
   id: string;
-  tipo: 'START' | 'END' | 'ACTIVIDAD' | 'DECISION' | 'FORK_BAR' | 'JOIN_BAR';
+  tipo: NodoTipo;
   etiqueta: string;
   posicionX: number;
   posicionY: number;
@@ -13,7 +46,10 @@ export interface Nodo {
   alto?: number;
 }
 
-/** Calle (swimlane) guardada con la política */
+/**
+ * Calle (swimlane) guardada con la política.
+ * El DTO Java embebido no define enums; si se agregan, serializar en MAYÚSCULAS.
+ */
 export interface PoliticaCalle {
   id: string;
   nombre: string;
@@ -41,5 +77,5 @@ export interface Politica {
   nodos?: Nodo[];
   aristas?: Arista[];
   callesDiseno?: PoliticaCalle[];
-  orientacionCalles?: 'vertical' | 'horizontal';
+  orientacionCalles?: OrientacionCalles;
 }

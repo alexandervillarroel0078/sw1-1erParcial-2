@@ -1,4 +1,4 @@
-import type { Nodo } from '../../../core/models/politica.model';
+import type { Nodo, OrientacionCalles } from '../../../core/models/politica.model';
 
 export type NodoCanvasTipo = Nodo['tipo'];
 
@@ -47,7 +47,7 @@ export interface PolicyCanvasSnapshot {
   panX: number;
   panY: number;
   calles: CalleCanvas[];
-  orientacionCalles: 'vertical' | 'horizontal';
+  orientacionCalles: OrientacionCalles;
 }
 
 export type PuertoCanvas = 'in' | 'out';

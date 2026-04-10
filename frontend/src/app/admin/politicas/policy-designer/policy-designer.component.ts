@@ -30,7 +30,11 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import type { Arista, Nodo, Politica } from '../../../core/models/politica.model';
+import type { Arista, Nodo, OrientacionCalles, Politica } from '../../../core/models/politica.model';
+import {
+  normalizeNodoTipo,
+  normalizeOrientacionCalles,
+} from '../../../core/models/politica.model';
 import type { Departamento } from '../../../core/models/departamento.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { PoliticaService } from '../../../core/services/politica.service';
@@ -84,7 +88,7 @@ function uuid(): string {
 function mapNodoToCanvas(n: Nodo): NodoCanvas {
   return {
     id: n.id,
-    tipo: n.tipo,
+    tipo: normalizeNodoTipo(n.tipo),
     etiqueta: n.etiqueta,
     x: n.posicionX,
     y: n.posicionY,
@@ -98,7 +102,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
 function mapCanvasToNodo(n: NodoCanvas): Nodo {
   return {
     id: n.id,
-    tipo: n.tipo,
+    tipo: normalizeNodoTipo(n.tipo),
     etiqueta: n.etiqueta,
     posicionX: Math.round(n.x),
     posicionY: Math.round(n.y),
@@ -159,7 +163,7 @@ export class PolicyDesignerComponent implements OnInit {
   readonly nodos = signal<NodoCanvas[]>([]);
   readonly aristas = signal<AristaCanvas[]>([]);
   readonly calles = signal<CalleCanvas[]>([]);
-  readonly orientacionCalles = signal<'vertical' | 'horizontal'>('vertical');
+  readonly orientacionCalles = signal<OrientacionCalles>('VERTICAL');
   readonly flashCalleId = signal<string | null>(null);
   readonly resaltarCalleId = signal<string | null>(null);
   readonly departamentosLista = signal<Departamento[]>([]);
@@ -183,7 +187,7 @@ export class PolicyDesignerComponent implements OnInit {
 
   readonly swimVerticalLayout = computed(() => {
     const lanes = this.callesOrdenadasVm();
-    if (this.orientacionCalles() !== 'vertical' || lanes.length === 0) return null;
+    if (this.orientacionCalles() !== 'VERTICAL' || lanes.length === 0) return null;
     const ox = SWIM_ORIGIN_X;
     const oy = SWIM_ORIGIN_Y;
     const items: { calle: CalleCanvas; x0: number; w: number }[] = [];
@@ -206,7 +210,7 @@ export class PolicyDesignerComponent implements OnInit {
 
   readonly swimHorizontalLayout = computed(() => {
     const lanes = this.callesOrdenadasVm();
-    if (this.orientacionCalles() !== 'horizontal' || lanes.length === 0) return null;
+    if (this.orientacionCalles() !== 'HORIZONTAL' || lanes.length === 0) return null;
     const ox = SWIM_ORIGIN_X;
     const oy = SWIM_ORIGIN_Y;
     const items: { calle: CalleCanvas; y0: number; h: number }[] = [];
@@ -386,7 +390,7 @@ export class PolicyDesignerComponent implements OnInit {
     if (tipo === 'ACTIVIDAD' && this.calles().length > 0) {
       const sorted = ordenarCalles(this.calles());
       const hit =
-        this.orientacionCalles() === 'vertical'
+        this.orientacionCalles() === 'VERTICAL'
           ? hitTestCalleVertical(n.x, n.y, sorted)
           : hitTestCalleHorizontal(n.x, n.y, sorted);
       if (hit?.departamentoId) {
@@ -412,7 +416,7 @@ export class PolicyDesignerComponent implements OnInit {
 
   holderMinWidthStyle(): string | null {
     if (!this.calles().length) return null;
-    if (this.orientacionCalles() === 'vertical') {
+    if (this.orientacionCalles() === 'VERTICAL') {
       const vl = this.swimVerticalLayout();
       return vl ? `max(100%, ${vl.rightX + 400}px)` : null;
     }
@@ -421,7 +425,7 @@ export class PolicyDesignerComponent implements OnInit {
   }
 
   holderMinHeightStyle(): string | null {
-    if (this.orientacionCalles() !== 'horizontal' || !this.calles().length) {
+    if (this.orientacionCalles() !== 'HORIZONTAL' || !this.calles().length) {
       return null;
     }
     const hl = this.swimHorizontalLayout();
@@ -529,7 +533,7 @@ export class PolicyDesignerComponent implements OnInit {
     if (n.tipo === 'ACTIVIDAD' && this.calles().length > 0) {
       const sorted = ordenarCalles(this.calles());
       const hit =
-        this.orientacionCalles() === 'vertical'
+        this.orientacionCalles() === 'VERTICAL'
           ? hitTestCalleVertical(nx, ny, sorted)
           : hitTestCalleHorizontal(nx, ny, sorted);
       if (hit?.departamentoId) {
@@ -848,7 +852,7 @@ export class PolicyDesignerComponent implements OnInit {
     this.agregarCalleDesdeDepartamento(libre);
   }
 
-  setOrientacionCalles(o: 'vertical' | 'horizontal'): void {
+  setOrientacionCalles(o: OrientacionCalles): void {
     if (this.orientacionCalles() === o) return;
     this.pushSnapshot();
     this.orientacionCalles.set(o);
@@ -1422,7 +1426,9 @@ export class PolicyDesignerComponent implements OnInit {
     this.nombrePolitica.set(p?.nombre?.trim() ? p.nombre : 'Nueva política');
     const callesDiseno = (p?.callesDiseno ?? []).map((c) => ({ ...c }));
     this.calles.set(callesDiseno);
-    this.orientacionCalles.set(p?.orientacionCalles ?? 'vertical');
+    this.orientacionCalles.set(
+      normalizeOrientacionCalles(p?.orientacionCalles as string | undefined),
+    );
     this.flashCalleId.set(null);
     this.resaltarCalleId.set(null);
     if (p?.nodos?.length) {
@@ -1499,7 +1505,9 @@ export class PolicyDesignerComponent implements OnInit {
     this.nodos.set(structuredClone(s.nodos));
     this.aristas.set(structuredClone(s.aristas));
     this.calles.set(structuredClone(s.calles));
-    this.orientacionCalles.set(s.orientacionCalles);
+    this.orientacionCalles.set(
+      normalizeOrientacionCalles(s.orientacionCalles as string),
+    );
     this.zoom.set(s.zoom);
     this.panX.set(s.panX);
     this.panY.set(s.panY);
