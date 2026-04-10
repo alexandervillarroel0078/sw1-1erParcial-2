@@ -1,17 +1,20 @@
-import { inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { PLATFORM_ID, inject } from '@angular/core';
 import { HttpInterceptorFn } from '@angular/common/http';
 
-import { AuthService } from '../services/auth.service';
+const DPN_TOKEN_KEY = 'dpn_token';
 
 export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
-  const auth = inject(AuthService);
+  const platformId = inject(PLATFORM_ID);
+  if (!isPlatformBrowser(platformId)) {
+    return next(req);
+  }
 
-  const token = auth.getToken();
+  const token = localStorage.getItem(DPN_TOKEN_KEY) ?? '';
   if (!token) {
     return next(req);
   }
 
-  // reemplazar con lógica del backend cuando esté listo (si requiere refresh token, etc.)
   const authReq = req.clone({
     setHeaders: {
       Authorization: `Bearer ${token}`,
@@ -20,4 +23,3 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq);
 };
-
