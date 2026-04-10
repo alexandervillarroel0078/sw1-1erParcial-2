@@ -1,0 +1,15 @@
+.content {
+  padding-top: 6px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  min-width: min(440px, 85vw);
+}
+
+@media (max-width: 480px) {
+  .form {
+    min-width: 0;
+  }
+}

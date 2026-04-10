@@ -20,10 +20,10 @@ export class PoliticaService {
       fechaCreacion: new Date('2026-02-01T10:00:00Z'),
       nodos: [
         this.nodo('n1', 'START', 'Inicio', 80, 80),
-        this.nodo('n2', 'ACTIVIDAD', 'Revisar solicitud', 320, 80, 'dep-2'),
+        this.nodo('n2', 'ACTIVIDAD', 'Revisar solicitud', 320, 80, 'dep-validacion'),
         this.nodo('n3', 'DECISION', '¿Cumple requisitos?', 560, 80),
-        this.nodo('n4', 'ACTIVIDAD', 'Aprobar', 800, 40, 'dep-1'),
-        this.nodo('n5', 'ACTIVIDAD', 'Rechazar', 800, 140, 'dep-1'),
+        this.nodo('n4', 'ACTIVIDAD', 'Aprobar', 800, 40, 'dep-direccion'),
+        this.nodo('n5', 'ACTIVIDAD', 'Rechazar', 800, 140, 'dep-direccion'),
         this.nodo('n6', 'END', 'Fin', 1040, 80),
       ],
       aristas: [
@@ -44,8 +44,8 @@ export class PoliticaService {
       fechaCreacion: new Date('2026-02-10T10:00:00Z'),
       nodos: [
         this.nodo('a1', 'START', 'Inicio', 80, 80),
-        this.nodo('a2', 'ACTIVIDAD', 'Capturar datos', 320, 80, 'dep-3'),
-        this.nodo('a3', 'ACTIVIDAD', 'Validar identidad', 560, 80, 'dep-4'),
+        this.nodo('a2', 'ACTIVIDAD', 'Capturar datos', 320, 80, 'dep-atencion'),
+        this.nodo('a3', 'ACTIVIDAD', 'Validar identidad', 560, 80, 'dep-soporte'),
         this.nodo('a4', 'END', 'Fin', 800, 80),
       ],
       aristas: [this.arista('ae1', 'a1', 'a2'), this.arista('ae2', 'a2', 'a3'), this.arista('ae3', 'a3', 'a4')],
@@ -59,10 +59,10 @@ export class PoliticaService {
       fechaCreacion: new Date('2026-03-05T10:00:00Z'),
       nodos: [
         this.nodo('r1', 'START', 'Inicio', 80, 80),
-        this.nodo('r2', 'ACTIVIDAD', 'Recepcionar reclamo', 320, 80, 'dep-2'),
+        this.nodo('r2', 'ACTIVIDAD', 'Recepcionar reclamo', 320, 80, 'dep-atencion'),
         this.nodo('r3', 'FORK_BAR', 'Paralelo', 560, 80),
-        this.nodo('r4', 'ACTIVIDAD', 'Análisis técnico', 760, 40, 'dep-4'),
-        this.nodo('r5', 'ACTIVIDAD', 'Contacto con cliente', 760, 140, 'dep-3'),
+        this.nodo('r4', 'ACTIVIDAD', 'Análisis técnico', 760, 40, 'dep-soporte'),
+        this.nodo('r5', 'ACTIVIDAD', 'Contacto con cliente', 760, 140, 'dep-juridico'),
         this.nodo('r6', 'JOIN_BAR', 'Unir', 960, 80),
         this.nodo('r7', 'END', 'Fin', 1160, 80),
       ],

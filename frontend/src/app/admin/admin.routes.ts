@@ -45,6 +45,13 @@ export const ADMIN_ROUTES: Routes = [
           ),
       },
       {
+        path: 'departamentos',
+        loadComponent: () =>
+          import('./departamentos/departamentos.component').then(
+            (m) => m.DepartamentosComponent,
+          ),
+      },
+      {
         path: 'monitor',
         loadComponent: () =>
           import('./monitor/monitor.component').then((m) => m.MonitorComponent),

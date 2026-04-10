@@ -1,0 +1,79 @@
+.content {
+  padding-top: 4px;
+  min-width: min(480px, 88vw);
+  max-height: min(60vh, 420px);
+  overflow: auto;
+}
+
+.empty {
+  margin: 12px 0 8px;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(25, 118, 210, 0.06);
+  border: 1px solid rgba(25, 118, 210, 0.12);
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  background: rgba(25, 118, 210, 0.14);
+  color: #1565c0;
+  border: 1px solid rgba(25, 118, 210, 0.22);
+}
+
+.datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.nombre {
+  font-weight: 700;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.correo {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.55);
+  word-break: break-word;
+}
+
+.chip {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.chip-estado--on {
+  background: rgba(99, 153, 34, 0.14) !important;
+  color: #639922 !important;
+}
+
+.chip-estado--off {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: rgba(0, 0, 0, 0.55) !important;
+}

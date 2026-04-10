@@ -9,6 +9,7 @@
 
 .toolbar__title {
   font-weight: 800;
+  margin-right: 12px;
 }
 
 .spacer {
@@ -17,7 +18,6 @@
 
 .toolbar__search {
   width: min(360px, 42vw);
-  margin-right: 12px;
 }
 
 .table-card {
@@ -37,42 +37,37 @@
   width: 100%;
 }
 
-.col-avatar {
-  width: 64px;
-  padding-right: 0;
+.col-funcionarios {
+  white-space: nowrap;
+}
+
+.func-count {
+  display: inline-block;
+  min-width: 1.5rem;
+  margin-right: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.btn-ver-func {
+  .mat-icon {
+    margin-right: 4px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
 }
 
 .col-acciones {
-  width: 120px;
+  width: 168px;
   text-align: right;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 13px;
-  background: rgba(25, 118, 210, 0.14);
-  color: #1565c0;
-  border: 1px solid rgba(25, 118, 210, 0.22);
+  white-space: nowrap;
 }
 
 .chip {
   font-weight: 700;
   font-size: 12px;
-}
-
-.chip-rol--admin {
-  background: rgba(12, 68, 124, 0.14) !important;
-  color: #0c447c !important;
-}
-
-.chip-rol--func {
-  background: rgba(97, 97, 97, 0.12) !important;
-  color: #616161 !important;
 }
 
 .chip-estado--on {
@@ -97,16 +92,29 @@ mat-paginator {
     gap: 10px;
   }
 
+  .toolbar__title {
+    margin-right: 0;
+  }
+
   .spacer {
     display: none;
   }
 
   .toolbar__search {
     width: 100%;
-    margin-right: 0;
   }
 
   .col-acciones {
     width: auto;
+  }
+
+  .col-funcionarios {
+    white-space: normal;
+  }
+
+  .func-count {
+    display: block;
+    margin-right: 0;
+    margin-bottom: 6px;
   }
 }

@@ -27,11 +27,11 @@ export class AuthService {
       password: 'admin123',
     },
     {
-      id: 'u-func-1',
+      id: 'u-func-7',
       nombre: 'Funcionario Demo',
       correo: 'funcionario@demo.com',
       rol: 'FUNCIONARIO',
-      departamentoId: 'dep-2',
+      departamentoId: 'dep-direccion',
       activo: true,
       creadoEn: new Date('2026-01-12T10:00:00Z'),
       password: 'funcionario123',

@@ -42,32 +42,34 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Departamento</mat-label>
-      <mat-select formControlName="departamentoId">
-        @for (d of departamentos; track d.id) {
-          <mat-option [value]="d.id">
-            {{ d.nombre }}
-            @if (!d.activo) {
-              <span class="dep-inactive"> (inactivo)</span>
-            }
-          </mat-option>
-        }
-      </mat-select>
-      @if (form.controls.departamentoId.touched && form.controls.departamentoId.hasError('required')) {
-        <mat-error>Elegí un departamento</mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
       <mat-label>Rol</mat-label>
       <mat-select formControlName="rol">
-        <mat-option value="ADMINISTRADOR">Administrador</mat-option>
-        <mat-option value="FUNCIONARIO">Funcionario</mat-option>
+        <mat-option value="FUNCIONARIO">FUNCIONARIO</mat-option>
+        <mat-option value="ADMINISTRADOR">ADMINISTRADOR</mat-option>
       </mat-select>
       @if (form.controls.rol.touched && form.controls.rol.hasError('required')) {
         <mat-error>Elegí un rol</mat-error>
       }
     </mat-form-field>
+
+    @if (esFuncionario) {
+      <mat-form-field appearance="outline">
+        <mat-label>Departamento</mat-label>
+        <mat-select formControlName="departamentoId">
+          @for (d of departamentos; track d.id) {
+            <mat-option [value]="d.id">
+              {{ d.nombre }}
+              @if (!d.activo) {
+                <span class="dep-inactive"> (inactivo)</span>
+              }
+            </mat-option>
+          }
+        </mat-select>
+        @if (form.controls.departamentoId.touched && form.controls.departamentoId.hasError('required')) {
+          <mat-error>Elegí un departamento</mat-error>
+        }
+      </mat-form-field>
+    }
   </form>
 </div>
 

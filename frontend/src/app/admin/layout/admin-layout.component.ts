@@ -45,6 +45,7 @@ export class AdminLayoutComponent {
     { label: 'Dashboard', icon: 'dashboard', link: '/admin/dashboard' },
     { label: 'Políticas', icon: 'account_tree', link: '/admin/politicas' },
     { label: 'Funcionarios', icon: 'groups', link: '/admin/funcionarios' },
+    { label: 'Departamentos', icon: 'business', link: '/admin/departamentos' },
     { label: 'Monitor', icon: 'monitor_heart', link: '/admin/monitor' },
     { label: 'Análisis', icon: 'query_stats', link: '/admin/analisis' },
   ];
@@ -88,6 +89,7 @@ export class AdminLayoutComponent {
   resolveTitleFromUrl(url: string): string {
     if (url.includes('/admin/politicas')) return 'Políticas';
     if (url.includes('/admin/funcionarios')) return 'Funcionarios';
+    if (url.includes('/admin/departamentos')) return 'Departamentos';
     if (url.includes('/admin/monitor')) return 'Monitor';
     if (url.includes('/admin/analisis')) return 'Análisis';
     return 'Dashboard';

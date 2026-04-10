@@ -1,0 +1,33 @@
+<h2 mat-dialog-title>Funcionarios — {{ data.departamentoNombre }}</h2>
+
+<div mat-dialog-content class="content">
+  @if (listo()) {
+    @if (funcionarios().length === 0) {
+      <p class="empty">Este departamento no tiene funcionarios asignados</p>
+    } @else {
+      <ul class="lista">
+        @for (u of funcionarios(); track u.id) {
+          <li class="fila">
+            <div class="avatar" aria-hidden="true">{{ iniciales(u.nombre) }}</div>
+            <div class="datos">
+              <div class="nombre">{{ u.nombre }}</div>
+              <div class="correo">{{ u.correo }}</div>
+            </div>
+            <mat-chip
+              class="chip chip-estado"
+              [class.chip-estado--on]="u.activo"
+              [class.chip-estado--off]="!u.activo"
+              selected
+            >
+              {{ u.activo ? 'Activo' : 'Inactivo' }}
+            </mat-chip>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-raised-button color="primary" type="button" (click)="cerrar()">Cerrar</button>
+</div>
