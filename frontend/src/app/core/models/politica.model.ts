@@ -18,6 +18,8 @@ export interface PoliticaCalle {
   color: string;
   orden: number;
   departamentoId?: string;
+  anchoPx?: number;
+  altoPx?: number;
 }
 
 export interface Arista {

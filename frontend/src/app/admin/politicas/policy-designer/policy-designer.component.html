@@ -164,6 +164,15 @@
           (Esc cancela)
         </div>
       }
+      <div
+        class="pd-canvas-scroll"
+        [class.pd-canvas-scroll--lanes]="calles().length > 0"
+      >
+        <div
+          class="pd-svg-holder"
+          [style.min-width]="holderMinWidthStyle()"
+          [style.min-height]="holderMinHeightStyle()"
+        >
       <svg
         class="pd-svg"
         (wheel)="onCanvasWheel($event)"
@@ -193,16 +202,12 @@
             (pointerdown)="onFondoPointerDown($event)"
           />
 
-          @if (calles().length > 0 && orientacionCalles() === 'vertical') {
+          @if (swimVerticalLayout(); as vl) {
             <g class="pd-swim-layer">
-              @for (
-                c of callesOrdenadasVm();
-                track c.id;
-                let i = $index;
-                let laneCount = $count
-              ) {
-                @let bw = swimBounds.w / laneCount;
-                @let x0 = swimBounds.x + i * bw;
+              @for (item of vl.items; track item.calle.id; let i = $index) {
+                @let c = item.calle;
+                @let x0 = item.x0;
+                @let bw = item.w;
                 <g
                   class="pd-swim-lane"
                   [class.pd-swim-lane--flash]="flashCalleId() === c.id"
@@ -211,7 +216,7 @@
                   <rect
                     class="pd-swim-head"
                     [attr.x]="x0"
-                    [attr.y]="swimBounds.y"
+                    [attr.y]="vl.oy"
                     [attr.width]="bw"
                     [attr.height]="swimHeaderV"
                     [attr.fill]="c.color"
@@ -220,9 +225,9 @@
                   <rect
                     class="pd-swim-body"
                     [attr.x]="x0"
-                    [attr.y]="swimBounds.y + swimHeaderV"
+                    [attr.y]="vl.oy + swimHeaderV"
                     [attr.width]="bw"
-                    [attr.height]="swimBounds.h - swimHeaderV"
+                    [attr.height]="vl.bodyH"
                     [attr.fill]="c.color"
                     opacity="0.32"
                   />
@@ -230,15 +235,15 @@
                     <line
                       class="pd-swim-divider"
                       [attr.x1]="x0"
-                      [attr.y1]="swimBounds.y"
+                      [attr.y1]="vl.oy"
                       [attr.x2]="x0"
-                      [attr.y2]="swimBounds.y + swimBounds.h"
+                      [attr.y2]="vl.oy + swimVertTotalH"
                     />
                   }
                   <text
                     class="pd-swim-title"
                     [attr.x]="x0 + 8"
-                    [attr.y]="swimBounds.y + 26"
+                    [attr.y]="vl.oy + 26"
                   >
                     {{ c.nombre }}
                   </text>
@@ -247,36 +252,41 @@
                     (click)="eliminarCalleCabeceraClick(c.id, $event)"
                   >
                     <rect
-                      [attr.x]="x0 + bw - 32"
-                      [attr.y]="swimBounds.y + 4"
-                      width="28"
+                      [attr.x]="x0 + bw - 36"
+                      [attr.y]="vl.oy + 4"
+                      width="30"
                       height="32"
                       fill="transparent"
                     />
                     <text
                       class="pd-swim-close-x"
-                      [attr.x]="x0 + bw - 18"
-                      [attr.y]="swimBounds.y + 26"
+                      [attr.x]="x0 + bw - 20"
+                      [attr.y]="vl.oy + 26"
                       text-anchor="middle"
                     >
                       ×
                     </text>
                   </g>
+                  <rect
+                    class="pd-swim-resize-handle pd-swim-resize-handle--ew"
+                    [attr.x]="x0 + bw - 6"
+                    [attr.y]="vl.oy + swimHeaderV"
+                    width="10"
+                    [attr.height]="vl.bodyH"
+                    fill="transparent"
+                    (pointerdown)="onSwimResizePointerDown($event, c, 'x')"
+                  />
                 </g>
               }
             </g>
           }
 
-          @if (calles().length > 0 && orientacionCalles() === 'horizontal') {
+          @if (swimHorizontalLayout(); as hl) {
             <g class="pd-swim-layer">
-              @for (
-                c of callesOrdenadasVm();
-                track c.id;
-                let j = $index;
-                let rowCount = $count
-              ) {
-                @let rh = swimBounds.h / rowCount;
-                @let y0 = swimBounds.y + j * rh;
+              @for (item of hl.items; track item.calle.id; let j = $index) {
+                @let c = item.calle;
+                @let y0 = item.y0;
+                @let rh = item.h;
                 <g
                   class="pd-swim-lane"
                   [class.pd-swim-lane--flash]="flashCalleId() === c.id"
@@ -284,7 +294,7 @@
                 >
                   <rect
                     class="pd-swim-head pd-swim-head--hz"
-                    [attr.x]="swimBounds.x"
+                    [attr.x]="hl.ox"
                     [attr.y]="y0"
                     [attr.width]="swimLabelH"
                     [attr.height]="rh"
@@ -293,9 +303,9 @@
                   />
                   <rect
                     class="pd-swim-body"
-                    [attr.x]="swimBounds.x + swimLabelH"
+                    [attr.x]="hl.ox + swimLabelH"
                     [attr.y]="y0"
-                    [attr.width]="swimBounds.w - swimLabelH"
+                    [attr.width]="swimHorizContentW"
                     [attr.height]="rh"
                     [attr.fill]="c.color"
                     opacity="0.32"
@@ -303,15 +313,15 @@
                   @if (j > 0) {
                     <line
                       class="pd-swim-divider"
-                      [attr.x1]="swimBounds.x"
+                      [attr.x1]="hl.ox"
                       [attr.y1]="y0"
-                      [attr.x2]="swimBounds.x + swimBounds.w"
+                      [attr.x2]="hl.ox + hl.contentW"
                       [attr.y2]="y0"
                     />
                   }
                   <text
                     class="pd-swim-title pd-swim-title--hz"
-                    [attr.x]="swimBounds.x + 8"
+                    [attr.x]="hl.ox + 8"
                     [attr.y]="y0 + rh / 2 + 5"
                   >
                     {{ c.nombre }}
@@ -321,7 +331,7 @@
                     (click)="eliminarCalleCabeceraClick(c.id, $event)"
                   >
                     <rect
-                      [attr.x]="swimBounds.x + swimBounds.w - 36"
+                      [attr.x]="hl.ox + hl.contentW - 36"
                       [attr.y]="y0 + 4"
                       width="32"
                       height="28"
@@ -329,13 +339,22 @@
                     />
                     <text
                       class="pd-swim-close-x"
-                      [attr.x]="swimBounds.x + swimBounds.w - 20"
+                      [attr.x]="hl.ox + hl.contentW - 20"
                       [attr.y]="y0 + 22"
                       text-anchor="middle"
                     >
                       ×
                     </text>
                   </g>
+                  <rect
+                    class="pd-swim-resize-handle pd-swim-resize-handle--ns"
+                    [attr.x]="hl.ox + swimLabelH"
+                    [attr.y]="y0 + rh - 6"
+                    [attr.width]="swimHorizContentW"
+                    height="10"
+                    fill="transparent"
+                    (pointerdown)="onSwimResizePointerDown($event, c, 'y')"
+                  />
                 </g>
               }
             </g>
@@ -442,6 +461,8 @@
           }
         </g>
       </svg>
+        </div>
+      </div>
     </div>
 
     <!-- Panel derecho: pestañas -->

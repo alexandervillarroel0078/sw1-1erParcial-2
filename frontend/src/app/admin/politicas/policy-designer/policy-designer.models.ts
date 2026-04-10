@@ -9,6 +9,10 @@ export interface CalleCanvas {
   color: string;
   orden: number;
   departamentoId?: string;
+  /** Ancho en px (modo vertical); primera calle 300, resto 250 por defecto */
+  anchoPx?: number;
+  /** Alto en px (modo horizontal); primera 300, resto 250 por defecto, mín. 150 */
+  altoPx?: number;
 }
 
 /** Nodo en el lienzo del diseñador (coordenadas en espacio mundo SVG). */

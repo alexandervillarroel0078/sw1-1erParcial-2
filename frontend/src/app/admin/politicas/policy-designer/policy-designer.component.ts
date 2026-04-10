@@ -42,8 +42,15 @@ import type {
 } from './policy-designer.models';
 import {
   SWIM_HEADER_V,
+  SWIM_HORIZ_CONTENT_W,
   SWIM_LABEL_H,
-  SWIM_WORLD_BOUNDS,
+  SWIM_ORIGIN_X,
+  SWIM_ORIGIN_Y,
+  SWIM_VERT_TOTAL_H,
+  LANE_MIN_H_RESIZE,
+  LANE_MIN_W_RESIZE,
+  altoCalleHorizontal,
+  anchoCalleVertical,
   callesOrdenadas as ordenarCalles,
   hitTestCalleHorizontal,
   hitTestCalleVertical,
@@ -157,11 +164,61 @@ export class PolicyDesignerComponent {
   readonly departamentosLista = signal<Departamento[]>([]);
   private resaltarTimer: number | null = null;
 
-  readonly swimBounds = SWIM_WORLD_BOUNDS;
+  private swimResizeDrag: {
+    calleId: string;
+    axis: 'x' | 'y';
+    initialClient: number;
+    initialSize: number;
+  } | null = null;
+
+  readonly swimOriginX = SWIM_ORIGIN_X;
+  readonly swimOriginY = SWIM_ORIGIN_Y;
   readonly swimHeaderV = SWIM_HEADER_V;
   readonly swimLabelH = SWIM_LABEL_H;
+  readonly swimVertTotalH = SWIM_VERT_TOTAL_H;
+  readonly swimHorizContentW = SWIM_HORIZ_CONTENT_W;
 
   readonly callesOrdenadasVm = computed(() => ordenarCalles(this.calles()));
+
+  readonly swimVerticalLayout = computed(() => {
+    const lanes = this.callesOrdenadasVm();
+    if (this.orientacionCalles() !== 'vertical' || lanes.length === 0) return null;
+    const ox = SWIM_ORIGIN_X;
+    const oy = SWIM_ORIGIN_Y;
+    const items: { calle: CalleCanvas; x0: number; w: number }[] = [];
+    let x = ox;
+    for (let i = 0; i < lanes.length; i++) {
+      const c = lanes[i];
+      const w = anchoCalleVertical(c, i);
+      items.push({ calle: c, x0: x, w });
+      x += w;
+    }
+    return {
+      ox,
+      oy,
+      items,
+      totalW: x - ox,
+      rightX: x,
+      bodyH: SWIM_VERT_TOTAL_H - SWIM_HEADER_V,
+    };
+  });
+
+  readonly swimHorizontalLayout = computed(() => {
+    const lanes = this.callesOrdenadasVm();
+    if (this.orientacionCalles() !== 'horizontal' || lanes.length === 0) return null;
+    const ox = SWIM_ORIGIN_X;
+    const oy = SWIM_ORIGIN_Y;
+    const items: { calle: CalleCanvas; y0: number; h: number }[] = [];
+    let y = oy;
+    for (let i = 0; i < lanes.length; i++) {
+      const c = lanes[i];
+      const h = altoCalleHorizontal(c, i);
+      items.push({ calle: c, y0: y, h });
+      y += h;
+    }
+    const contentW = SWIM_LABEL_H + SWIM_HORIZ_CONTENT_W;
+    return { ox, oy, items, totalH: y - oy, bottomY: y, contentW };
+  });
 
   readonly zoom = signal(1);
   readonly panX = signal(0);
@@ -342,8 +399,49 @@ export class PolicyDesignerComponent {
     this.conexionDesde.set(null);
   }
 
+  holderMinWidthStyle(): string | null {
+    if (!this.calles().length) return null;
+    if (this.orientacionCalles() === 'vertical') {
+      const vl = this.swimVerticalLayout();
+      return vl ? `max(100%, ${vl.rightX + 400}px)` : null;
+    }
+    const hl = this.swimHorizontalLayout();
+    return hl ? `max(100%, ${hl.contentW + 400}px)` : null;
+  }
+
+  holderMinHeightStyle(): string | null {
+    if (this.orientacionCalles() !== 'horizontal' || !this.calles().length) {
+      return null;
+    }
+    const hl = this.swimHorizontalLayout();
+    return hl ? `max(100%, ${hl.bottomY + 400}px)` : null;
+  }
+
+  onSwimResizePointerDown(
+    ev: PointerEvent,
+    calle: CalleCanvas,
+    axis: 'x' | 'y',
+  ): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    const lanes = this.callesOrdenadasVm();
+    const idx = lanes.findIndex((c) => c.id === calle.id);
+    const initialSize =
+      axis === 'x'
+        ? anchoCalleVertical(calle, idx)
+        : altoCalleHorizontal(calle, idx);
+    this.swimResizeDrag = {
+      calleId: calle.id,
+      axis,
+      initialClient: axis === 'x' ? ev.clientX : ev.clientY,
+      initialSize,
+    };
+    (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+  }
+
   onFondoPointerDown(ev: PointerEvent): void {
     if (ev.button !== 0) return;
+    if (this.swimResizeDrag) return;
     const t = ev.target as Element | null;
     if (!t?.classList.contains('pd-canvas-bg')) return;
     this.panPrevia = { x: this.panX(), y: this.panY() };
@@ -358,6 +456,25 @@ export class PolicyDesignerComponent {
 
   @HostListener('document:pointermove', ['$event'])
   onDocPointerMove(ev: PointerEvent): void {
+    const r = this.swimResizeDrag;
+    if (r) {
+      ev.preventDefault();
+      const z = this.zoom();
+      if (r.axis === 'x') {
+        const dw = (ev.clientX - r.initialClient) / z;
+        const next = Math.max(LANE_MIN_W_RESIZE, r.initialSize + dw);
+        this.calles.update((arr) =>
+          arr.map((c) => (c.id === r.calleId ? { ...c, anchoPx: next } : c)),
+        );
+      } else {
+        const dh = (ev.clientY - r.initialClient) / z;
+        const next = Math.max(LANE_MIN_H_RESIZE, r.initialSize + dh);
+        this.calles.update((arr) =>
+          arr.map((c) => (c.id === r.calleId ? { ...c, altoPx: next } : c)),
+        );
+      }
+      return;
+    }
     const p = this.panArrastre;
     if (!p) return;
     this.panX.set(p.ox + (ev.clientX - p.sx));
@@ -366,6 +483,12 @@ export class PolicyDesignerComponent {
 
   @HostListener('document:pointerup')
   onDocPointerUp(): void {
+    if (this.swimResizeDrag) {
+      this.pushSnapshot();
+      this.syncHistorialFlags();
+      this.swimResizeDrag = null;
+      return;
+    }
     const prev = this.panPrevia;
     if (this.panArrastre && prev) {
       if (this.panX() !== prev.x || this.panY() !== prev.y) {
@@ -649,6 +772,8 @@ export class PolicyDesignerComponent {
       color: colores[orden % colores.length],
       orden,
       departamentoId: d.id,
+      anchoPx: orden === 0 ? 300 : 250,
+      altoPx: orden === 0 ? 300 : 250,
     };
     this.pushSnapshot();
     this.calles.update((c) => [...c, calle]);
