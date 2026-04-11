@@ -7,7 +7,7 @@ export interface ValidacionFlujoResultado {
   tieneErrores: boolean;
 }
 
-function normEtiquetaArista(e?: string): string {
+export function normEtiquetaArista(e?: string): string {
   return (e ?? '')
     .trim()
     .toLowerCase()
@@ -15,14 +15,25 @@ function normEtiquetaArista(e?: string): string {
     .replace(/\p{M}/gu, '');
 }
 
-function esRamaSi(etiqueta?: string): boolean {
+export function esRamaSi(etiqueta?: string): boolean {
   const t = normEtiquetaArista(etiqueta);
   return t === 'si' || t === 'yes';
 }
 
-function esRamaNo(etiqueta?: string): boolean {
+export function esRamaNo(etiqueta?: string): boolean {
   const t = normEtiquetaArista(etiqueta);
   return t === 'no';
+}
+
+/** Segunda salida desde DECISIÓN: etiqueta opuesta a la ya existente. */
+export function etiquetaAutomaticaSegundaSalidaDecision(
+  salientesExistentes: AristaCanvas[],
+): 'Sí' | 'No' {
+  const tieneSi = salientesExistentes.some((e) => esRamaSi(e.etiqueta));
+  const tieneNo = salientesExistentes.some((e) => esRamaNo(e.etiqueta));
+  if (tieneSi && !tieneNo) return 'No';
+  if (tieneNo && !tieneSi) return 'Sí';
+  return 'Sí';
 }
 
 /**
@@ -75,23 +86,26 @@ export function buildValidation(
   }
 
   for (const n of nodos) {
-    if (n.tipo === 'DECISION') {
-      const outs = salientes.get(n.id) ?? [];
-      const todasEtiquetadasSiNo = outs.every(
-        (e) => esRamaSi(e.etiqueta) || esRamaNo(e.etiqueta),
+    if (n.tipo !== 'DECISION') continue;
+    const outs = salientes.get(n.id) ?? [];
+    if (outs.length > 2) {
+      errores.push(
+        `La decisión «${n.etiqueta}» no puede tener más de dos conexiones de salida`,
       );
-      const tieneSi = outs.some((e) => esRamaSi(e.etiqueta));
-      const tieneNo = outs.some((e) => esRamaNo(e.etiqueta));
-      if (
-        outs.length === 0 ||
-        !todasEtiquetadasSiNo ||
-        !tieneSi ||
-        !tieneNo
-      ) {
-        errores.push(
-          `La decisión '${n.etiqueta}' debe tener ramas Sí y No definidas`,
-        );
-      }
+      continue;
+    }
+    if (outs.length === 0 || outs.length === 1) {
+      errores.push(
+        `La decisión «${n.etiqueta}» debe tener exactamente dos ramas (Sí y No)`,
+      );
+      continue;
+    }
+    const countSi = outs.filter((e) => esRamaSi(e.etiqueta)).length;
+    const countNo = outs.filter((e) => esRamaNo(e.etiqueta)).length;
+    if (countSi !== 1 || countNo !== 1) {
+      errores.push(
+        `La decisión «${n.etiqueta}» debe tener una rama etiquetada «Sí» y otra «No»`,
+      );
     }
   }
 

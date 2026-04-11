@@ -83,6 +83,7 @@ import {
 } from './policy-designer-layout';
 import {
   buildValidation as buildValidationFlujo,
+  etiquetaAutomaticaSegundaSalidaDecision,
   type ValidacionFlujoResultado,
 } from './policy-designer-validation';
 import { ValidationResultDialogComponent } from './validation-result-dialog.component';
@@ -90,6 +91,9 @@ import { ValidationResultDialogComponent } from './validation-result-dialog.comp
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
 const HIST_MAX = 50;
+
+const MSG_DECISION_MAX_SALIENTES =
+  'Este nodo ya tiene las dos ramas configuradas (Sí y No)';
 
 const MINIMAP_W = 150;
 const MINIMAP_H = 100;
@@ -1067,12 +1071,32 @@ export class PolicyDesignerComponent implements OnInit {
     const origen = this.conexionDesde();
 
     if (puerto === 'out') {
+      if (n.tipo === 'DECISION') {
+        const salientesOut = this.aristas().filter((a) => a.desdeNodoId === n.id);
+        if (salientesOut.length >= 2) {
+          this.snack.open(MSG_DECISION_MAX_SALIENTES, 'Cerrar', {
+            duration: 4000,
+          });
+          return;
+        }
+      }
       this.conexionDesde.set({ nodoId: n.id, puerto: 'out' });
       return;
     }
 
     if (puerto === 'in' && origen) {
       if (origen.nodoId === n.id) {
+        this.conexionDesde.set(null);
+        return;
+      }
+      const nodoOrigen = this.nodoPorId(origen.nodoId);
+      const salientesDesdeOrigen = this.aristas().filter(
+        (a) => a.desdeNodoId === origen.nodoId,
+      );
+      if (nodoOrigen?.tipo === 'DECISION' && salientesDesdeOrigen.length >= 2) {
+        this.snack.open(MSG_DECISION_MAX_SALIENTES, 'Cerrar', {
+          duration: 4000,
+        });
         this.conexionDesde.set(null);
         return;
       }
@@ -1094,10 +1118,15 @@ export class PolicyDesignerComponent implements OnInit {
         return;
       }
       this.pushSnapshot();
+      const etiquetaDesdeDecision =
+        nodoOrigen?.tipo === 'DECISION' && salientesDesdeOrigen.length === 1
+          ? etiquetaAutomaticaSegundaSalidaDecision(salientesDesdeOrigen)
+          : undefined;
       const nueva: AristaCanvas = {
         id: `ar-${uuid()}`,
         desdeNodoId: origen.nodoId,
         haciaNodoId: n.id,
+        ...(etiquetaDesdeDecision ? { etiqueta: etiquetaDesdeDecision } : {}),
         ...(n.tipo === 'DECISION'
           ? { haciaPuerto: ladoDestino as AristaHaciaPuerto }
           : {}),
