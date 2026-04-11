@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface TramiteRepository extends MongoRepository<Tramite, String> {
 
+	List<Tramite> findByEstado(EstadoTramite estado);
+
 	List<Tramite> findByEstadoIn(Collection<EstadoTramite> estados);
 
 	List<Tramite> findByPoliticaId(String politicaId);
