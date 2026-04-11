@@ -125,7 +125,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     departamento: n.departamentoId,
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
-    slaHoras: undefined,
+    slaHoras: n.slaHoras,
   };
 }
 
@@ -139,6 +139,7 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     departamentoId: n.departamento,
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
+    slaHoras: n.slaHoras,
   };
 }
 

@@ -44,6 +44,8 @@ export interface Nodo {
   calleId?: string;
   ancho?: number;
   alto?: number;
+  /** SLA en horas (solo ACTIVIDAD); JSON camelCase `slaHoras`. */
+  slaHoras?: number;
 }
 
 /**

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 @Data
 @Builder
@@ -22,5 +23,6 @@ public class NodoPolitica {
 	private String calleId;
 	private Double ancho;
 	private Double alto;
+	@Field("sla_horas")
 	private Integer slaHoras;
 }
