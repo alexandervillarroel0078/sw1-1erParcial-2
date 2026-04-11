@@ -22,7 +22,7 @@ function esRamaSi(etiqueta?: string): boolean {
 
 function esRamaNo(etiqueta?: string): boolean {
   const t = normEtiquetaArista(etiqueta);
-  return t === 'no' || t === 'n';
+  return t === 'no';
 }
 
 /**
@@ -77,11 +77,19 @@ export function buildValidation(
   for (const n of nodos) {
     if (n.tipo === 'DECISION') {
       const outs = salientes.get(n.id) ?? [];
+      const todasEtiquetadasSiNo = outs.every(
+        (e) => esRamaSi(e.etiqueta) || esRamaNo(e.etiqueta),
+      );
       const tieneSi = outs.some((e) => esRamaSi(e.etiqueta));
       const tieneNo = outs.some((e) => esRamaNo(e.etiqueta));
-      if (!tieneSi || !tieneNo) {
+      if (
+        outs.length === 0 ||
+        !todasEtiquetadasSiNo ||
+        !tieneSi ||
+        !tieneNo
+      ) {
         errores.push(
-          `La decisión «${n.etiqueta}» debe tener rama «Sí» y rama «No» definidas (etiquetas en las aristas)`,
+          `La decisión '${n.etiqueta}' debe tener ramas Sí y No definidas`,
         );
       }
     }

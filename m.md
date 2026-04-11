@@ -19,7 +19,7 @@ npm start
 http://127.0.0.1:8000/docs
 
 git add .
-git commit -m "simulando tramites"
+git commit -m "politicas"
 git push origin main
 
 SELECT * FROM usuarios;
@@ -98,3 +98,32 @@ INFORME    → después de llenarse (resultado)
 ✅ Bandeja Funcionario
 ✅ Reporte con voz
 ✅ Nuevo Trámite
+
+
+
+
+
+
+
+
+
+
+
+START
+  ↓
+□ Recepción de solicitud        → Atención al Cliente
+  ↓
+□ Verificación de datos         → Atención al Cliente  
+  ↓
+◆ ¿Datos completos?
+  ↓ Sí                ↓ No
+□ Análisis crediticio  □ Devolver al cliente → END
+  ↓
+═ FORK (paralelo)
+  ├── □ Revisión jurídica       → Jurídico
+  └── □ Evaluación de riesgo    → Validación Técnica
+═ JOIN
+  ↓
+□ Aprobación final              → Dirección
+  ↓
+◎ END

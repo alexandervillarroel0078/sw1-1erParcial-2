@@ -1,4 +1,8 @@
-import type { Nodo, OrientacionCalles } from '../../../core/models/politica.model';
+import type {
+  AristaHaciaPuerto,
+  Nodo,
+  OrientacionCalles,
+} from '../../../core/models/politica.model';
 
 export type NodoCanvasTipo = Nodo['tipo'];
 
@@ -37,6 +41,7 @@ export interface AristaCanvas {
   desdeNodoId: string;
   haciaNodoId: string;
   etiqueta?: string;
+  haciaPuerto?: AristaHaciaPuerto;
 }
 
 export interface PolicyCanvasSnapshot {

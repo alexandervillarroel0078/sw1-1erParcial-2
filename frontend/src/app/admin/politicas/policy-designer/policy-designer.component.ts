@@ -27,10 +27,17 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatCheckboxChange, MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatChipsModule } from '@angular/material/chips';
 import { map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import type { Arista, Nodo, OrientacionCalles, Politica } from '../../../core/models/politica.model';
+import type {
+  Arista,
+  AristaHaciaPuerto,
+  Nodo,
+  OrientacionCalles,
+  Politica,
+} from '../../../core/models/politica.model';
 import {
   normalizeNodoTipo,
   normalizeOrientacionCalles,
@@ -61,7 +68,9 @@ import {
 } from './policy-designer-swimlanes';
 import {
   pathBezierEntreNodos,
+  puertoEntradaLocalDecision,
   puertoLocal,
+  puntoMedioBezierArista,
   snapshotFrom,
 } from './policy-designer.utils';
 import {
@@ -80,6 +89,27 @@ import { ValidationResultDialogComponent } from './validation-result-dialog.comp
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
 const HIST_MAX = 50;
+
+/** Colores fijos por nombre de departamento (clave normalizada). */
+const COLOR_DEPTO_POR_NOMBRE: Record<string, string> = {
+  'atencion al cliente': '#1565C0',
+  'validacion tecnica': '#2E7D32',
+  juridico: '#6A1B9A',
+  direccion: '#E65100',
+  'soporte tecnico': '#00838F',
+};
+
+const PALETA_DEPTO_ROTATIVA = [
+  '#1565C0',
+  '#2E7D32',
+  '#6A1B9A',
+  '#E65100',
+  '#00838F',
+  '#5e35b1',
+  '#00695c',
+];
+
+const COLOR_ACTIVIDAD_SIN_DEPTO = '#1976D2';
 
 function uuid(): string {
   return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random()}`;
@@ -143,6 +173,7 @@ type RecVoz = {
     MatRadioModule,
     MatCheckboxModule,
     MatButtonToggleModule,
+    MatChipsModule,
   ],
   templateUrl: './policy-designer.component.html',
   styleUrl: './policy-designer.component.scss',
@@ -167,7 +198,16 @@ export class PolicyDesignerComponent implements OnInit {
   readonly flashCalleId = signal<string | null>(null);
   readonly resaltarCalleId = signal<string | null>(null);
   readonly departamentosLista = signal<Departamento[]>([]);
+  /** id departamento → color de relleno en nodos ACTIVIDAD */
+  readonly departamentoColores = signal<Map<string, string>>(new Map());
   private resaltarTimer: number | null = null;
+
+  readonly puertosEntradaDecision: readonly AristaHaciaPuerto[] = [
+    'N',
+    'S',
+    'E',
+    'O',
+  ];
 
   private swimResizeDrag: {
     calleId: string;
@@ -229,6 +269,8 @@ export class PolicyDesignerComponent implements OnInit {
   readonly panX = signal(0);
   readonly panY = signal(0);
   readonly seleccionId = signal<string | null>(null);
+  /** Arista seleccionada (excluyente con nodo). */
+  readonly aristaSeleccionId = signal<string | null>(null);
   /** Origen de conexión: nodo + puerto 'out' */
   readonly conexionDesde = signal<{
     nodoId: string;
@@ -258,6 +300,12 @@ export class PolicyDesignerComponent implements OnInit {
     const id = this.seleccionId();
     if (!id) return null;
     return this.nodos().find((n) => n.id === id) ?? null;
+  });
+
+  readonly aristaSeleccionada = computed(() => {
+    const id = this.aristaSeleccionId();
+    if (!id) return null;
+    return this.aristas().find((a) => a.id === id) ?? null;
   });
 
   readonly tieneStart = computed(() =>
@@ -309,6 +357,42 @@ export class PolicyDesignerComponent implements OnInit {
     );
   });
 
+  /** Departamentos que tienen al menos una ACTIVIDAD en el canvas (leyenda). */
+  readonly leyendaCanvasDepartamentos = computed(() => {
+    const nodos = this.nodos();
+    const colores = this.departamentoColores();
+    const items: { id: string; nombre: string; color: string }[] = [];
+    const seen = new Set<string>();
+
+    const sinDepto = nodos.some(
+      (n) => n.tipo === 'ACTIVIDAD' && !n.departamento?.trim(),
+    );
+    if (sinDepto) {
+      items.push({
+        id: '__sin__',
+        nombre: 'Sin departamento',
+        color: COLOR_ACTIVIDAD_SIN_DEPTO,
+      });
+    }
+
+    for (const n of nodos) {
+      if (n.tipo !== 'ACTIVIDAD' || !n.departamento?.trim()) continue;
+      const id = n.departamento;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const nombre =
+        n.departamentoTexto ??
+        this.departamentosLista().find((d) => d.id === id)?.nombre ??
+        id;
+      items.push({
+        id,
+        nombre,
+        color: colores.get(id) ?? COLOR_ACTIVIDAD_SIN_DEPTO,
+      });
+    }
+    return items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  });
+
   readonly tiposPaleta: { tipo: NodoCanvasTipo; label: string }[] = [
     { tipo: 'START', label: 'START' },
     { tipo: 'END', label: 'END' },
@@ -335,6 +419,7 @@ export class PolicyDesignerComponent implements OnInit {
 
     effect(() => {
       this.seleccionId();
+      this.aristaSeleccionId();
       untracked(() => this.reiniciarWizardFormulario());
     });
 
@@ -355,7 +440,47 @@ export class PolicyDesignerComponent implements OnInit {
     this.departamentoService
       .getDepartamentos()
       .pipe(take(1))
-      .subscribe((d) => this.departamentosLista.set(d));
+      .subscribe((d) => {
+        this.departamentosLista.set(d);
+        this.rellenarMapaColoresDepartamentos(d);
+      });
+  }
+
+  private static normNombreDeptoKey(nombre: string): string {
+    return nombre
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+  }
+
+  private rellenarMapaColoresDepartamentos(depts: Departamento[]): void {
+    const map = new Map<string, string>();
+    let rot = 0;
+    for (const d of depts) {
+      if (!d.id || !d.activo) continue;
+      const key = PolicyDesignerComponent.normNombreDeptoKey(d.nombre);
+      const fijo = COLOR_DEPTO_POR_NOMBRE[key];
+      if (fijo) {
+        map.set(d.id, fijo);
+      } else {
+        map.set(
+          d.id,
+          PALETA_DEPTO_ROTATIVA[rot % PALETA_DEPTO_ROTATIVA.length],
+        );
+        rot++;
+      }
+    }
+    this.departamentoColores.set(map);
+  }
+
+  /** Relleno del rectángulo ACTIVIDAD según departamento. */
+  colorFillActividad(n: NodoCanvas): string {
+    const id = n.departamento?.trim();
+    if (!id) {
+      return COLOR_ACTIVIDAD_SIN_DEPTO;
+    }
+    return this.departamentoColores().get(id) ?? COLOR_ACTIVIDAD_SIN_DEPTO;
   }
 
   private nombreDepartamento(depId: string | undefined): string | undefined {
@@ -364,13 +489,67 @@ export class PolicyDesignerComponent implements OnInit {
   }
 
   puertoLocal = puertoLocal;
+  puertoEntradaLocalDecision = puertoEntradaLocalDecision;
 
   pathArista(ar: AristaCanvas): string {
     const map = new Map(this.nodos().map((n) => [n.id, n]));
     const a = map.get(ar.desdeNodoId);
     const b = map.get(ar.haciaNodoId);
     if (!a || !b) return '';
-    return pathBezierEntreNodos(a, b);
+    return pathBezierEntreNodos(a, b, ar.haciaPuerto);
+  }
+
+  nodoPorId(id: string): NodoCanvas | undefined {
+    return this.nodos().find((n) => n.id === id);
+  }
+
+  esAristaDesdeDecision(ar: AristaCanvas): boolean {
+    const o = this.nodoPorId(ar.desdeNodoId);
+    return o?.tipo === 'DECISION';
+  }
+
+  etiquetaDecisionBadge(ar: AristaCanvas): {
+    x: number;
+    y: number;
+    texto: string;
+    clase: 'si' | 'no' | 'otro';
+  } | null {
+    if (!this.esAristaDesdeDecision(ar)) {
+      return null;
+    }
+    const raw = (ar.etiqueta ?? '').trim();
+    if (!raw) {
+      return null;
+    }
+    const a = this.nodoPorId(ar.desdeNodoId);
+    const b = this.nodoPorId(ar.haciaNodoId);
+    if (!a || !b) {
+      return null;
+    }
+    const { x, y } = puntoMedioBezierArista(a, b, ar.haciaPuerto);
+    const t = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+    if (t === 'si' || t === 'yes') {
+      return { x, y, texto: 'Sí', clase: 'si' };
+    }
+    if (t === 'no') {
+      return { x, y, texto: 'No', clase: 'no' };
+    }
+    return { x, y, texto: raw, clase: 'otro' };
+  }
+
+  anchoBadgeEtiqueta(texto: string): number {
+    return Math.max(30, 14 + texto.length * 7.5);
+  }
+
+  seleccionarArista(ar: AristaCanvas, ev: Event): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.seleccionId.set(null);
+    this.conexionDesde.set(null);
+    this.aristaSeleccionId.set(ar.id);
   }
 
   agregarNodo(tipo: NodoCanvasTipo): void {
@@ -410,6 +589,7 @@ export class PolicyDesignerComponent implements OnInit {
 
   seleccionarNodo(n: NodoCanvas, ev: Event): void {
     ev.stopPropagation();
+    this.aristaSeleccionId.set(null);
     this.seleccionId.set(n.id);
     this.conexionDesde.set(null);
   }
@@ -566,6 +746,7 @@ export class PolicyDesignerComponent implements OnInit {
     n: NodoCanvas,
     puerto: 'in' | 'out',
     ev: MouseEvent,
+    inLado?: AristaHaciaPuerto,
   ): void {
     ev.stopPropagation();
     ev.preventDefault();
@@ -581,10 +762,18 @@ export class PolicyDesignerComponent implements OnInit {
         this.conexionDesde.set(null);
         return;
       }
-      const existe = this.aristas().some(
-        (a) =>
-          a.desdeNodoId === origen.nodoId && a.haciaNodoId === n.id,
-      );
+      const ladoDestino =
+        n.tipo === 'DECISION' ? (inLado ?? 'O') : undefined;
+      const existe = this.aristas().some((a) => {
+        if (a.desdeNodoId !== origen.nodoId || a.haciaNodoId !== n.id) {
+          return false;
+        }
+        if (n.tipo !== 'DECISION') {
+          return true;
+        }
+        const pa = a.haciaPuerto ?? 'O';
+        return pa === ladoDestino;
+      });
       if (existe) {
         this.snack.open('Esa conexión ya existe', 'Cerrar', { duration: 2000 });
         this.conexionDesde.set(null);
@@ -595,6 +784,9 @@ export class PolicyDesignerComponent implements OnInit {
         id: `ar-${uuid()}`,
         desdeNodoId: origen.nodoId,
         haciaNodoId: n.id,
+        ...(n.tipo === 'DECISION'
+          ? { haciaPuerto: ladoDestino as AristaHaciaPuerto }
+          : {}),
       };
       this.aristas.update((as) => [...as, nueva]);
       this.conexionDesde.set(null);
@@ -606,12 +798,30 @@ export class PolicyDesignerComponent implements OnInit {
   onKeydown(ev: KeyboardEvent): void {
     if (ev.key === 'Escape') {
       this.conexionDesde.set(null);
+      return;
+    }
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      const t = ev.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      if (this.aristaSeleccionId()) {
+        ev.preventDefault();
+        this.eliminarAristaSeleccionada();
+      }
     }
   }
 
   clickCanvas(ev: MouseEvent): void {
     if ((ev.target as Element).closest('.pd-node-root')) return;
+    if ((ev.target as Element).closest('.pd-arista-g')) return;
     this.seleccionId.set(null);
+    this.aristaSeleccionId.set(null);
   }
 
   guardar(): void {
@@ -928,6 +1138,39 @@ export class PolicyDesignerComponent implements OnInit {
       arr.filter((a) => a.desdeNodoId !== id && a.haciaNodoId !== id),
     );
     this.seleccionId.set(null);
+    this.aristaSeleccionId.set(null);
+    this.syncHistorialFlags();
+  }
+
+  eliminarAristaSeleccionada(): void {
+    const id = this.aristaSeleccionId();
+    if (!id) return;
+    this.pushSnapshot();
+    this.aristas.update((arr) => arr.filter((a) => a.id !== id));
+    this.aristaSeleccionId.set(null);
+    this.syncHistorialFlags();
+  }
+
+  /** Valor para mat-select Sí/No (arista desde DECISIÓN). */
+  etiquetaDecisionSelectValue(ar: AristaCanvas): string {
+    const raw = (ar.etiqueta ?? '').trim();
+    const t = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+    if (t === 'si' || t === 'yes') return 'Sí';
+    if (t === 'no') return 'No';
+    return '';
+  }
+
+  onEtiquetaDecisionChange(val: string): void {
+    const id = this.aristaSeleccionId();
+    if (!id) return;
+    const etiqueta = val === 'Sí' || val === 'No' ? val : '';
+    this.pushSnapshot();
+    this.aristas.update((arr) =>
+      arr.map((a) => (a.id === id ? { ...a, etiqueta: etiqueta || undefined } : a)),
+    );
     this.syncHistorialFlags();
   }
 
@@ -1123,11 +1366,24 @@ export class PolicyDesignerComponent implements OnInit {
     const pushN = (n: NodoCanvas) => {
       nodos = [...nodos, n];
     };
-    const pushA = (desde: string, hacia: string, etiqueta?: string) => {
-      aristas = [
-        ...aristas,
-        { id: `ar-${uuid()}`, desdeNodoId: desde, haciaNodoId: hacia, etiqueta },
-      ];
+    const pushA = (
+      desde: string,
+      hacia: string,
+      etiqueta?: string,
+      haciaPuerto?: AristaHaciaPuerto,
+    ) => {
+      const hNode = nodos.find((x) => x.id === hacia);
+      const base: AristaCanvas = {
+        id: `ar-${uuid()}`,
+        desdeNodoId: desde,
+        haciaNodoId: hacia,
+        etiqueta,
+      };
+      const completo: AristaCanvas =
+        hNode?.tipo === 'DECISION'
+          ? { ...base, haciaPuerto: haciaPuerto ?? 'O' }
+          : base;
+      aristas = [...aristas, completo];
     };
 
     let ultimoId = origen.id;
@@ -1244,11 +1500,24 @@ export class PolicyDesignerComponent implements OnInit {
     const pushN = (n: NodoCanvas) => {
       nodos = [...nodos, n];
     };
-    const pushA = (desde: string, hacia: string, etiqueta?: string) => {
-      aristas = [
-        ...aristas,
-        { id: `ar-${uuid()}`, desdeNodoId: desde, haciaNodoId: hacia, etiqueta },
-      ];
+    const pushA = (
+      desde: string,
+      hacia: string,
+      etiqueta?: string,
+      haciaPuerto?: AristaHaciaPuerto,
+    ) => {
+      const hNode = nodos.find((x) => x.id === hacia);
+      const base: AristaCanvas = {
+        id: `ar-${uuid()}`,
+        desdeNodoId: desde,
+        haciaNodoId: hacia,
+        etiqueta,
+      };
+      const completo: AristaCanvas =
+        hNode?.tipo === 'DECISION'
+          ? { ...base, haciaPuerto: haciaPuerto ?? 'O' }
+          : base;
+      aristas = [...aristas, completo];
     };
 
     const pD = posicionDerechaOrigen(origen);
@@ -1260,7 +1529,7 @@ export class PolicyDesignerComponent implements OnInit {
       `nd-${uuid()}`,
     );
     pushN(dec);
-    pushA(origen.id, dec.id);
+    pushA(origen.id, dec.id, undefined, 'O');
 
     let ultimoId = dec.id;
     const baseY = dec.y;
@@ -1512,6 +1781,7 @@ export class PolicyDesignerComponent implements OnInit {
     this.panX.set(s.panX);
     this.panY.set(s.panY);
     this.seleccionId.set(null);
+    this.aristaSeleccionId.set(null);
     this.conexionDesde.set(null);
     this.flashCalleId.set(null);
     this.resaltarCalleId.set(null);

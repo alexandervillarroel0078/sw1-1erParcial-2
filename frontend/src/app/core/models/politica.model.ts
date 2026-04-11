@@ -60,11 +60,16 @@ export interface PoliticaCalle {
   altoPx?: number;
 }
 
+/** Lado del nodo DECISIÓN donde entra la arista (coord. locales del rombo). */
+export type AristaHaciaPuerto = 'N' | 'S' | 'E' | 'O';
+
 export interface Arista {
   id: string;
   desdeNodoId: string;
   haciaNodoId: string;
   etiqueta?: string;
+  /** Solo si el destino es DECISIÓN: vértice de entrada (N/S/E/O). */
+  haciaPuerto?: AristaHaciaPuerto;
 }
 
 export interface Politica {

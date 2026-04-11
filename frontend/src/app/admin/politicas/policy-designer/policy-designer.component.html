@@ -131,6 +131,18 @@
         }
       </div>
 
+      @if (leyendaCanvasDepartamentos().length > 0) {
+        <h3 class="pd-palette__title pd-palette__title--leyenda">Leyenda (canvas)</h3>
+        <div class="pd-leyenda-canvas" aria-label="Departamentos con actividades en el lienzo">
+          @for (item of leyendaCanvasDepartamentos(); track item.id) {
+            <div class="pd-leyenda-row">
+              <span class="pd-leyenda-dot" [style.background-color]="item.color"></span>
+              <span class="pd-leyenda-name">{{ item.nombre }}</span>
+            </div>
+          }
+        </div>
+      }
+
       <div class="pd-swim-orient">
         <span class="pd-swim-orient__title">Orientación</span>
         <div class="pd-swim-orient__row">
@@ -361,11 +373,56 @@
           }
 
           @for (ar of aristas(); track ar.id) {
-            <path
-              class="pd-arista"
-              fill="none"
-              [attr.d]="pathArista(ar)"
-            />
+            @let bg = etiquetaDecisionBadge(ar);
+            <g
+              class="pd-arista-g"
+              [class.pd-arista-g--selected]="aristaSeleccionId() === ar.id"
+              (click)="seleccionarArista(ar, $event)"
+            >
+              <title>
+                Conexión · clic para seleccionar · Supr para eliminar
+              </title>
+              <path
+                class="pd-arista-hit"
+                fill="none"
+                [attr.d]="pathArista(ar)"
+              />
+              <path
+                class="pd-arista"
+                fill="none"
+                pointer-events="none"
+                [attr.d]="pathArista(ar)"
+              />
+              @if (bg) {
+                <g
+                  pointer-events="none"
+                  [attr.transform]="'translate(' + bg.x + ',' + bg.y + ')'"
+                >
+                  @let w = anchoBadgeEtiqueta(bg.texto);
+                  <rect
+                    class="pd-arista-badge-bg"
+                    [class.pd-arista-badge-bg--si]="bg.clase === 'si'"
+                    [class.pd-arista-badge-bg--no]="bg.clase === 'no'"
+                    [class.pd-arista-badge-bg--otro]="bg.clase === 'otro'"
+                    [attr.x]="-w / 2"
+                    y="-12"
+                    [attr.width]="w"
+                    height="24"
+                    rx="6"
+                  />
+                  <text
+                    class="pd-arista-badge-txt"
+                    [class.pd-arista-badge-txt--si]="bg.clase === 'si'"
+                    [class.pd-arista-badge-txt--no]="bg.clase === 'no'"
+                    [class.pd-arista-badge-txt--otro]="bg.clase === 'otro'"
+                    text-anchor="middle"
+                    y="5"
+                  >
+                    {{ bg.texto }}
+                  </text>
+                </g>
+              }
+            </g>
           }
           @for (n of nodos(); track n.id) {
             <g
@@ -378,6 +435,9 @@
                   cdkDragHandle
                   class="pd-drag-handle"
                   (click)="seleccionarNodo(n, $event)"
+                  [matTooltip]="n.tipo === 'ACTIVIDAD' ? n.etiqueta : ''"
+                  [matTooltipDisabled]="n.tipo !== 'ACTIVIDAD'"
+                  matTooltipPosition="above"
                 >
                   @switch (n.tipo) {
                     @case ('START') {
@@ -389,12 +449,13 @@
                     }
                     @case ('ACTIVIDAD') {
                       <rect
-                        x="-64"
+                        x="-70"
                         y="-28"
-                        width="128"
+                        width="140"
                         height="56"
                         rx="10"
                         class="pd-shape pd-shape--actividad"
+                        [attr.fill]="colorFillActividad(n)"
                       />
                     }
                     @case ('DECISION') {
@@ -424,30 +485,52 @@
                       />
                     }
                   }
-                  <text
-                    class="pd-node-label"
-                    text-anchor="middle"
-                    dy="4"
-                    pointer-events="none"
-                    [attr.fill]="n.tipo === 'DECISION' ? '#1a1a1a' : '#ffffff'"
-                  >
-                    {{
-                      n.etiqueta.length > 14
-                        ? n.etiqueta.slice(0, 12) + '…'
-                        : n.etiqueta
-                    }}
-                  </text>
+                  @if (n.tipo === 'ACTIVIDAD') {
+                    <foreignObject x="-70" y="-28" width="140" height="56" pointer-events="none">
+                      <div xmlns="http://www.w3.org/1999/xhtml" class="pd-fo-act-wrap">
+                        <div class="pd-fo-act-inner">{{ n.etiqueta }}</div>
+                      </div>
+                    </foreignObject>
+                  } @else {
+                    <text
+                      class="pd-node-label"
+                      text-anchor="middle"
+                      dy="4"
+                      pointer-events="none"
+                      [attr.fill]="n.tipo === 'DECISION' ? '#1a1a1a' : '#ffffff'"
+                    >
+                      {{
+                        n.etiqueta.length > 14
+                          ? n.etiqueta.slice(0, 12) + '…'
+                          : n.etiqueta
+                      }}
+                    </text>
+                  }
                 </g>
-                @let pin = puertoLocal(n, 'in');
                 @let pout = puertoLocal(n, 'out');
-                <circle
-                  class="pd-port pd-port--in"
-                  [class.pd-port--link-target]="modoConexion()"
-                  [attr.cx]="pin.cx"
-                  [attr.cy]="pin.cy"
-                  r="6"
-                  (click)="onPuertoClick(n, 'in', $event)"
-                />
+                @if (n.tipo === 'DECISION') {
+                  @for (lado of puertosEntradaDecision; track lado) {
+                    @let pl = puertoEntradaLocalDecision(lado);
+                    <circle
+                      class="pd-port pd-port--in"
+                      [class.pd-port--link-target]="modoConexion()"
+                      [attr.cx]="pl.cx"
+                      [attr.cy]="pl.cy"
+                      r="6"
+                      (click)="onPuertoClick(n, 'in', $event, lado)"
+                    />
+                  }
+                } @else {
+                  @let pin = puertoLocal(n, 'in');
+                  <circle
+                    class="pd-port pd-port--in"
+                    [class.pd-port--link-target]="modoConexion()"
+                    [attr.cx]="pin.cx"
+                    [attr.cy]="pin.cy"
+                    r="6"
+                    (click)="onPuertoClick(n, 'in', $event)"
+                  />
+                }
                 <circle
                   class="pd-port pd-port--out"
                   [class.pd-port--link-origin]="puertoOrigenActivo(n)"
@@ -536,8 +619,42 @@
               >
                 Eliminar nodo
               </button>
+            } @else if (aristaSeleccionada(); as sa) {
+              @if (esAristaDesdeDecision(sa)) {
+                <mat-chip-set class="pd-props__chip-row">
+                  <mat-chip selected class="pd-props__chip-dec">
+                    Arista de decisión
+                  </mat-chip>
+                </mat-chip-set>
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Etiqueta</mat-label>
+                  <mat-select
+                    [ngModel]="etiquetaDecisionSelectValue(sa)"
+                    (ngModelChange)="onEtiquetaDecisionChange($event)"
+                  >
+                    <mat-option value="">— Elegir —</mat-option>
+                    <mat-option value="Sí">Sí</mat-option>
+                    <mat-option value="No">No</mat-option>
+                  </mat-select>
+                  <mat-hint>Rama visible en el diagrama y en el motor del flujo</mat-hint>
+                </mat-form-field>
+              } @else {
+                <span class="pd-props__badge">ARISTA</span>
+                <p class="pd-props__hint">
+                  Conexión entre nodos. Usá Supr o el botón para eliminarla.
+                </p>
+              }
+              <button
+                mat-stroked-button
+                color="warn"
+                type="button"
+                class="pd-props__delete"
+                (click)="eliminarAristaSeleccionada()"
+              >
+                Eliminar arista
+              </button>
             } @else {
-              <p class="pd-props__empty">Seleccioná un nodo</p>
+              <p class="pd-props__empty">Seleccioná un nodo o una arista</p>
             }
           </div>
         </mat-tab>
