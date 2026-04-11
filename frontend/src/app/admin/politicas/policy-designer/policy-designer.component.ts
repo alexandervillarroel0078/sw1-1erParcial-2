@@ -595,21 +595,23 @@ export class PolicyDesignerComponent implements OnInit {
   }
 
   holderMinWidthStyle(): string | null {
-    if (!this.calles().length) return null;
+    if (!this.calles().length) {
+      return '100%';
+    }
     if (this.orientacionCalles() === 'VERTICAL') {
       const vl = this.swimVerticalLayout();
-      return vl ? `max(100%, ${vl.rightX + 400}px)` : null;
+      return vl ? `max(100%, ${vl.rightX + 400}px)` : '100%';
     }
     const hl = this.swimHorizontalLayout();
-    return hl ? `max(100%, ${hl.contentW + 400}px)` : null;
+    return hl ? `max(100%, ${hl.contentW + 400}px)` : '100%';
   }
 
   holderMinHeightStyle(): string | null {
-    if (this.orientacionCalles() !== 'HORIZONTAL' || !this.calles().length) {
-      return null;
+    if (this.orientacionCalles() === 'HORIZONTAL' && this.calles().length) {
+      const hl = this.swimHorizontalLayout();
+      return hl ? `max(100%, ${hl.bottomY + 400}px)` : '100%';
     }
-    const hl = this.swimHorizontalLayout();
-    return hl ? `max(100%, ${hl.bottomY + 400}px)` : null;
+    return '100%';
   }
 
   onSwimResizePointerDown(
