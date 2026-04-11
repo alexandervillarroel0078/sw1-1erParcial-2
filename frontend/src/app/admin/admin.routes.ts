@@ -52,6 +52,11 @@ export const ADMIN_ROUTES: Routes = [
           ),
       },
       {
+        path: 'clientes',
+        loadComponent: () =>
+          import('./clientes/clientes.component').then((m) => m.ClientesComponent),
+      },
+      {
         path: 'monitor',
         loadComponent: () =>
           import('./monitor/monitor.component').then((m) => m.MonitorComponent),

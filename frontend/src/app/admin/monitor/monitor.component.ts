@@ -114,7 +114,11 @@ export class MonitorComponent {
     return {
       tramiteId: t.id ?? '—',
       politicaNombre: t.politicaNombre ?? 'Política',
-      clienteNombre: this.clientesMock[t.clienteId] ?? t.clienteId,
+      clienteNombre:
+        t.clienteNombre ??
+        this.clientesMock[t.clienteId ?? ''] ??
+        t.clienteId ??
+        '—',
       estado: t.estado,
       estadoLabel: this.estadoLabel(t.estado),
       diasTranscurridos: this.diasDesde(t.creadoEn),

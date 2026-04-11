@@ -211,7 +211,7 @@ public class WorkflowEngine {
 				.politicaNombre(tramite.getPoliticaNombre())
 				.pasoActual(Optional.ofNullable(tramite.getPasoActual()).orElse(1))
 				.totalPasos(Optional.ofNullable(tramite.getTotalPasos()).orElse(1))
-				.clienteNombre(null)
+				.clienteNombre(tramite.getClienteNombre())
 				.estado(EstadoTarea.PENDIENTE)
 				.usuarioAsignadoId(asignado)
 				.creadoEn(Instant.now())

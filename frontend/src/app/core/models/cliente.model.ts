@@ -1,7 +1,9 @@
 export interface Cliente {
-  id?: string;
+  id: string;
   nombreCompleto: string;
   telefono: string;
-  email?: string;
-  tokenFcm?: string;
+  email: string | null;
+  tokenFcm: string | null;
+  activo: boolean;
+  creadoEn: string;
 }

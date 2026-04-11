@@ -97,7 +97,8 @@ export class NuevoProcesoComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const { politicaId } = this.form.getRawValue();
+    const { politicaId, nombreCompleto, telefono, email } =
+      this.form.getRawValue();
     this.enviando.set(true);
     this.politicasActivas$
       .pipe(
@@ -107,18 +108,12 @@ export class NuevoProcesoComponent {
           if (!p?.id) {
             throw new Error('Política no encontrada');
           }
-          const totalPasos = this.listaActividades(p).length;
-          const clienteIdRaw =
-            globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}`;
+          const emailTrim = email.trim();
           return this.tramiteService.crearTramite({
             politicaId: p.id,
-            politicaNombre: p.nombre,
-            clienteId: `cli-${clienteIdRaw}`,
-            estado: 'iniciado',
-            esParalelo: this.tieneFlujoParalelo(p),
-            actividadActual: this.primeraActividadEtiqueta(p),
-            pasoActual: 1,
-            totalPasos: Math.max(1, totalPasos),
+            clienteNombreCompleto: nombreCompleto.trim(),
+            clienteTelefono: telefono.trim(),
+            ...(emailTrim ? { clienteEmail: emailTrim } : {}),
           });
         }),
         finalize(() => this.enviando.set(false)),
@@ -159,12 +154,4 @@ export class NuevoProcesoComponent {
     return `~${dias} días hábiles (estimado)`;
   }
 
-  private tieneFlujoParalelo(p: Politica): boolean {
-    return (p.nodos ?? []).some((n) => n.tipo === 'FORK_BAR');
-  }
-
-  private primeraActividadEtiqueta(p: Politica): string {
-    const actividades = this.listaActividades(p);
-    return actividades[0] ?? 'Inicio';
-  }
 }

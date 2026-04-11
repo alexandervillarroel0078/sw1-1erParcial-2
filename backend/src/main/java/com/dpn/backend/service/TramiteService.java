@@ -35,21 +35,17 @@ public class TramiteService {
 		if (!p.isActiva()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "La política no está activa");
 		}
-		Cliente cliente;
-		if (dto.getClienteId() != null && !dto.getClienteId().isBlank()) {
-			cliente = clienteService.obtenerPorId(dto.getClienteId());
-		} else {
-			cliente = clienteService.crearObtener(
-					dto.getClienteNombreCompleto(),
-					dto.getClienteTelefono(),
-					dto.getClienteEmail());
-		}
+		Cliente cliente = clienteService.obtenerOCrearParaTramite(
+				dto.getClienteNombreCompleto(),
+				dto.getClienteTelefono(),
+				dto.getClienteEmail());
 
 		Tramite t = Tramite.builder()
 				.id(UUID.randomUUID().toString())
 				.politicaId(p.getId())
 				.politicaNombre(p.getNombre())
 				.clienteId(cliente.getId())
+				.clienteNombre(cliente.getNombreCompleto())
 				.creadoPorUsuarioId(creadoPorUsuarioId)
 				.estado(EstadoTramite.INICIADO)
 				.creadoEn(Instant.now())

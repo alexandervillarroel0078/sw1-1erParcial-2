@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
-import { Tramite } from '../models/tramite.model';
+import { Tramite, TramiteCrearPayload } from '../models/tramite.model';
 import { AuthService } from './auth.service';
 import { handleApiError } from '../utils/api-error.util';
 
@@ -49,19 +49,6 @@ export class TramiteService {
     };
   }
 
-  private buildCreateBody(t: Tramite): Record<string, string | undefined> {
-    const body: Record<string, string | undefined> = {
-      politicaId: t.politicaId,
-    };
-    const cid = t.clienteId?.trim() ?? '';
-    if (cid && !cid.startsWith('cli-')) {
-      body['clienteId'] = cid;
-    } else {
-      body['clienteNombreCompleto'] = 'Cliente trámite';
-    }
-    return body;
-  }
-
   getTramites(): Observable<Tramite[]> {
     return this.http
       .get<Tramite[]>(`${environment.apiUrl}/admin/tramites`)
@@ -71,12 +58,18 @@ export class TramiteService {
       );
   }
 
-  crearTramite(t: Tramite): Observable<Tramite> {
+  crearTramite(payload: TramiteCrearPayload): Observable<Tramite> {
+    const body: Record<string, string> = {
+      politicaId: payload.politicaId.trim(),
+      clienteNombreCompleto: payload.clienteNombreCompleto.trim(),
+      clienteTelefono: payload.clienteTelefono.trim(),
+    };
+    const email = payload.clienteEmail?.trim();
+    if (email) {
+      body['clienteEmail'] = email;
+    }
     return this.http
-      .post<Tramite>(
-        `${environment.apiUrl}/funcionario/tramites`,
-        this.buildCreateBody(t),
-      )
+      .post<Tramite>(`${environment.apiUrl}/funcionario/tramites`, body)
       .pipe(
         map((x) => this.mapTramite(x)),
         catchError((err) => handleApiError(this.auth, this.snack, err)),

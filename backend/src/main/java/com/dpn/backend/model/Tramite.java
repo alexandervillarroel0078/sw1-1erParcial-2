@@ -26,6 +26,8 @@ public class Tramite {
 	private String politicaNombre;
 	@Field("cliente_id")
 	private String clienteId;
+	@Field("cliente_nombre")
+	private String clienteNombre;
 	@Field("creado_por_usuario_id")
 	private String creadoPorUsuarioId;
 	@Field("estado")

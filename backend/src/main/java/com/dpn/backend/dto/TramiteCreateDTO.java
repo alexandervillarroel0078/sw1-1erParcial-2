@@ -14,9 +14,10 @@ public class TramiteCreateDTO {
 
 	@NotBlank
 	private String politicaId;
-	private String clienteId;
-	/** Si no se envía clienteId, se crea/obtiene cliente con estos datos. */
+	@NotBlank
 	private String clienteNombreCompleto;
+	@NotBlank
 	private String clienteTelefono;
+	/** Opcional; si existe un cliente con este email se reutiliza. */
 	private String clienteEmail;
 }

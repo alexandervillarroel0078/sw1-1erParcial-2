@@ -137,7 +137,11 @@ export class DashboardComponent {
     const dias = creado ? Math.max(0, Math.round((Date.now() - creado) / 86400000)) : 0;
     return {
       proceso: t.politicaNombre ?? 'Proceso',
-      cliente: this.clientesMock[t.clienteId] ?? t.clienteId,
+      cliente:
+        t.clienteNombre ??
+        this.clientesMock[t.clienteId ?? ''] ??
+        t.clienteId ??
+        '—',
       estado: t.estado,
       tiempo: creado ? `${dias} días` : '—',
     };
