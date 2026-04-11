@@ -18,6 +18,8 @@ public class InformeCreateDTO {
 
 	@NotBlank
 	private String tramiteId;
+	/** Solo en informes finales (no borrador), para consulta GET por tarea. */
+	private String tareaId;
 	private String nodoActividadId;
 	@NotBlank
 	private String descripcion;

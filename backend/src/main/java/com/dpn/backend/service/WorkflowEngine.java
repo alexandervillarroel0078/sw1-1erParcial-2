@@ -16,6 +16,7 @@ import com.dpn.backend.repository.TareaRepository;
 import com.dpn.backend.repository.TramiteRepository;
 import com.dpn.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +36,7 @@ public class WorkflowEngine {
 	private final TareaRepository tareaRepository;
 	private final DepartamentoRepository departamentoRepository;
 	private final UsuarioRepository usuarioRepository;
+	private final ObjectProvider<TareaService> tareaServiceProvider;
 
 	/**
 	 * Tras completar una tarea: avanza el flujo según aristas de la política.
@@ -202,6 +204,9 @@ public class WorkflowEngine {
 		}
 		String asignado = asignarFuncionario(nodo.getDepartamentoId()).orElse(null);
 
+		Tramite tramiteActual = tramiteRepository.findById(tramite.getId()).orElse(tramite);
+		String nombreCliente = tareaServiceProvider.getObject().resolverNombreClienteParaNuevaTarea(tramiteActual);
+
 		Tarea t = Tarea.builder()
 				.id(UUID.randomUUID().toString())
 				.tramiteId(tramite.getId())
@@ -211,7 +216,8 @@ public class WorkflowEngine {
 				.politicaNombre(tramite.getPoliticaNombre())
 				.pasoActual(Optional.ofNullable(tramite.getPasoActual()).orElse(1))
 				.totalPasos(Optional.ofNullable(tramite.getTotalPasos()).orElse(1))
-				.clienteNombre(tramite.getClienteNombre())
+				.clienteNombre(nombreCliente)
+				.tramiteClienteId(tramiteActual.getClienteId())
 				.estado(EstadoTarea.PENDIENTE)
 				.usuarioAsignadoId(asignado)
 				.creadoEn(Instant.now())

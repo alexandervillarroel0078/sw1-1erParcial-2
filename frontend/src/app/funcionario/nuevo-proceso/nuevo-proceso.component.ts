@@ -11,6 +11,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -33,6 +34,7 @@ import {
 import { Politica } from '../../core/models/politica.model';
 import { PoliticaService } from '../../core/services/politica.service';
 import { TramiteService } from '../../core/services/tramite.service';
+import { TramiteCredencialesDialogComponent } from './tramite-credenciales-dialog.component';
 
 @Component({
   selector: 'app-nuevo-proceso',
@@ -57,6 +59,7 @@ export class NuevoProcesoComponent {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly snack = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
   private readonly politicaService = inject(PoliticaService);
   private readonly tramiteService = inject(TramiteService);
 
@@ -120,10 +123,23 @@ export class NuevoProcesoComponent {
       )
       .subscribe({
         next: () => {
-          this.snack.open('Trámite iniciado correctamente', 'Cerrar', {
-            duration: 4000,
-          });
-          void this.router.navigate(['/funcionario/bandeja']);
+          const emailTrim = email.trim();
+          this.dialog
+            .open(TramiteCredencialesDialogComponent, {
+              width: '480px',
+              maxWidth: '92vw',
+              disableClose: true,
+              data: {
+                nombreCompleto: nombreCompleto.trim(),
+                telefono: telefono.trim(),
+                email: emailTrim.length > 0 ? emailTrim : null,
+              },
+            })
+            .afterClosed()
+            .pipe(take(1))
+            .subscribe(() => {
+              void this.router.navigate(['/funcionario/bandeja']);
+            });
         },
         error: () => {
           this.snack.open(

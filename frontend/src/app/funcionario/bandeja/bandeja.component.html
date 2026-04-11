@@ -46,7 +46,7 @@
             </div>
             <div class="meta">
               <span class="meta__k">Cliente</span>
-              <span class="meta__v">{{ t.clienteNombre ?? '—' }}</span>
+              <span class="meta__v">{{ clienteEtiqueta(t) }}</span>
             </div>
             <div class="meta">
               <span class="meta__k">Días abierto</span>
@@ -72,6 +72,17 @@
                 (click)="reportar(t.id)"
               >
                 Reportar
+              </button>
+            }
+            @if (t.estado === 'completado') {
+              <button
+                mat-stroked-button
+                color="primary"
+                type="button"
+                (click)="verReporte(t.id)"
+              >
+                <mat-icon>description</mat-icon>
+                Ver reporte
               </button>
             }
           </div>

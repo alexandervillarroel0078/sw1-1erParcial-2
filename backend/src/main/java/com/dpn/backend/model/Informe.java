@@ -24,6 +24,8 @@ public class Informe {
 	private String id;
 	@Field("tramite_id")
 	private String tramiteId;
+	@Field("tarea_id")
+	private String tareaId;
 	@Field("funcionario_id")
 	private String funcionarioId;
 	@Field("nodo_actividad_id")

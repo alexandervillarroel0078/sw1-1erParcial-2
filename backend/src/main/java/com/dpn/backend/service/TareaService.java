@@ -5,6 +5,7 @@ import com.dpn.backend.dto.TareaDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.mapper.EntityMapper;
 import com.dpn.backend.model.Tarea;
+import com.dpn.backend.model.Tramite;
 import com.dpn.backend.model.enums.EstadoTarea;
 import com.dpn.backend.repository.TareaRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,14 @@ public class TareaService {
 
 	private final TareaRepository tareaRepository;
 	private final WorkflowEngine workflowEngine;
+	private final ClienteService clienteService;
+
+	/**
+	 * Al crear tareas del flujo ({@link WorkflowEngine}): nombre visible a partir del trámite / cliente.
+	 */
+	public String resolverNombreClienteParaNuevaTarea(Tramite tramite) {
+		return clienteService.resolverNombreParaTarea(tramite);
+	}
 
 	public List<TareaDTO> listarMisTareas(String usuarioId) {
 		return tareaRepository.findByUsuarioAsignadoId(usuarioId).stream()

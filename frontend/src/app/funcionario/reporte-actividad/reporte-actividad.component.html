@@ -12,144 +12,28 @@
     >
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <span class="topbar-interno__title">Reportar actividad completada</span>
+    <span class="topbar-interno__title">{{ tituloToolbar() }}</span>
+    @if (soloLectura()) {
+      <mat-chip class="toolbar-badge toolbar-badge--completada" selected>Completada</mat-chip>
+    }
+    <span class="topbar-spacer"></span>
   </mat-toolbar>
 
   <div class="layout">
     <mat-card class="panel panel--form" appearance="outlined">
-      <mat-button-toggle-group
-        class="modo-toggle"
-        [value]="modo()"
-        (change)="setModo($event.value)"
-        aria-label="Modo de entrada"
-      >
-        <mat-button-toggle value="texto">Texto escrito</mat-button-toggle>
-        <mat-button-toggle value="voz">Voz — IA</mat-button-toggle>
-      </mat-button-toggle-group>
-
-      <form [formGroup]="form" class="form">
-        @if (modo() === 'texto') {
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Descripción de la actividad</mat-label>
-            <textarea
-              matInput
-              rows="6"
-              formControlName="descripcion"
-              placeholder="Describí lo realizado en esta actividad"
-            ></textarea>
-            @if (
-              form.controls.descripcion.touched && form.controls.descripcion.hasError('required')
-            ) {
-              <mat-error>La descripción es obligatoria</mat-error>
-            }
-            @if (
-              form.controls.descripcion.touched && form.controls.descripcion.hasError('minlength')
-            ) {
-              <mat-error>Mínimo 3 caracteres</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Resultado</mat-label>
-            <mat-select formControlName="resultado">
-              @for (r of resultados; track r.value) {
-                <mat-option [value]="r.value">{{ r.label }}</mat-option>
-              }
-            </mat-select>
-            @if (form.controls.resultado.touched && form.controls.resultado.hasError('required')) {
-              <mat-error>Elegí un resultado</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Observaciones</mat-label>
-            <textarea
-              matInput
-              rows="3"
-              formControlName="observaciones"
-              placeholder="Opcional"
-            ></textarea>
-          </mat-form-field>
-
-          <div class="acciones-form">
-            <button
-              mat-raised-button
-              color="primary"
-              type="button"
-              [disabled]="enviando()"
-              (click)="completarYEnviar()"
-            >
-              @if (enviando()) {
-                <mat-spinner diameter="18"></mat-spinner>
-              } @else {
-                Completar y enviar reporte
-              }
-            </button>
-            <button mat-stroked-button type="button" (click)="guardarBorrador()">
-              Guardar borrador
-            </button>
-          </div>
-        } @else {
-          @if (!speechDisponible()) {
-            <div class="speech-no" role="status">
-              <mat-icon>mic_off</mat-icon>
-              <p>
-                Tu navegador no admite reconocimiento de voz (Web Speech API). Usá el modo texto
-                escrito.
-              </p>
-            </div>
+      @if (soloLectura()) {
+        <form [formGroup]="form" class="form form--readonly">
+          @if (informe()?.enviadoEn) {
+            <p class="fecha-envio">
+              Enviado el {{ informe()!.enviadoEn | date: 'short' }}
+            </p>
           } @else {
-            <div class="voz-wrap">
-              <button
-                type="button"
-                class="mic"
-                [class.mic--grabando]="grabando()"
-                [attr.aria-pressed]="grabando()"
-                aria-label="Grabar voz"
-                (click)="toggleMic()"
-              >
-                <mat-icon>mic</mat-icon>
-              </button>
-              @if (grabando()) {
-                <div class="grabando-indicador">
-                  <span class="pulso"></span>
-                  Grabando…
-                </div>
-              }
-
-              <div class="transcripcion" aria-live="polite">
-                @if (lineaVoz()) {
-                  {{ lineaVoz() }}
-                } @else {
-                  <span class="transcripcion__placeholder"
-                    >El texto transcrito aparecerá aquí en tiempo real</span
-                  >
-                }
-              </div>
-
-              <p class="hint-voz">
-                Idioma: es-ES. Al detener la grabación, la descripción se completa automáticamente.
-              </p>
-
-              <button mat-stroked-button type="button" (click)="limpiarVoz()">
-                Limpiar y volver a grabar
-              </button>
-            </div>
+            <p class="fecha-envio fecha-envio--muted">Fecha de envío no registrada</p>
           }
 
           <mat-form-field appearance="outline" class="full">
             <mat-label>Descripción de la actividad</mat-label>
-            <textarea
-              matInput
-              rows="4"
-              formControlName="descripcion"
-              placeholder="Completado por voz o editá manualmente"
-            ></textarea>
-            @if (
-              form.controls.descripcion.touched && form.controls.descripcion.hasError('required')
-            ) {
-              <mat-error>La descripción es obligatoria</mat-error>
-            }
+            <textarea matInput rows="6" formControlName="descripcion"></textarea>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full">
@@ -159,36 +43,187 @@
                 <mat-option [value]="r.value">{{ r.label }}</mat-option>
               }
             </mat-select>
-            @if (form.controls.resultado.touched && form.controls.resultado.hasError('required')) {
-              <mat-error>Elegí un resultado</mat-error>
-            }
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full">
             <mat-label>Observaciones</mat-label>
-            <textarea matInput rows="2" formControlName="observaciones"></textarea>
+            <textarea matInput rows="3" formControlName="observaciones"></textarea>
           </mat-form-field>
+        </form>
+      } @else {
+        <mat-button-toggle-group
+          class="modo-toggle"
+          [value]="modo()"
+          (change)="setModo($event.value)"
+          aria-label="Modo de entrada"
+        >
+          <mat-button-toggle value="texto">Texto escrito</mat-button-toggle>
+          <mat-button-toggle value="voz">Voz — IA</mat-button-toggle>
+        </mat-button-toggle-group>
 
-          <div class="acciones-form">
-            <button
-              mat-raised-button
-              color="primary"
-              type="button"
-              [disabled]="enviando()"
-              (click)="completarYEnviar()"
-            >
-              @if (enviando()) {
-                <mat-spinner diameter="18"></mat-spinner>
-              } @else {
-                Completar y enviar reporte
+        <form [formGroup]="form" class="form">
+          @if (modo() === 'texto') {
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Descripción de la actividad</mat-label>
+              <textarea
+                matInput
+                rows="6"
+                formControlName="descripcion"
+                placeholder="Describí lo realizado en esta actividad"
+              ></textarea>
+              @if (
+                form.controls.descripcion.touched && form.controls.descripcion.hasError('required')
+              ) {
+                <mat-error>La descripción es obligatoria</mat-error>
               }
-            </button>
-            <button mat-stroked-button type="button" (click)="guardarBorrador()">
-              Guardar borrador
-            </button>
-          </div>
-        }
-      </form>
+              @if (
+                form.controls.descripcion.touched && form.controls.descripcion.hasError('minlength')
+              ) {
+                <mat-error>Mínimo 3 caracteres</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Resultado</mat-label>
+              <mat-select formControlName="resultado">
+                @for (r of resultados; track r.value) {
+                  <mat-option [value]="r.value">{{ r.label }}</mat-option>
+                }
+              </mat-select>
+              @if (form.controls.resultado.touched && form.controls.resultado.hasError('required')) {
+                <mat-error>Elegí un resultado</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Observaciones</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                formControlName="observaciones"
+                placeholder="Opcional"
+              ></textarea>
+            </mat-form-field>
+
+            <div class="acciones-form">
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                [disabled]="enviando()"
+                (click)="completarYEnviar()"
+              >
+                @if (enviando()) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                } @else {
+                  Completar y enviar reporte
+                }
+              </button>
+              <button mat-stroked-button type="button" (click)="guardarBorrador()">
+                Guardar borrador
+              </button>
+            </div>
+          } @else {
+            @if (!speechDisponible()) {
+              <div class="speech-no" role="status">
+                <mat-icon>mic_off</mat-icon>
+                <p>
+                  Tu navegador no admite reconocimiento de voz (Web Speech API). Usá el modo texto
+                  escrito.
+                </p>
+              </div>
+            } @else {
+              <div class="voz-wrap">
+                <button
+                  type="button"
+                  class="mic"
+                  [class.mic--grabando]="grabando()"
+                  [attr.aria-pressed]="grabando()"
+                  aria-label="Grabar voz"
+                  (click)="toggleMic()"
+                >
+                  <mat-icon>mic</mat-icon>
+                </button>
+                @if (grabando()) {
+                  <div class="grabando-indicador">
+                    <span class="pulso"></span>
+                    Grabando…
+                  </div>
+                }
+
+                <div class="transcripcion" aria-live="polite">
+                  @if (lineaVoz()) {
+                    {{ lineaVoz() }}
+                  } @else {
+                    <span class="transcripcion__placeholder"
+                      >El texto transcrito aparecerá aquí en tiempo real</span
+                    >
+                  }
+                </div>
+
+                <p class="hint-voz">
+                  Idioma: es-ES. Al detener la grabación, la descripción se completa automáticamente.
+                </p>
+
+                <button mat-stroked-button type="button" (click)="limpiarVoz()">
+                  Limpiar y volver a grabar
+                </button>
+              </div>
+            }
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Descripción de la actividad</mat-label>
+              <textarea
+                matInput
+                rows="4"
+                formControlName="descripcion"
+                placeholder="Completado por voz o editá manualmente"
+              ></textarea>
+              @if (
+                form.controls.descripcion.touched && form.controls.descripcion.hasError('required')
+              ) {
+                <mat-error>La descripción es obligatoria</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Resultado</mat-label>
+              <mat-select formControlName="resultado">
+                @for (r of resultados; track r.value) {
+                  <mat-option [value]="r.value">{{ r.label }}</mat-option>
+                }
+              </mat-select>
+              @if (form.controls.resultado.touched && form.controls.resultado.hasError('required')) {
+                <mat-error>Elegí un resultado</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Observaciones</mat-label>
+              <textarea matInput rows="2" formControlName="observaciones"></textarea>
+            </mat-form-field>
+
+            <div class="acciones-form">
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                [disabled]="enviando()"
+                (click)="completarYEnviar()"
+              >
+                @if (enviando()) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                } @else {
+                  Completar y enviar reporte
+                }
+              </button>
+              <button mat-stroked-button type="button" (click)="guardarBorrador()">
+                Guardar borrador
+              </button>
+            </div>
+          }
+        </form>
+      }
     </mat-card>
 
     <mat-card class="panel panel--detalle" appearance="outlined">
@@ -212,8 +247,8 @@
         <span class="v mono">{{ ta.tramiteId }}</span>
       </div>
       <div class="detalle__row">
-        <span class="k">Cliente</span>
-        <span class="v">{{ ta.clienteNombre ?? '—' }}</span>
+        <span class="k">CLIENTE</span>
+        <span class="v">{{ clienteEtiqueta(ta) }}</span>
       </div>
       <div class="detalle__row">
         <span class="k">Días abierto</span>

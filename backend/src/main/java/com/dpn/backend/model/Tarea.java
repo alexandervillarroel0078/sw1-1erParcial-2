@@ -36,6 +36,9 @@ public class Tarea {
 	private int totalPasos;
 	@Field("cliente_nombre")
 	private String clienteNombre;
+	/** Copia de {@link Tramite#getClienteId()} al crear la tarea (referencia si falta nombre). */
+	@Field("tramite_cliente_id")
+	private String tramiteClienteId;
 	@Field("dias_abierto")
 	private Integer diasAbierto;
 	@Field("usuario_asignado_id")

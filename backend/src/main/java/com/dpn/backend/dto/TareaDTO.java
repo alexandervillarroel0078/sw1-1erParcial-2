@@ -23,6 +23,7 @@ public class TareaDTO {
 	private int pasoActual;
 	private int totalPasos;
 	private String clienteNombre;
+	private String tramiteClienteId;
 	private Integer diasAbierto;
 	private String usuarioAsignadoId;
 	private EstadoTarea estado;

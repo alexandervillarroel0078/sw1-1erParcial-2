@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
 import {
   combineLatest,
   map,
@@ -17,7 +18,7 @@ import {
   take,
 } from 'rxjs';
 
-import { Tarea } from '../../core/models/tarea.model';
+import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { TareaService } from '../../core/services/tarea.service';
 
 export type FiltroBandeja = 'todas' | Tarea['estado'];
@@ -33,6 +34,7 @@ export type FiltroBandeja = 'todas' | Tarea['estado'];
     MatButtonModule,
     MatButtonToggleModule,
     MatChipsModule,
+    MatIconModule,
   ],
   templateUrl: './bandeja.component.html',
   styleUrl: './bandeja.component.scss',
@@ -84,6 +86,10 @@ export class BandejaComponent {
     }),
   );
 
+  clienteEtiqueta(t: Tarea): string {
+    return etiquetaClienteReferencia(t);
+  }
+
   estadoLabel(estado: Tarea['estado']): string {
     switch (estado) {
       case 'pendiente':
@@ -108,5 +114,9 @@ export class BandejaComponent {
   reportar(id: string | undefined): void {
     if (!id) return;
     void this.router.navigate(['/funcionario/reporte', id]);
+  }
+
+  verReporte(id: string | undefined): void {
+    this.reportar(id);
   }
 }

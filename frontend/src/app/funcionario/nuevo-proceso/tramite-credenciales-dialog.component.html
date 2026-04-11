@@ -1,0 +1,22 @@
+<h2 mat-dialog-title>Trámite iniciado exitosamente</h2>
+
+<div mat-dialog-content class="dialog-body">
+  <div class="rule" aria-hidden="true"></div>
+
+  <dl class="datos">
+    <dt>Cliente registrado</dt>
+    <dd>{{ data.nombreCompleto }}</dd>
+    <dt>Email</dt>
+    <dd>{{ emailMostrar }}</dd>
+    <dt>Contraseña de acceso</dt>
+    <dd><code class="clave">{{ contrasenaPlano }}</code></dd>
+  </dl>
+
+  <p class="aviso">
+    Comunique estas credenciales al cliente para que pueda acceder a la app móvil.
+  </p>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-raised-button color="primary" type="button" (click)="cerrar()">Entendido</button>
+</div>

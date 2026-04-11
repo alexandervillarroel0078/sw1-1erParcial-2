@@ -55,6 +55,7 @@ public class EntityMapper {
 				.pasoActual(t.getPasoActual())
 				.totalPasos(t.getTotalPasos())
 				.clienteNombre(t.getClienteNombre())
+				.tramiteClienteId(t.getTramiteClienteId())
 				.diasAbierto(t.getDiasAbierto())
 				.usuarioAsignadoId(t.getUsuarioAsignadoId())
 				.estado(t.getEstado())

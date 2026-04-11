@@ -4,6 +4,7 @@ import com.dpn.backend.dto.ClientePublicDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.mapper.EntityMapper;
 import com.dpn.backend.model.Cliente;
+import com.dpn.backend.model.Tramite;
 import com.dpn.backend.repository.ClienteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,26 @@ public class ClienteService {
 	public Cliente obtenerPorId(String id) {
 		return clienteRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Cliente no encontrado"));
+	}
+
+	/**
+	 * Nombre del cliente para persistir en tareas: snapshot del trámite o consulta por {@link Tramite#getClienteId()}.
+	 */
+	public String resolverNombreParaTarea(Tramite tramite) {
+		if (tramite == null) {
+			return "";
+		}
+		if (tramite.getClienteNombre() != null && !tramite.getClienteNombre().isBlank()) {
+			return tramite.getClienteNombre().trim();
+		}
+		if (tramite.getClienteId() == null || tramite.getClienteId().isBlank()) {
+			return "";
+		}
+		return clienteRepository.findById(tramite.getClienteId())
+				.map(Cliente::getNombreCompleto)
+				.filter(s -> s != null && !s.isBlank())
+				.map(String::trim)
+				.orElse("");
 	}
 
 	/**

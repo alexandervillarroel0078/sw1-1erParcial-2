@@ -1,6 +1,7 @@
-import { isPlatformBrowser, NgClass } from '@angular/common';
+import { DatePipe, isPlatformBrowser, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   DestroyRef,
   inject,
@@ -21,10 +22,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { of, switchMap, take } from 'rxjs';
+import { catchError, map, of, switchMap, take, tap } from 'rxjs';
 
 import { Informe } from '../../core/models/informe.model';
-import { Tarea } from '../../core/models/tarea.model';
+import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
@@ -35,6 +36,7 @@ export type ModoEntrada = 'texto' | 'voz';
   selector: 'app-reporte-actividad',
   standalone: true,
   imports: [
+    DatePipe,
     NgClass,
     ReactiveFormsModule,
     MatToolbarModule,
@@ -61,9 +63,11 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly cargando = signal(true);
   readonly tarea = signal<Tarea | null>(null);
+  readonly informe = signal<Informe | null>(null);
 
   readonly modo = signal<ModoEntrada>('texto');
   readonly grabando = signal(false);
@@ -93,21 +97,76 @@ export class ReporteActividadComponent implements OnDestroy {
   constructor() {
     this.route.paramMap
       .pipe(
+        tap(() => {
+          this.cargando.set(true);
+          this.informe.set(null);
+        }),
         takeUntilDestroyed(this.destroyRef),
         switchMap((pm) => {
           const id = pm.get('id');
-          if (!id) return of(null);
-          return this.tareaService.getTareaById(id);
+          if (!id) {
+            return of({ tarea: null as Tarea | null, informe: null as Informe | null });
+          }
+          return this.tareaService.getTareaById(id).pipe(
+            switchMap((t) => {
+              if (!t) {
+                return of({ tarea: null as Tarea | null, informe: null as Informe | null });
+              }
+              if (t.estado !== 'completado') {
+                return of({ tarea: t, informe: null as Informe | null });
+              }
+              return this.informeService.getInformePorTarea(id).pipe(
+                map((informe) => ({ tarea: t, informe })),
+              );
+            }),
+            catchError(() =>
+              of({ tarea: null as Tarea | null, informe: null as Informe | null }),
+            ),
+          );
         }),
       )
       .subscribe({
-        next: (t) => {
+        next: ({ tarea, informe }) => {
           this.cargando.set(false);
-          if (!t) {
+          if (!tarea) {
             void this.router.navigate(['/funcionario/bandeja']);
             return;
           }
-          this.tarea.set(t);
+          this.tarea.set(tarea);
+          this.informe.set(informe);
+          this.form.enable({ emitEvent: false });
+          this.form.reset(
+            {
+              descripcion: '',
+              resultado: '',
+              observaciones: '',
+            },
+            { emitEvent: false },
+          );
+          if (tarea.estado === 'completado') {
+            if (informe) {
+              // Los valores deben aplicarse con el formulario habilitado; `mat-select` no
+              // refleja bien el valor si se deshabilita el grupo en el mismo turno de CD.
+              this.form.patchValue(
+                {
+                  descripcion: informe.descripcion ?? '',
+                  resultado: informe.resultado ?? '',
+                  observaciones: informe.observaciones ?? '',
+                },
+                { emitEvent: false },
+              );
+              queueMicrotask(() => {
+                this.form.disable({ emitEvent: false });
+                this.cdr.detectChanges();
+              });
+            } else {
+              queueMicrotask(() => {
+                this.form.disable({ emitEvent: false });
+                this.cdr.detectChanges();
+              });
+            }
+          }
+          this.cdr.markForCheck();
         },
         error: () => {
           this.cargando.set(false);
@@ -263,6 +322,7 @@ export class ReporteActividadComponent implements OnDestroy {
 
     const informe: Informe = {
       tramiteId: t.tramiteId,
+      tareaId: t.id,
       funcionarioId: uid,
       descripcion,
       resultado,
@@ -287,6 +347,14 @@ export class ReporteActividadComponent implements OnDestroy {
       });
   }
 
+  tituloToolbar(): string {
+    return this.soloLectura() ? 'Reporte de actividad' : 'Reportar actividad completada';
+  }
+
+  soloLectura(): boolean {
+    return this.tarea()?.estado === 'completado';
+  }
+
   estadoLabel(estado: Tarea['estado']): string {
     switch (estado) {
       case 'pendiente':
@@ -302,6 +370,10 @@ export class ReporteActividadComponent implements OnDestroy {
 
   badgeClass(estado: Tarea['estado']): string {
     return `badge--${estado}`;
+  }
+
+  clienteEtiqueta(t: Tarea): string {
+    return etiquetaClienteReferencia(t);
   }
 
   slaPlaceholder(dias?: number): string {
