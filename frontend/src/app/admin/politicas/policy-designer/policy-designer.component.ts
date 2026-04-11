@@ -67,6 +67,7 @@ import {
   hitTestCalleVertical,
 } from './policy-designer-swimlanes';
 import {
+  nodeHalfSize,
   pathBezierEntreNodos,
   puertoEntradaLocalDecision,
   puertoLocal,
@@ -89,6 +90,80 @@ import { ValidationResultDialogComponent } from './validation-result-dialog.comp
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
 const HIST_MAX = 50;
+
+const MINIMAP_W = 150;
+const MINIMAP_H = 100;
+
+type SwimVl = {
+  ox: number;
+  oy: number;
+  rightX: number;
+  bodyH: number;
+};
+type SwimHl = {
+  ox: number;
+  oy: number;
+  bottomY: number;
+  contentW: number;
+};
+
+function computeWorldBounds(
+  nodos: NodoCanvas[],
+  vl: SwimVl | null,
+  hl: SwimHl | null,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const pad = 80;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const n of nodos) {
+    const { hw, hh } = nodeHalfSize(n.tipo);
+    minX = Math.min(minX, n.x - hw);
+    maxX = Math.max(maxX, n.x + hw);
+    minY = Math.min(minY, n.y - hh);
+    maxY = Math.max(maxY, n.y + hh);
+  }
+  if (vl) {
+    minX = Math.min(minX, vl.ox);
+    maxX = Math.max(maxX, vl.rightX);
+    minY = Math.min(minY, vl.oy);
+    maxY = Math.max(maxY, vl.oy + SWIM_VERT_TOTAL_H);
+  }
+  if (hl) {
+    minX = Math.min(minX, hl.ox);
+    maxX = Math.max(maxX, hl.ox + hl.contentW);
+    minY = Math.min(minY, hl.oy);
+    maxY = Math.max(maxY, hl.bottomY);
+  }
+  if (!Number.isFinite(minX)) {
+    return { minX: 0, minY: 0, maxX: 960, maxY: 640 };
+  }
+  return {
+    minX: minX - pad,
+    minY: minY - pad,
+    maxX: maxX + pad,
+    maxY: maxY + pad,
+  };
+}
+
+function minimapColorTipo(t: NodoCanvasTipo): string {
+  switch (t) {
+    case 'START':
+      return '#2e7d32';
+    case 'END':
+      return '#c62828';
+    case 'ACTIVIDAD':
+      return '#1565c0';
+    case 'DECISION':
+      return '#6a1b9a';
+    case 'FORK_BAR':
+    case 'JOIN_BAR':
+      return '#455a64';
+    default:
+      return '#78909c';
+  }
+}
 
 /** Colores fijos por nombre de departamento (clave normalizada). */
 const COLOR_DEPTO_POR_NOMBRE: Record<string, string> = {
@@ -190,6 +265,15 @@ export class PolicyDesignerComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly viewportRef = viewChild<ElementRef<SVGGElement>>('viewportG');
+  readonly canvasScrollRef = viewChild<ElementRef<HTMLDivElement>>('canvasScroll');
+
+  /** Rectángulo de vista actual en coords del minimap (0–150 × 0–100). */
+  readonly minimapViewport = signal<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
 
   readonly nombrePolitica = signal('Nueva política');
   readonly nodos = signal<NodoCanvas[]>([]);
@@ -330,6 +414,39 @@ export class PolicyDesignerComponent implements OnInit {
       `translate(${this.panX()}, ${this.panY()}) scale(${this.zoom()})`,
   );
 
+  readonly diagramaStats = computed(
+    () => `${this.nodos().length} nodos · ${this.aristas().length} conexiones`,
+  );
+
+  readonly etiquetaZoomPorcentaje = computed(
+    () => `${Math.round(this.zoom() * 100)}%`,
+  );
+
+  readonly minimapDots = computed(() => {
+    const nodos = this.nodos();
+    const vl = this.swimVerticalLayout();
+    const hl = this.swimHorizontalLayout();
+    const b = computeWorldBounds(nodos, vl, hl);
+    const bw = Math.max(1e-6, b.maxX - b.minX);
+    const bh = Math.max(1e-6, b.maxY - b.minY);
+    const cols = this.departamentoColores();
+    return nodos.map((n) => {
+      let fill = minimapColorTipo(n.tipo);
+      if (n.tipo === 'ACTIVIDAD') {
+        const id = n.departamento?.trim();
+        fill = id
+          ? (cols.get(id) ?? COLOR_ACTIVIDAD_SIN_DEPTO)
+          : COLOR_ACTIVIDAD_SIN_DEPTO;
+      }
+      return {
+        id: n.id,
+        mx: ((n.x - b.minX) / bw) * MINIMAP_W,
+        my: ((n.y - b.minY) / bh) * MINIMAP_H,
+        fill,
+      };
+    });
+  });
+
   readonly puedeDeshacer = signal(false);
   readonly puedeRehacer = signal(false);
 
@@ -434,6 +551,21 @@ export class PolicyDesignerComponent implements OnInit {
       this.seleccionId();
       this.aristaSeleccionId();
       untracked(() => this.reiniciarWizardFormulario());
+    });
+
+    effect(() => {
+      this.nodos();
+      this.aristas();
+      this.calles();
+      this.orientacionCalles();
+      this.zoom();
+      this.panX();
+      this.panY();
+      untracked(() =>
+        queueMicrotask(() => {
+          this.refreshMinimapViewport();
+        }),
+      );
     });
 
     this.destroyRef.onDestroy(() => {
@@ -715,6 +847,127 @@ export class PolicyDesignerComponent implements OnInit {
     const step = ev.deltaY > 0 ? -0.08 : 0.08;
     const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, this.zoom() + step));
     this.zoom.set(z);
+    queueMicrotask(() => this.refreshMinimapViewport());
+  }
+
+  refreshMinimapViewport(): void {
+    const scroll = this.canvasScrollRef()?.nativeElement;
+    if (!scroll) {
+      this.minimapViewport.set(null);
+      return;
+    }
+    const nodos = this.nodos();
+    const vl = this.swimVerticalLayout();
+    const hl = this.swimHorizontalLayout();
+    const b = computeWorldBounds(nodos, vl, hl);
+    const wb = Math.max(1e-6, b.maxX - b.minX);
+    const hb = Math.max(1e-6, b.maxY - b.minY);
+    const sl = scroll.scrollLeft;
+    const st = scroll.scrollTop;
+    const cw = Math.max(1, scroll.clientWidth);
+    const ch = Math.max(1, scroll.clientHeight);
+    const z = this.zoom();
+    const px0 = (sl - this.panX()) / z;
+    const px1 = (sl + cw - this.panX()) / z;
+    const py0 = (st - this.panY()) / z;
+    const py1 = (st + ch - this.panY()) / z;
+    const mx0 = ((px0 - b.minX) / wb) * MINIMAP_W;
+    const mx1 = ((px1 - b.minX) / wb) * MINIMAP_W;
+    const my0 = ((py0 - b.minY) / hb) * MINIMAP_H;
+    const my1 = ((py1 - b.minY) / hb) * MINIMAP_H;
+    const rx0 = Math.min(mx0, mx1);
+    const rx1 = Math.max(mx0, mx1);
+    const ry0 = Math.min(my0, my1);
+    const ry1 = Math.max(my0, my1);
+    const x = Math.max(0, Math.min(MINIMAP_W, rx0));
+    const y = Math.max(0, Math.min(MINIMAP_H, ry0));
+    const w = Math.max(3, Math.min(MINIMAP_W - x, rx1 - rx0));
+    const h = Math.max(3, Math.min(MINIMAP_H - y, ry1 - ry0));
+    this.minimapViewport.set({ x, y, w, h });
+  }
+
+  onCanvasScroll(): void {
+    this.refreshMinimapViewport();
+  }
+
+  onMinimapClick(ev: MouseEvent): void {
+    ev.stopPropagation();
+    const el = ev.currentTarget as HTMLElement | null;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const rw = rect.width || MINIMAP_W;
+    const rh = rect.height || MINIMAP_H;
+    const mx = ((ev.clientX - rect.left) / rw) * MINIMAP_W;
+    const my = ((ev.clientY - rect.top) / rh) * MINIMAP_H;
+    if (mx < 0 || my < 0 || mx > MINIMAP_W || my > MINIMAP_H) return;
+    const scroll = this.canvasScrollRef()?.nativeElement;
+    if (!scroll) return;
+    const nodos = this.nodos();
+    const vl = this.swimVerticalLayout();
+    const hl = this.swimHorizontalLayout();
+    const b = computeWorldBounds(nodos, vl, hl);
+    const wb = Math.max(1e-6, b.maxX - b.minX);
+    const bh = Math.max(1e-6, b.maxY - b.minY);
+    const wx = b.minX + (mx / MINIMAP_W) * wb;
+    const wy = b.minY + (my / MINIMAP_H) * bh;
+    const cw = Math.max(1, scroll.clientWidth);
+    const ch = Math.max(1, scroll.clientHeight);
+    const z = this.zoom();
+    this.panX.set(scroll.scrollLeft + cw / 2 - z * wx);
+    this.panY.set(scroll.scrollTop + ch / 2 - z * wy);
+    queueMicrotask(() => this.refreshMinimapViewport());
+  }
+
+  centrarVista(): void {
+    const scroll = this.canvasScrollRef()?.nativeElement;
+    if (!scroll) return;
+    const nodos = this.nodos();
+    const vl = this.swimVerticalLayout();
+    const hl = this.swimHorizontalLayout();
+    const b = computeWorldBounds(nodos, vl, hl);
+    const bw = Math.max(1, b.maxX - b.minX);
+    const bh = Math.max(1, b.maxY - b.minY);
+    const cw = Math.max(1, scroll.clientWidth);
+    const ch = Math.max(1, scroll.clientHeight);
+    const margin = 0.88;
+    const z = Math.min(
+      ZOOM_MAX,
+      Math.max(ZOOM_MIN, margin * Math.min(cw / bw, ch / bh)),
+    );
+    const cx = (b.minX + b.maxX) / 2;
+    const cy = (b.minY + b.maxY) / 2;
+    this.pushSnapshot();
+    this.zoom.set(z);
+    scroll.scrollTop = 0;
+    scroll.scrollLeft = 0;
+    this.panX.set(cw / 2 - z * cx);
+    this.panY.set(ch / 2 - z * cy);
+    this.syncHistorialFlags();
+    queueMicrotask(() => this.refreshMinimapViewport());
+  }
+
+  resetZoomAl100(): void {
+    const scroll = this.canvasScrollRef()?.nativeElement;
+    const z0 = this.zoom();
+    const z1 = 1;
+    if (scroll && Math.abs(z0 - z1) > 1e-6) {
+      const cw = Math.max(1, scroll.clientWidth);
+      const ch = Math.max(1, scroll.clientHeight);
+      const sl = scroll.scrollLeft;
+      const st = scroll.scrollTop;
+      const cx = sl + cw / 2;
+      const cy = st + ch / 2;
+      const wx = (cx - this.panX()) / z0;
+      const wy = (cy - this.panY()) / z0;
+      this.pushSnapshot();
+      this.zoom.set(1);
+      this.panX.set(cx - wx);
+      this.panY.set(cy - wy);
+      this.syncHistorialFlags();
+    } else {
+      this.zoom.set(1);
+    }
+    queueMicrotask(() => this.refreshMinimapViewport());
   }
 
   onDragEnd(ev: CdkDragEnd, n: NodoCanvas): void {

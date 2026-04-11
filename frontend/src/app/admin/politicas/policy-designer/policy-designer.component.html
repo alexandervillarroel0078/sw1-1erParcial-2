@@ -25,6 +25,33 @@
       />
     </mat-form-field>
 
+    <div class="pd-toolbar__spacer" aria-hidden="true"></div>
+
+    <div class="pd-toolbar__meta">
+      <span class="pd-toolbar__counts">{{ diagramaStats() }}</span>
+      <button
+        mat-button
+        type="button"
+        class="pd-toolbar__zoom"
+        (click)="resetZoomAl100()"
+        matTooltip="Restablecer zoom a 100%"
+        matTooltipPosition="below"
+      >
+        {{ etiquetaZoomPorcentaje() }}
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        class="pd-toolbar__fit"
+        (click)="centrarVista()"
+        matTooltip="Ajustar zoom y pan para ver todo el diagrama"
+        matTooltipPosition="below"
+      >
+        <mat-icon>center_focus_strong</mat-icon>
+        Centrar vista
+      </button>
+    </div>
+
     <div class="pd-toolbar__actions">
       <button
         mat-stroked-button
@@ -177,8 +204,10 @@
         </div>
       }
       <div
+        #canvasScroll
         class="pd-canvas-scroll"
         [class.pd-canvas-scroll--lanes]="calles().length > 0"
+        (scroll)="onCanvasScroll()"
       >
         <div
           class="pd-svg-holder"
@@ -553,6 +582,35 @@
       </svg>
         </div>
       </div>
+
+      <div
+        class="pd-minimap"
+        role="img"
+        aria-label="Minimapa del diagrama; clic para centrar la vista en esa zona"
+        (click)="onMinimapClick($event)"
+      >
+        <svg
+          class="pd-minimap__svg"
+          viewBox="0 0 150 100"
+          width="150"
+          height="100"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <rect class="pd-minimap__bg" width="150" height="100" rx="4" />
+          @for (d of minimapDots(); track d.id) {
+            <circle [attr.cx]="d.mx" [attr.cy]="d.my" r="2.8" [attr.fill]="d.fill" />
+          }
+          @if (minimapViewport(); as vr) {
+            <rect
+              class="pd-minimap__view"
+              [attr.x]="vr.x"
+              [attr.y]="vr.y"
+              [attr.width]="vr.w"
+              [attr.height]="vr.h"
+            />
+          }
+        </svg>
+      </div>
     </div>
 
     <!-- Panel derecho: pestañas -->
@@ -578,7 +636,11 @@
                 />
               </mat-form-field>
               @if (sn.tipo === 'ACTIVIDAD') {
-                <mat-form-field appearance="outline" class="pd-props__field">
+                <mat-form-field
+                  appearance="outline"
+                  class="pd-props__field pd-props__field--no-sub"
+                  subscriptSizing="dynamic"
+                >
                   <mat-label>Departamento</mat-label>
                   <mat-select
                     [ngModel]="sn.departamento ?? ''"
@@ -591,10 +653,9 @@
                       }
                     }
                   </mat-select>
-                  <mat-hint>Se guarda como departamentoId y departamentoTexto</mat-hint>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="pd-props__field">
-                  <mat-label>SLA (horas)</mat-label>
+                  <mat-label>SLA límite (horas)</mat-label>
                   <input
                     matInput
                     type="number"
@@ -604,6 +665,7 @@
                     (ngModelChange)="patchSla($event)"
                     (blur)="commitPropiedadesNodo()"
                   />
+                  <mat-hint>Ej: 24 = 1 día hábil</mat-hint>
                 </mat-form-field>
                 <button
                   mat-stroked-button
