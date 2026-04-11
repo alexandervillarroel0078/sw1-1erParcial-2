@@ -39,16 +39,33 @@ public class DataInitializer implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
-		if (departamentoRepository.count() != 0) {
-			return;
+		Map<String, String> deptIds = ensureDepartamentosMap();
+		boolean seeded = false;
+		if (seedUsuariosIfMissing(deptIds)) {
+			seeded = true;
 		}
+		if (seedClienteIfMissing()) {
+			seeded = true;
+		}
+		if (politicaRepository.count() == 0) {
+			seedPolitica(deptIds);
+			seeded = true;
+		}
+		if (seeded) {
+			log.info("Base de datos inicializada o completada con datos de prueba");
+		}
+	}
 
-		Map<String, String> deptIds = seedDepartamentos();
-		seedUsuarios(deptIds);
-		seedCliente();
-		seedPolitica(deptIds);
-
-		log.info("Base de datos inicializada con datos de prueba");
+	/** Crea departamentos de demo solo si no hay ninguno; si ya existen, arma el mapa nombre → id. */
+	private Map<String, String> ensureDepartamentosMap() {
+		if (departamentoRepository.count() == 0) {
+			return seedDepartamentos();
+		}
+		Map<String, String> map = new LinkedHashMap<>();
+		for (Departamento d : departamentoRepository.findAll()) {
+			map.put(d.getNombre(), d.getId());
+		}
+		return map;
 	}
 
 	private Map<String, String> seedDepartamentos() {
@@ -66,46 +83,63 @@ public class DataInitializer implements CommandLineRunner {
 		return map;
 	}
 
-	private void seedUsuarios(Map<String, String> deptIds) {
+	/**
+	 * Inserta usuarios demo solo si no existe ya un usuario con ese correo (evita nuevos hashes en cada arranque).
+	 *
+	 * @return true si se insertó al menos un usuario
+	 */
+	private boolean seedUsuariosIfMissing(Map<String, String> deptIds) {
 		Instant now = Instant.now();
 		String idAc = deptIds.get("Atención al Cliente");
 		String idVt = deptIds.get("Validación Técnica");
 
-		List<Usuario> usuarios = new ArrayList<>();
-		usuarios.add(Usuario.builder()
-				.id(UUID.randomUUID().toString())
-				.nombre("Administrador Demo")
-				.correo("admin@demo.com")
-				.passwordHash(passwordEncoder.encode("admin123"))
-				.rol(RolUsuario.ADMINISTRADOR)
-				.departamentoId(null)
-				.activo(true)
-				.creadoEn(now)
-				.build());
-		usuarios.add(Usuario.builder()
-				.id(UUID.randomUUID().toString())
-				.nombre("Ana Martínez")
-				.correo("ana@demo.com")
-				.passwordHash(passwordEncoder.encode("func123"))
-				.rol(RolUsuario.FUNCIONARIO)
-				.departamentoId(idAc)
-				.activo(true)
-				.creadoEn(now)
-				.build());
-		usuarios.add(Usuario.builder()
-				.id(UUID.randomUUID().toString())
-				.nombre("Luis Gómez")
-				.correo("luis@demo.com")
-				.passwordHash(passwordEncoder.encode("func123"))
-				.rol(RolUsuario.FUNCIONARIO)
-				.departamentoId(idVt)
-				.activo(true)
-				.creadoEn(now)
-				.build());
-		usuarioRepository.saveAll(usuarios);
+		boolean any = false;
+		if (usuarioRepository.findByCorreoIgnoreCase("admin@demo.com").isEmpty()) {
+			usuarioRepository.save(Usuario.builder()
+					.id(UUID.randomUUID().toString())
+					.nombre("Administrador Demo")
+					.correo("admin@demo.com")
+					.passwordHash(passwordEncoder.encode("admin123"))
+					.rol(RolUsuario.ADMINISTRADOR)
+					.departamentoId(null)
+					.activo(true)
+					.creadoEn(now)
+					.build());
+			any = true;
+		}
+		if (usuarioRepository.findByCorreoIgnoreCase("ana@demo.com").isEmpty()) {
+			usuarioRepository.save(Usuario.builder()
+					.id(UUID.randomUUID().toString())
+					.nombre("Ana Martínez")
+					.correo("ana@demo.com")
+					.passwordHash(passwordEncoder.encode("func123"))
+					.rol(RolUsuario.FUNCIONARIO)
+					.departamentoId(idAc)
+					.activo(true)
+					.creadoEn(now)
+					.build());
+			any = true;
+		}
+		if (usuarioRepository.findByCorreoIgnoreCase("luis@demo.com").isEmpty()) {
+			usuarioRepository.save(Usuario.builder()
+					.id(UUID.randomUUID().toString())
+					.nombre("Luis Gómez")
+					.correo("luis@demo.com")
+					.passwordHash(passwordEncoder.encode("func123"))
+					.rol(RolUsuario.FUNCIONARIO)
+					.departamentoId(idVt)
+					.activo(true)
+					.creadoEn(now)
+					.build());
+			any = true;
+		}
+		return any;
 	}
 
-	private void seedCliente() {
+	private boolean seedClienteIfMissing() {
+		if (clienteRepository.findByEmailIgnoreCase("juan@demo.com").isPresent()) {
+			return false;
+		}
 		Cliente c = Cliente.builder()
 				.id(UUID.randomUUID().toString())
 				.nombreCompleto("Juan Flores")
@@ -116,6 +150,7 @@ public class DataInitializer implements CommandLineRunner {
 				.creadoEn(Instant.now())
 				.build();
 		clienteRepository.save(c);
+		return true;
 	}
 
 	private void seedPolitica(Map<String, String> deptIds) {
