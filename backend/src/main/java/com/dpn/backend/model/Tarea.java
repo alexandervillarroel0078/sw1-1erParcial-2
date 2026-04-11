@@ -24,6 +24,9 @@ public class Tarea {
 	private String tramiteId;
 	@Field("nodo_flujo_id")
 	private String nodoFlujoId;
+	/** Etiqueta de la arista entrante (p. ej. Sí/No tras un nodo DECISION). */
+	@Field("arista_etiqueta_entrada")
+	private String aristaEtiquetaEntrada;
 	@Field("actividad_etiqueta")
 	private String actividadEtiqueta;
 	@Field("departamento_texto")

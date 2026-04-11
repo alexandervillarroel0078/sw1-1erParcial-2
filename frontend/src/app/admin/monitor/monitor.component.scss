@@ -59,6 +59,20 @@
   overflow: hidden;
 }
 
+.card--clickable {
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.card--clickable:hover {
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.14);
+}
+
+.card--clickable:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
 .card__stripe {
   min-height: 100%;
 }
@@ -145,6 +159,11 @@
 .badge--azul {
   background: rgba(25, 118, 210, 0.16) !important;
   color: #1976d2 !important;
+}
+
+.badge--cian {
+  background: rgba(0, 131, 143, 0.14) !important;
+  color: #00838f !important;
 }
 
 .badge--gris {

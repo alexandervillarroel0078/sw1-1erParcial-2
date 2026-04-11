@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { RouterLink } from '@angular/router';
 import { combineLatest, interval, merge, of } from 'rxjs';
 import { map, startWith, switchMap } from 'rxjs/operators';
 
@@ -46,6 +47,7 @@ export type PoliticaOption = { id: string; nombre: string };
     MatCardModule,
     MatProgressBarModule,
     MatChipsModule,
+    RouterLink,
   ],
   templateUrl: './monitor.component.html',
   styleUrl: './monitor.component.scss',
@@ -136,6 +138,8 @@ export class MonitorComponent {
         return 'Iniciado';
       case 'en_proceso':
         return 'En proceso';
+      case 'esperando_decision':
+        return 'Esperando decisión';
       case 'demorado':
         return 'Demorado';
       case 'completado':
@@ -169,6 +173,8 @@ export class MonitorComponent {
         return 20;
       case 'en_proceso':
         return 55;
+      case 'esperando_decision':
+        return 48;
       case 'demorado':
         return 70;
       case 'completado':
@@ -196,6 +202,12 @@ export class MonitorComponent {
         return {
           color: '#EF9F27',
           badgeClass: 'badge--amarillo',
+          progress: 'accent',
+        };
+      case 'esperando_decision':
+        return {
+          color: '#00838f',
+          badgeClass: 'badge--cian',
           progress: 'accent',
         };
       case 'completado':

@@ -1,0 +1,169 @@
+@if (detalle$ | async; as d) {
+  <mat-toolbar class="page-toolbar" color="primary">
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Volver al monitor"
+      (click)="volver()"
+    >
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <span class="page-toolbar__title">Detalle del trámite</span>
+  </mat-toolbar>
+
+  <div class="page">
+    <header class="header">
+      <div class="header__text">
+        <h1 class="header__politica">
+          {{ d.tramite.politicaNombre ?? 'Política' }}
+        </h1>
+        <p class="header__cliente">
+          Cliente:
+          <strong>{{ d.tramite.clienteNombre ?? '—' }}</strong>
+        </p>
+        <p class="header__tiempo">
+          Tiempo activo:
+          <strong>{{ diasActivoTramite(d) }}</strong>
+          {{ diasActivoTramite(d) === 1 ? 'día' : 'días' }}
+        </p>
+      </div>
+      <div class="header__badges">
+        <mat-chip-set>
+          <mat-chip class="badge" [ngClass]="badgeTramiteClass(d.tramite.estado)" selected>
+            {{ estadoTramiteLabel(d.tramite.estado) }}
+          </mat-chip>
+        </mat-chip-set>
+        <button mat-stroked-button color="primary" type="button" (click)="volver()">
+          Volver al monitor
+        </button>
+      </div>
+    </header>
+
+    <mat-card class="card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Posición en el flujo</mat-card-title>
+        <mat-card-subtitle>Pasos lineales según el trámite</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (d.tramite.esFlujoParalelo) {
+          <mat-chip-set class="flow-badges">
+            <mat-chip class="chip-flow">Paralelo (política)</mat-chip>
+          </mat-chip-set>
+        }
+        @if (d.tramite.tieneActividadIterativa) {
+          <mat-chip-set class="flow-badges">
+            <mat-chip class="chip-flow chip-flow--iter">Actividad iterativa</mat-chip>
+          </mat-chip-set>
+        }
+        <div class="steps" role="list">
+          @for (step of stepsArray(d); track step; let idx = $index) {
+            <div class="step" role="listitem">
+              @if (idx > 0) {
+                <span class="step__arrow" aria-hidden="true">→</span>
+              }
+              <div
+                class="step__box"
+                [class.step__box--done]="stepState(d, step) === 'done'"
+                [class.step__box--current]="stepState(d, step) === 'current'"
+              >
+                <span class="step__icon" aria-hidden="true">{{
+                  stepIcon(d, step)
+                }}</span>
+                <div class="step__meta">
+                  <div class="step__n">Paso {{ step }}</div>
+                  <div class="step__cap">{{ stepCaption(d, step) }}</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Historial de actividades</mat-card-title>
+        <mat-card-subtitle>{{ d.tareas.length }} registro(s)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <ul class="timeline">
+          @for (t of d.tareas; track t.id) {
+            <li class="row">
+              <div class="row__dot-wrap" aria-hidden="true">
+                <span class="row__dot" [ngClass]="tareaDotClass(t)"></span>
+              </div>
+              <div class="row__body">
+                <div class="row__title">
+                  {{ t.actividadEtiqueta ?? 'Actividad' }}
+                </div>
+                <div class="row__meta">
+                  <span>{{ t.departamentoTexto ?? '—' }}</span>
+                  <span class="row__sep">·</span>
+                  <span>{{ t.usuarioAsignadoNombre ?? 'Sin asignar' }}</span>
+                </div>
+                <div class="row__time">
+                  @if (tareaEstadoUpper(t) === 'COMPLETADO') {
+                    <span>Completada</span>
+                  } @else {
+                    <span>{{ t.diasAbierto }} día(s) abierta</span>
+                  }
+                </div>
+                @if (tareaSubtitulo(t)) {
+                  <div class="row__hint">{{ tareaSubtitulo(t) }}</div>
+                }
+                <mat-chip-set class="row__chips">
+                  @if (t.esParalelo) {
+                    <mat-chip class="chip-mini">Paralelo</mat-chip>
+                  }
+                  @if (t.esIterativo && t.iterativoSecuencia > 1) {
+                    <mat-chip class="chip-mini chip-mini--iter">
+                      Iterativo ×{{ t.iterativoSecuencia }}
+                    </mat-chip>
+                  }
+                  @if (t.decisionEtiqueta) {
+                    <mat-chip class="chip-mini chip-mini--dec">
+                      Decisión: {{ t.decisionEtiqueta }}
+                    </mat-chip>
+                  }
+                  <mat-chip class="chip-mini chip-mini--muted">{{
+                    tareaEstadoLegible(t)
+                  }}</mat-chip>
+                </mat-chip-set>
+                @if (tieneContenidoInforme(t)) {
+                  <mat-expansion-panel class="informe-panel">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>Informe</mat-panel-title>
+                    </mat-expansion-panel-header>
+                    @if (t.informe?.descripcion) {
+                      <p class="informe__block">
+                        <span class="informe__k">Descripción</span>
+                        {{ t.informe!.descripcion }}
+                      </p>
+                    }
+                    @if (t.informe?.resultado) {
+                      <p class="informe__block">
+                        <span class="informe__k">Resultado</span>
+                        {{ t.informe!.resultado }}
+                      </p>
+                    }
+                    @if (t.informe?.enviadoEn) {
+                      <p class="informe__block">
+                        <span class="informe__k">Enviado</span>
+                        {{ t.informe!.enviadoEn | date: 'short' }}
+                      </p>
+                    }
+                  </mat-expansion-panel>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </mat-card-content>
+    </mat-card>
+  </div>
+} @else {
+  <div class="loading-wrap">
+    <mat-progress-spinner diameter="48" mode="indeterminate" />
+    <p>Cargando detalle…</p>
+  </div>
+}

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
+import { TramiteDetalleResponse } from '../models/tramite-detalle.model';
 import { Tramite, TramiteCrearPayload } from '../models/tramite.model';
 import { AuthService } from './auth.service';
 import { handleApiError } from '../utils/api-error.util';
@@ -58,6 +59,14 @@ export class TramiteService {
         map((list) => list.map((x) => this.mapTramite(x))),
         catchError((err) => handleApiError(this.auth, this.snack, err)),
       );
+  }
+
+  getDetalleTramite(id: string): Observable<TramiteDetalleResponse> {
+    return this.http
+      .get<TramiteDetalleResponse>(
+        `${environment.apiUrl}/admin/tramites/${encodeURIComponent(id)}/detalle`,
+      )
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 
   crearTramite(payload: TramiteCrearPayload): Observable<Tramite> {

@@ -1,26 +1,47 @@
 package com.dpn.backend.service;
 
 import com.dpn.backend.dto.AvanzarFlujoResult;
+import com.dpn.backend.dto.InformeResumenDTO;
 import com.dpn.backend.dto.TareaAccionRequest;
 import com.dpn.backend.dto.TareaDTO;
+import com.dpn.backend.dto.TareaTramiteDetalleDTO;
+import com.dpn.backend.dto.TramiteDetalleAdminResponse;
+import com.dpn.backend.dto.TramiteResumenDetalleDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.mapper.EntityMapper;
+import com.dpn.backend.model.Informe;
 import com.dpn.backend.model.Tarea;
 import com.dpn.backend.model.Tramite;
+import com.dpn.backend.model.Usuario;
 import com.dpn.backend.model.enums.EstadoTarea;
+import com.dpn.backend.repository.InformeRepository;
 import com.dpn.backend.repository.TareaRepository;
+import com.dpn.backend.repository.TramiteRepository;
+import com.dpn.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TareaService {
 
 	private final TareaRepository tareaRepository;
+	private final TramiteRepository tramiteRepository;
+	private final InformeRepository informeRepository;
+	private final UsuarioRepository usuarioRepository;
 	private final WorkflowEngine workflowEngine;
 	private final ClienteService clienteService;
 
@@ -72,6 +93,126 @@ public class TareaService {
 		Tarea guardada = tareaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
 		return enrichDtoConDecision(EntityMapper.toTareaDTO(guardada), r);
+	}
+
+	public TramiteDetalleAdminResponse obtenerDetalleTramite(String tramiteId) {
+		Tramite tramite = tramiteRepository.findById(tramiteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+
+		List<Tarea> tareas = new ArrayList<>(tareaRepository.findByTramiteId(tramiteId));
+		tareas.sort(Comparator.comparing(Tarea::getCreadoEn, Comparator.nullsLast(Comparator.naturalOrder())));
+
+		Map<String, Long> vecesPorNodo = tareas.stream()
+				.filter(t -> t.getNodoFlujoId() != null)
+				.collect(Collectors.groupingBy(Tarea::getNodoFlujoId, Collectors.counting()));
+		boolean tieneActividadIterativa = vecesPorNodo.values().stream().anyMatch(n -> n > 1);
+
+		Map<String, Integer> ocurrenciaPorNodo = new HashMap<>();
+		Instant ahora = Instant.now();
+		Set<String> idsParalelos = detectarIdsParalelos(tareas, ahora);
+
+		List<TareaTramiteDetalleDTO> lista = new ArrayList<>(tareas.size());
+		for (Tarea t : tareas) {
+			String nodoId = t.getNodoFlujoId();
+			int sec = nodoId == null ? 1 : ocurrenciaPorNodo.merge(nodoId, 1, Integer::sum);
+			long totalNodo = nodoId == null ? 1L : vecesPorNodo.getOrDefault(nodoId, 1L);
+			boolean esIter = totalNodo > 1;
+
+			Optional<Informe> infOpt = informeRepository.findByTareaId(t.getId());
+			InformeResumenDTO informeDto = infOpt.map(this::mapInformeResumen).orElse(null);
+
+			String nombreUsuario = null;
+			if (t.getUsuarioAsignadoId() != null) {
+				nombreUsuario = usuarioRepository.findById(t.getUsuarioAsignadoId())
+						.map(Usuario::getNombre)
+						.orElse(null);
+			}
+
+			Instant inicio = t.getCreadoEn() != null ? t.getCreadoEn() : ahora;
+			Instant fin = t.getCompletadoEn() != null ? t.getCompletadoEn() : ahora;
+			int dias = (int) Math.max(0, ChronoUnit.DAYS.between(inicio, fin));
+
+			String decision = trimNullToNull(t.getAristaEtiquetaEntrada());
+
+			lista.add(TareaTramiteDetalleDTO.builder()
+					.id(t.getId())
+					.nodoFlujoId(t.getNodoFlujoId())
+					.actividadEtiqueta(t.getActividadEtiqueta())
+					.departamentoTexto(t.getDepartamentoTexto())
+					.usuarioAsignadoNombre(nombreUsuario)
+					.estado(t.getEstado())
+					.creadoEn(t.getCreadoEn())
+					.completadoEn(t.getCompletadoEn())
+					.diasAbierto(dias)
+					.esParalelo(idsParalelos.contains(t.getId()))
+					.esIterativo(esIter)
+					.iterativoSecuencia(sec)
+					.decisionEtiqueta(decision)
+					.informe(informeDto)
+					.build());
+		}
+
+		TramiteResumenDetalleDTO resumen = TramiteResumenDetalleDTO.builder()
+				.id(tramite.getId())
+				.politicaNombre(tramite.getPoliticaNombre())
+				.clienteNombre(tramite.getClienteNombre())
+				.estado(tramite.getEstado())
+				.creadoEn(tramite.getCreadoEn())
+				.pasoActual(tramite.getPasoActual())
+				.totalPasos(tramite.getTotalPasos())
+				.esFlujoParalelo(tramite.getEsParalelo())
+				.tieneActividadIterativa(tieneActividadIterativa)
+				.build();
+
+		return TramiteDetalleAdminResponse.builder()
+				.tramite(resumen)
+				.tareas(lista)
+				.build();
+	}
+
+	private InformeResumenDTO mapInformeResumen(Informe i) {
+		return InformeResumenDTO.builder()
+				.descripcion(i.getDescripcion())
+				.resultado(i.getResultado())
+				.enviadoEn(i.getEnviadoEn())
+				.build();
+	}
+
+	private static Set<String> detectarIdsParalelos(List<Tarea> tareas, Instant now) {
+		Set<String> out = new HashSet<>();
+		for (int i = 0; i < tareas.size(); i++) {
+			Tarea a = tareas.get(i);
+			if (a.getCreadoEn() == null) {
+				continue;
+			}
+			for (int j = i + 1; j < tareas.size(); j++) {
+				Tarea b = tareas.get(j);
+				if (b.getCreadoEn() == null) {
+					continue;
+				}
+				if (intervalosActivosSolapados(a, b, now)) {
+					out.add(a.getId());
+					out.add(b.getId());
+				}
+			}
+		}
+		return out;
+	}
+
+	private static boolean intervalosActivosSolapados(Tarea a, Tarea b, Instant now) {
+		Instant startA = a.getCreadoEn();
+		Instant startB = b.getCreadoEn();
+		Instant endA = a.getCompletadoEn() != null ? a.getCompletadoEn() : now;
+		Instant endB = b.getCompletadoEn() != null ? b.getCompletadoEn() : now;
+		return !startA.isAfter(endB) && !startB.isAfter(endA);
+	}
+
+	private static String trimNullToNull(String s) {
+		if (s == null) {
+			return null;
+		}
+		String t = s.trim();
+		return t.isEmpty() ? null : t;
 	}
 
 	public TareaDTO decidir(String id, String usuarioId, TareaAccionRequest req) {

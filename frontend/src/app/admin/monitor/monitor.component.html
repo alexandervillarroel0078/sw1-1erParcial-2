@@ -13,6 +13,7 @@
         <mat-button-toggle value="todos">Todos</mat-button-toggle>
         <mat-button-toggle value="iniciado">Iniciado</mat-button-toggle>
         <mat-button-toggle value="en_proceso">En proceso</mat-button-toggle>
+        <mat-button-toggle value="esperando_decision">Decisión</mat-button-toggle>
         <mat-button-toggle value="demorado">Demorado</mat-button-toggle>
         <mat-button-toggle value="completado">Completado</mat-button-toggle>
       </mat-button-toggle-group>
@@ -36,7 +37,11 @@
       <div class="empty">No hay trámites que coincidan con los filtros.</div>
     }
     @for (row of vm.rows; track row.tramiteId) {
-      <mat-card class="card" appearance="outlined">
+      <mat-card
+        class="card card--clickable"
+        appearance="outlined"
+        [routerLink]="['/admin/tramites', row.tramiteId, 'detalle']"
+      >
         <div class="card__stripe" [style.background]="row.stripeColor"></div>
         <div class="card__body">
           <div class="card__head">

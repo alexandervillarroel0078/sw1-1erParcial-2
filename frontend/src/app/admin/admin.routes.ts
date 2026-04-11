@@ -62,6 +62,13 @@ export const ADMIN_ROUTES: Routes = [
           import('./monitor/monitor.component').then((m) => m.MonitorComponent),
       },
       {
+        path: 'tramites/:id/detalle',
+        loadComponent: () =>
+          import('./tramites/tramite-detalle/tramite-detalle.component').then(
+            (m) => m.TramiteDetalleComponent,
+          ),
+      },
+      {
         path: 'analisis',
         loadComponent: () =>
           import('./analisis/analisis.component').then((m) => m.AnalisisComponent),

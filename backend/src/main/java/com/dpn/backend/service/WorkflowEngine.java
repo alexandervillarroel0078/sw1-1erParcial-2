@@ -80,8 +80,13 @@ public class WorkflowEngine {
 		}
 
 		List<NodoPolitica> siguientes = new ArrayList<>();
+		List<String> etiquetasSiguiente = new ArrayList<>();
 		for (AristaPolitica a : salientes) {
-			findNodoById(politica, a.getHaciaNodoId()).ifPresent(siguientes::add);
+			Optional<NodoPolitica> on = findNodoById(politica, a.getHaciaNodoId());
+			if (on.isPresent()) {
+				siguientes.add(on.get());
+				etiquetasSiguiente.add(trimToNull(a.getEtiqueta()));
+			}
 		}
 
 		// Una sola arista desde ACTIVIDAD hacia nodo DECISION → esperar elección (sin rama)
@@ -112,8 +117,8 @@ public class WorkflowEngine {
 		}
 
 		boolean hayMasTareas = false;
-		for (NodoPolitica sig : siguientes) {
-			hayMasTareas |= expandirDesdeNodo(tramite, politica, sig);
+		for (int i = 0; i < siguientes.size(); i++) {
+			hayMasTareas |= expandirDesdeNodo(tramite, politica, siguientes.get(i), etiquetasSiguiente.get(i));
 		}
 
 		actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
@@ -199,7 +204,7 @@ public class WorkflowEngine {
 		for (AristaPolitica a : filtradas) {
 			Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
 			if (next.isPresent()) {
-				any |= expandirDesdeNodo(tramite, politica, next.get());
+				any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
 			}
 		}
 		return any;
@@ -231,7 +236,7 @@ public class WorkflowEngine {
 		}
 		Politica politica = politicaRepository.findById(tramite.getPoliticaId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Política no encontrada"));
-		return expandirDesdeNodo(tramite, politica, nodo);
+		return expandirDesdeNodo(tramite, politica, nodo, null);
 	}
 
 	/**
@@ -267,14 +272,15 @@ public class WorkflowEngine {
 		tramiteRepository.save(tramite);
 
 		for (AristaPolitica a : aristasSalientes(politica, start.getId())) {
-			findNodoById(politica, a.getHaciaNodoId()).ifPresent(n -> expandirDesdeNodo(tramite, politica, n));
+			findNodoById(politica, a.getHaciaNodoId())
+					.ifPresent(n -> expandirDesdeNodo(tramite, politica, n, trimToNull(a.getEtiqueta())));
 		}
 	}
 
-	private boolean expandirDesdeNodo(Tramite tramite, Politica politica, NodoPolitica nodo) {
+	private boolean expandirDesdeNodo(Tramite tramite, Politica politica, NodoPolitica nodo, String aristaEtiquetaEntrada) {
 		return switch (nodo.getTipo()) {
 			case ACTIVIDAD -> {
-				crearTareaActividad(tramite, politica, nodo);
+				crearTareaActividad(tramite, politica, nodo, aristaEtiquetaEntrada);
 				yield true;
 			}
 			case FORK_BAR -> {
@@ -282,7 +288,7 @@ public class WorkflowEngine {
 				for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
 					Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
 					if (next.isPresent()) {
-						any |= expandirDesdeNodo(tramite, politica, next.get());
+						any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
 					}
 				}
 				yield any;
@@ -293,7 +299,7 @@ public class WorkflowEngine {
 				for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
 					Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
 					if (next.isPresent()) {
-						any |= expandirDesdeNodo(tramite, politica, next.get());
+						any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
 					}
 				}
 				yield any;
@@ -311,13 +317,13 @@ public class WorkflowEngine {
 		for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
 			Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
 			if (next.isPresent()) {
-				any |= expandirDesdeNodo(tramite, politica, next.get());
+				any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
 			}
 		}
 		return any;
 	}
 
-	private void crearTareaActividad(Tramite tramite, Politica politica, NodoPolitica nodo) {
+	private void crearTareaActividad(Tramite tramite, Politica politica, NodoPolitica nodo, String aristaEtiquetaEntrada) {
 		String deptoNombre = "";
 		if (nodo.getDepartamentoId() != null) {
 			deptoNombre = departamentoRepository.findById(nodo.getDepartamentoId())
@@ -333,6 +339,7 @@ public class WorkflowEngine {
 				.id(UUID.randomUUID().toString())
 				.tramiteId(tramite.getId())
 				.nodoFlujoId(nodo.getId())
+				.aristaEtiquetaEntrada(trimToNull(aristaEtiquetaEntrada))
 				.actividadEtiqueta(nodo.getEtiqueta())
 				.departamentoTexto(deptoNombre)
 				.politicaNombre(tramite.getPoliticaNombre())
