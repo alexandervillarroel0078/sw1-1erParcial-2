@@ -825,15 +825,28 @@
         >
           <mat-tab label="Flujo asistido">
             <div class="pd-asistente-tab-body pd-wizard">
-            <p class="pd-wizard__hint">
-              Elegí un nodo origen en el canvas; el asistente agrega elementos a la
-              derecha o en paralelo.
-            </p>
-            <p class="pd-wizard__paso">Paso {{ wizardPaso() }} de 3</p>
-
             @if (!nodoSeleccionado()) {
+              <p class="pd-wizard__hint">
+                Elegí un nodo origen en el canvas; el asistente agrega elementos a la
+                derecha o en paralelo.
+              </p>
+              <p class="pd-wizard__paso">Paso {{ wizardPaso() }} de 3</p>
               <p class="pd-props__empty">Seleccioná un nodo para comenzar</p>
-            } @else {
+            } @else if (nodoSeleccionado(); as snAsistente) {
+              @if (snAsistente.tipo === 'END') {
+                <div class="pd-wizard__solo-info" role="status">
+                  <mat-icon class="pd-wizard__solo-info-icon" aria-hidden="true">info</mat-icon>
+                  <p class="pd-wizard__solo-info-texto">
+                    El nodo Final no puede tener continuación
+                  </p>
+                </div>
+              } @else {
+              <p class="pd-wizard__hint">
+                Elegí un nodo origen en el canvas; el asistente agrega elementos a la
+                derecha o en paralelo.
+              </p>
+              <p class="pd-wizard__paso">Paso {{ wizardPaso() }} de 3</p>
+
               @if (wizardPaso() === 1) {
                 <p class="pd-wizard__pregunta">¿Qué agregás?</p>
                 <div class="pd-wizard__opciones">
@@ -909,7 +922,16 @@
               }
 
               @if (wizardPaso() === 3 && wizardAddTipo() === 'ACTIVIDAD') {
-                @if (wizardFlujo() === 'directo' || wizardFlujo() === 'fin') {
+                @if (wizardFlujo() === 'fin') {
+                  <div class="pd-wizard__confirm-directo-fin" role="status">
+                    <mat-icon class="pd-wizard__confirm-directo-fin-icon" aria-hidden="true">
+                      info
+                    </mat-icon>
+                    <p class="pd-wizard__confirm-directo-fin-texto">
+                      Se creará una conexión directa al nodo END
+                    </p>
+                  </div>
+                } @else if (wizardFlujo() === 'directo') {
                   <mat-form-field appearance="outline" class="pd-props__field">
                     <mat-label>Nombre de la actividad</mat-label>
                     <input
@@ -1082,6 +1104,7 @@
                     </button>
                   }
                 </div>
+              }
               }
             }
             </div>

@@ -1613,7 +1613,9 @@ export class PolicyDesignerComponent implements OnInit {
         return;
       }
       const ok =
-        flujo === 'directo' || flujo === 'fin'
+        flujo === 'fin'
+          ? true
+          : flujo === 'directo'
           ? this.validarNombreDepto(this.wizardNombreActividad(), this.wizardDeptoActividad())
           : flujo === 'paralelo'
             ? this.wizardParaleloItems().every(
@@ -1728,27 +1730,19 @@ export class PolicyDesignerComponent implements OnInit {
 
     if (flujo === 'fin') {
       const p = posicionDerechaOrigen(origen);
-      const deptoFinId = this.wizardDeptoActividad();
-      const a = crearNodoVacio(
-        'ACTIVIDAD',
-        p.x,
-        p.y,
-        this.wizardNombreActividad().trim(),
-        `nd-${uuid()}`,
-        deptoFinId,
-        this.nombreDepartamento(deptoFinId),
-      );
-      pushN(a);
-      pushA(origen.id, a.id);
-      const r = this.obtenerOCrearFin(nodos, a);
+      const r = this.obtenerOCrearFin(nodos, origen, p);
       nodos = r.nodos;
       let end = r.end;
       if (r.esNuevo) {
-        const pe = posicionFinDesde(a, nodos.filter((x) => x.id !== end.id));
-        end = { ...end, x: pe.x, y: pe.y };
+        end = { ...end, x: p.x, y: p.y };
         nodos = nodos.map((x) => (x.id === end.id ? end : x));
       }
-      pushA(a.id, end.id);
+      const yaAlFin = aristas.some(
+        (a) => a.desdeNodoId === origen.id && a.haciaNodoId === end.id,
+      );
+      if (!yaAlFin) {
+        pushA(origen.id, end.id);
+      }
       ultimoId = end.id;
       this.nodos.set(nodos);
       this.aristas.set(aristas);
