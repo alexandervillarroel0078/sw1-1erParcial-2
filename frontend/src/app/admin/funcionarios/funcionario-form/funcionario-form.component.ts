@@ -4,11 +4,13 @@ import {
   Component,
   DestroyRef,
   inject,
+  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import {
   MatDialogModule,
   MatDialogRef,
@@ -43,6 +45,7 @@ export type FuncionarioFormResult = {
     ReactiveFormsModule,
     MatDialogModule,
     MatButtonModule,
+    MatIconModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -59,6 +62,9 @@ export class FuncionarioFormComponent {
   readonly data = inject(MAT_DIALOG_DATA) as FuncionarioFormDialogData;
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Contraseña visible como texto (solo UI). */
+  readonly passwordVisible = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     nombre: this.fb.nonNullable.control(this.data.usuario?.nombre ?? '', {
@@ -82,6 +88,9 @@ export class FuncionarioFormComponent {
   });
 
   constructor() {
+    if (this.data.modo === 'editar') {
+      this.form.controls.password.setValue('', { emitEvent: false });
+    }
     this.syncDepartamentoSegunRol(this.form.controls.rol.value);
     this.form.controls.rol.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -112,6 +121,11 @@ export class FuncionarioFormComponent {
 
   get esFuncionario(): boolean {
     return this.form.controls.rol.value === 'FUNCIONARIO';
+  }
+
+  togglePasswordVisible(): void {
+    this.passwordVisible.update((v) => !v);
+    this.cdr.markForCheck();
   }
 
   cancelar(): void {

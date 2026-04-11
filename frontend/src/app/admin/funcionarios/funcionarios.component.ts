@@ -166,7 +166,7 @@ export class FuncionariosComponent implements AfterViewInit {
   }
 
   editar(row: FuncionarioRow): void {
-    const { departamentoNombre: _d, ...usuario } = row;
+    const { departamentoNombre: _d, password: _omitPwd, ...usuario } = row;
     const ref = this.dialog.open(FuncionarioFormComponent, {
       width: '520px',
       maxWidth: '92vw',

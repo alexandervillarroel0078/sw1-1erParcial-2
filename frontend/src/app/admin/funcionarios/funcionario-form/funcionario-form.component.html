@@ -25,10 +25,19 @@
       <mat-label>Contraseña</mat-label>
       <input
         matInput
-        type="password"
+        [type]="passwordVisible() ? 'text' : 'password'"
         formControlName="password"
         [attr.autocomplete]="data.modo === 'crear' ? 'new-password' : 'current-password'"
       />
+      <button
+        matSuffix
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="passwordVisible() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+        (click)="togglePasswordVisible(); $event.stopPropagation()"
+      >
+        <mat-icon>{{ passwordVisible() ? 'visibility_off' : 'visibility' }}</mat-icon>
+      </button>
       @if (data.modo === 'crear') {
         @if (form.controls.password.touched && form.controls.password.hasError('required')) {
           <mat-error>La contraseña es obligatoria</mat-error>
@@ -37,7 +46,7 @@
           <mat-error>Mínimo 4 caracteres</mat-error>
         }
       } @else {
-        <mat-hint>Opcional: dejá vacío para no cambiarla (mock)</mat-hint>
+        <mat-hint>Dejá vacío para mantener la contraseña actual</mat-hint>
       }
     </mat-form-field>
 
