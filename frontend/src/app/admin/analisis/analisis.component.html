@@ -15,6 +15,8 @@
 
   @if (vm.politicasSelect.length === 0) {
     <p class="empty-msg">No hay políticas activas para analizar.</p>
+  } @else if (vm.insuficiente) {
+    <p class="empty-msg">No hay suficientes trámites completados para analizar.</p>
   } @else {
     <div class="metrics">
       <mat-card class="metric metric--blue" appearance="outlined">
@@ -47,7 +49,7 @@
     <mat-card class="panel" appearance="outlined">
       <div class="panel__title">Tiempo por actividad</div>
       <div class="barras">
-        @for (b of vm.barras; track b.actividad) {
+        @for (b of vm.barras; track b.nodoId) {
           <div class="bar-row">
             <div class="bar-label" [title]="b.actividad">{{ b.actividad }}</div>
             <div class="bar-track">

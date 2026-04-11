@@ -9,9 +9,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { combineLatest, map, startWith, tap } from 'rxjs';
+import {
+  catchError,
+  combineLatest,
+  map,
+  of,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs';
 
+import { AnalisisPoliticaMetricas } from '../../core/models/analisis-metricas.model';
 import { Politica } from '../../core/models/politica.model';
+import { AnalisisService } from '../../core/services/analisis.service';
 import { PoliticaService } from '../../core/services/politica.service';
 
 export type SeveridadFiltro = 'todos' | 'critico' | 'alto' | 'medio' | 'rapido';
@@ -19,21 +29,18 @@ export type SeveridadFiltro = 'todos' | 'critico' | 'alto' | 'medio' | 'rapido';
 export type SeveridadNivel = 'rapido' | 'medio' | 'alto' | 'critico';
 
 export type NodoCuelloRow = {
+  nodoId: string;
   actividad: string;
   responsable: string;
   tiempoPromedioDias: number;
   severidad: SeveridadNivel;
 };
 
-type PoliticaAnalisisMock = {
-  tramitesAnalizados: number;
-  nodos: NodoCuelloRow[];
-};
-
-function severidadDesdeDias(d: number): SeveridadNivel {
-  if (d < 1) return 'rapido';
-  if (d <= 3) return 'medio';
-  if (d <= 5) return 'alto';
+function severidadDesdeApi(estado: string): SeveridadNivel {
+  const u = (estado ?? '').toString().toUpperCase();
+  if (u === 'RAPIDO') return 'rapido';
+  if (u === 'MEDIO') return 'medio';
+  if (u === 'ALTO') return 'alto';
   return 'critico';
 }
 
@@ -50,96 +57,11 @@ function etiquetaSeveridad(s: SeveridadNivel): string {
   }
 }
 
-/** Mock por política — mínimo 6 nodos, incluye crítico y rápido */
-const MOCK_POR_POLITICA: Record<string, PoliticaAnalisisMock> = {
-  'pol-1': {
-    tramitesAnalizados: 28,
-    nodos: [
-      {
-        actividad: 'Inicio',
-        responsable: 'Sistema',
-        tiempoPromedioDias: 0.4,
-        severidad: severidadDesdeDias(0.4),
-      },
-      {
-        actividad: 'Revisar solicitud',
-        responsable: 'Recursos Humanos',
-        tiempoPromedioDias: 2.2,
-        severidad: severidadDesdeDias(2.2),
-      },
-      {
-        actividad: '¿Cumple requisitos?',
-        responsable: 'Recursos Humanos',
-        tiempoPromedioDias: 1.6,
-        severidad: severidadDesdeDias(1.6),
-      },
-      {
-        actividad: 'Aprobar',
-        responsable: 'Dirección',
-        tiempoPromedioDias: 6.8,
-        severidad: severidadDesdeDias(6.8),
-      },
-      {
-        actividad: 'Rechazar',
-        responsable: 'Dirección',
-        tiempoPromedioDias: 4.2,
-        severidad: severidadDesdeDias(4.2),
-      },
-      {
-        actividad: 'Fin',
-        responsable: 'Sistema',
-        tiempoPromedioDias: 0.15,
-        severidad: severidadDesdeDias(0.15),
-      },
-    ],
-  },
-  'pol-2': {
-    tramitesAnalizados: 19,
-    nodos: [
-      {
-        actividad: 'Inicio',
-        responsable: 'Sistema',
-        tiempoPromedioDias: 0.25,
-        severidad: severidadDesdeDias(0.25),
-      },
-      {
-        actividad: 'Capturar datos',
-        responsable: 'Atención al Cliente',
-        tiempoPromedioDias: 1.1,
-        severidad: severidadDesdeDias(1.1),
-      },
-      {
-        actividad: 'Validar identidad',
-        responsable: 'Soporte Técnico',
-        tiempoPromedioDias: 3.4,
-        severidad: severidadDesdeDias(3.4),
-      },
-      {
-        actividad: 'Verificación documental',
-        responsable: 'Soporte Técnico',
-        tiempoPromedioDias: 5.1,
-        severidad: severidadDesdeDias(5.1),
-      },
-      {
-        actividad: 'Resolución manual',
-        responsable: 'Dirección',
-        tiempoPromedioDias: 7.5,
-        severidad: severidadDesdeDias(7.5),
-      },
-      {
-        actividad: 'Fin',
-        responsable: 'Sistema',
-        tiempoPromedioDias: 0.08,
-        severidad: severidadDesdeDias(0.08),
-      },
-    ],
-  },
-};
-
 export type AnalisisVm = {
   politicasSelect: Politica[];
   politicaId: string;
   politicaNombre: string;
+  insuficiente: boolean;
   tramitesAnalizados: number;
   tiempoPromedioTotal: number;
   nodoCriticoNombre: string;
@@ -180,6 +102,7 @@ export type AnalisisVm = {
 export class AnalisisComponent {
   private readonly fb = inject(FormBuilder);
   private readonly politicaService = inject(PoliticaService);
+  private readonly analisisService = inject(AnalisisService);
 
   readonly politicaCtrl = this.fb.nonNullable.control<string>('');
   readonly severidadFiltro = this.fb.nonNullable.control<SeveridadFiltro>('todos');
@@ -197,92 +120,148 @@ export class AnalisisComponent {
       startWith(this.severidadFiltro.value),
     ),
   ]).pipe(
-    map(([activas, selectedId, filtroSev]): AnalisisVm => {
+    switchMap(([activas, selectedId, filtroSev]) => {
       if (!activas.length) {
-        return {
-          politicasSelect: [],
-          politicaId: '',
-          politicaNombre: '',
-          tramitesAnalizados: 0,
-          tiempoPromedioTotal: 0,
-          nodoCriticoNombre: '—',
-          nodoCriticoDias: 0,
-          hayCritico: false,
-          alertaNodo: '',
-          alertaTiempo: 0,
-          maxDias: 1,
-          barras: [],
-          filasTabla: [],
-          displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
-        };
+        return of(this.vmSinPoliticas());
       }
-
-      const id =
-        selectedId && activas.some((p) => p.id === selectedId)
-          ? selectedId
-          : (activas[0]?.id ?? '');
-
-      const mock: PoliticaAnalisisMock =
-        id && MOCK_POR_POLITICA[id]
-          ? MOCK_POR_POLITICA[id]
-          : MOCK_POR_POLITICA['pol-1'];
-      const nodos = mock.nodos;
-      const tiempoPromedioTotal =
-        nodos.reduce((a, n) => a + n.tiempoPromedioDias, 0) /
-        Math.max(nodos.length, 1);
-      const peor = [...nodos].sort(
-        (a, b) => b.tiempoPromedioDias - a.tiempoPromedioDias,
-      )[0];
-      const criticos = nodos.filter((n) => n.severidad === 'critico');
-      const peorCritico =
-        criticos.length > 0
-          ? criticos.reduce((a, b) =>
-              a.tiempoPromedioDias >= b.tiempoPromedioDias ? a : b,
-            )
-          : null;
-      const hayCritico = criticos.length > 0;
-      const maxDias = Math.max(...nodos.map((n) => n.tiempoPromedioDias), 0.01);
-
-      const filasFiltradas = nodos.filter((n) => {
-        if (filtroSev === 'todos') return true;
-        return n.severidad === filtroSev;
-      });
-
-      return {
-        politicasSelect: activas,
-        politicaId: id,
-        politicaNombre: activas.find((p) => p.id === id)?.nombre ?? 'Política',
-        tramitesAnalizados: mock.tramitesAnalizados,
-        tiempoPromedioTotal,
-        nodoCriticoNombre: peor?.actividad ?? '—',
-        nodoCriticoDias: peor?.tiempoPromedioDias ?? 0,
-        hayCritico,
-        alertaNodo: peorCritico?.actividad ?? '',
-        alertaTiempo: peorCritico?.tiempoPromedioDias ?? 0,
-        maxDias,
-        barras: nodos.map((n) => ({
-          ...n,
-          pct: Math.round((n.tiempoPromedioDias / maxDias) * 100),
-          severidadLabel: etiquetaSeveridad(n.severidad),
-          barClass: `bar--${n.severidad}`,
-        })),
-        filasTabla: filasFiltradas.map((n) => ({
-          ...n,
-          severidadLabel: etiquetaSeveridad(n.severidad),
-          badgeClass: `badge--${n.severidad}`,
-        })),
-        displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
-      };
+      const id = this.resolverPoliticaId(activas, selectedId);
+      return this.analisisService.getMetricasPolitica(id).pipe(
+        map((dto) => this.vmDesdeDto(activas, id, filtroSev, dto)),
+        catchError(() =>
+          of(this.vmDesdeDto(activas, id, filtroSev, this.dtoVacio(id))),
+        ),
+      );
     }),
     tap((vm) => {
-      if (
-        vm.politicaId &&
-        this.politicaCtrl.value !== vm.politicaId
-      ) {
+      if (vm.politicaId && this.politicaCtrl.value !== vm.politicaId) {
         this.politicaCtrl.setValue(vm.politicaId, { emitEvent: false });
       }
     }),
   );
+
+  private dtoVacio(politicaId: string): AnalisisPoliticaMetricas {
+    return {
+      politicaId,
+      tramitesAnalizados: 0,
+      tiempoPromedioTotal: 0,
+      nodoCriticoId: null,
+      nodoCriticoEtiqueta: '—',
+      nodoCriticoPromedio: 0,
+      detalleNodos: [],
+    };
+  }
+
+  private resolverPoliticaId(activas: Politica[], selectedId: string): string {
+    return selectedId && activas.some((p) => p.id === selectedId)
+      ? selectedId
+      : (activas[0]?.id ?? '');
+  }
+
+  private vmSinPoliticas(): AnalisisVm {
+    return {
+      politicasSelect: [],
+      politicaId: '',
+      politicaNombre: '',
+      insuficiente: false,
+      tramitesAnalizados: 0,
+      tiempoPromedioTotal: 0,
+      nodoCriticoNombre: '—',
+      nodoCriticoDias: 0,
+      hayCritico: false,
+      alertaNodo: '',
+      alertaTiempo: 0,
+      maxDias: 1,
+      barras: [],
+      filasTabla: [],
+      displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+    };
+  }
+
+  private vmDesdeDto(
+    activas: Politica[],
+    id: string,
+    filtroSev: SeveridadFiltro,
+    dto: AnalisisPoliticaMetricas,
+  ): AnalisisVm {
+    const politicaNombre = activas.find((p) => p.id === id)?.nombre ?? 'Política';
+    const detalle = dto.detalleNodos ?? [];
+    const insuficiente = detalle.length === 0;
+
+    if (insuficiente) {
+      return {
+        politicasSelect: activas,
+        politicaId: id,
+        politicaNombre,
+        insuficiente: true,
+        tramitesAnalizados: dto.tramitesAnalizados ?? 0,
+        tiempoPromedioTotal: 0,
+        nodoCriticoNombre: '—',
+        nodoCriticoDias: 0,
+        hayCritico: false,
+        alertaNodo: '',
+        alertaTiempo: 0,
+        maxDias: 1,
+        barras: [],
+        filasTabla: [],
+        displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+      };
+    }
+
+    const nodos: NodoCuelloRow[] = detalle.map((n) => ({
+      nodoId: n.nodoId,
+      actividad: (n.etiqueta ?? n.nodoId).trim() || n.nodoId,
+      responsable: (n.departamento ?? '—').trim() || '—',
+      tiempoPromedioDias: n.tiempoPromedio,
+      severidad: severidadDesdeApi(String(n.estado)),
+    }));
+
+    const tiempoPromedioTotal = dto.tiempoPromedioTotal;
+    const criticos = nodos.filter((n) => n.severidad === 'critico');
+    const peorCritico =
+      criticos.length > 0
+        ? criticos.reduce((a, b) =>
+            a.tiempoPromedioDias >= b.tiempoPromedioDias ? a : b,
+          )
+        : null;
+    const hayCritico = criticos.length > 0;
+    const maxDias = Math.max(...nodos.map((n) => n.tiempoPromedioDias), 0.01);
+
+    const filasFiltradas = nodos.filter((n) => {
+      if (filtroSev === 'todos') return true;
+      return n.severidad === filtroSev;
+    });
+
+    const nodoCriticoNombre =
+      (dto.nodoCriticoEtiqueta ?? '').trim() || nodos[0]?.actividad || '—';
+    const nodoCriticoDias = dto.nodoCriticoPromedio ?? nodos[0]?.tiempoPromedioDias ?? 0;
+
+    return {
+      politicasSelect: activas,
+      politicaId: id,
+      politicaNombre,
+      insuficiente: false,
+      tramitesAnalizados: dto.tramitesAnalizados,
+      tiempoPromedioTotal,
+      nodoCriticoNombre,
+      nodoCriticoDias,
+      hayCritico,
+      alertaNodo: peorCritico?.actividad ?? '',
+      alertaTiempo: peorCritico?.tiempoPromedioDias ?? 0,
+      maxDias,
+      barras: nodos.map((n) => ({
+        ...n,
+        pct: Math.round((n.tiempoPromedioDias / maxDias) * 100),
+        severidadLabel: etiquetaSeveridad(n.severidad),
+        barClass: `bar--${n.severidad}`,
+      })),
+      filasTabla: filasFiltradas.map((n) => ({
+        ...n,
+        severidadLabel: etiquetaSeveridad(n.severidad),
+        badgeClass: `badge--${n.severidad}`,
+      })),
+      displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+    };
+  }
 
   formatoDias(d: number): string {
     return d < 1 ? d.toFixed(2) : d.toFixed(1);
