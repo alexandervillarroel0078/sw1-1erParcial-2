@@ -1,5 +1,6 @@
 package com.dpn.backend.service;
 
+import com.dpn.backend.dto.AvanzarFlujoResult;
 import com.dpn.backend.dto.TareaAccionRequest;
 import com.dpn.backend.dto.TareaDTO;
 import com.dpn.backend.exception.ApiException;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -66,9 +68,55 @@ public class TareaService {
 		if (t.getUsuarioAsignadoId() == null || !t.getUsuarioAsignadoId().equals(usuarioId)) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
 		}
-		workflowEngine.avanzarFlujo(t.getTramiteId(), id, usuarioId,
-				req != null ? req.getEtiquetaArista() : null);
-		return tareaRepository.findById(id).map(EntityMapper::toTareaDTO)
+		AvanzarFlujoResult r = workflowEngine.avanzarFlujo(t.getTramiteId(), id, usuarioId, eleccionRama(req));
+		Tarea guardada = tareaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
+		return enrichDtoConDecision(EntityMapper.toTareaDTO(guardada), r);
+	}
+
+	public TareaDTO decidir(String id, String usuarioId, TareaAccionRequest req) {
+		Tarea t = tareaRepository.findById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
+		if (t.getUsuarioAsignadoId() == null || !t.getUsuarioAsignadoId().equals(usuarioId)) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
+		}
+		String rama = eleccionRama(req);
+		if (rama == null || rama.isBlank()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "ramaDecision es obligatoria");
+		}
+		workflowEngine.continuarDespuesDecision(t.getTramiteId(), id, usuarioId, rama);
+		Tarea guardada = tareaRepository.findById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
+		return enrichDtoConDecision(EntityMapper.toTareaDTO(guardada), AvanzarFlujoResult.sinDecision());
+	}
+
+	private static String eleccionRama(TareaAccionRequest req) {
+		if (req == null) {
+			return null;
+		}
+		if (req.getRamaDecision() != null && !req.getRamaDecision().isBlank()) {
+			return req.getRamaDecision().trim();
+		}
+		if (req.getEtiquetaArista() != null && !req.getEtiquetaArista().isBlank()) {
+			return req.getEtiquetaArista().trim();
+		}
+		return null;
+	}
+
+	private static TareaDTO enrichDtoConDecision(TareaDTO dto, AvanzarFlujoResult r) {
+		if (dto == null || r == null) {
+			return dto;
+		}
+		dto.setRequiereDecision(r.isRequiereDecision());
+		if (r.isRequiereDecision()) {
+			dto.setCondicionDecision(r.getCondicionDecision());
+			dto.setOpcionesDecision(r.getOpcionesDecision() != null
+					? new ArrayList<>(r.getOpcionesDecision())
+					: new ArrayList<>());
+		} else {
+			dto.setCondicionDecision(null);
+			dto.setOpcionesDecision(null);
+		}
+		return dto;
 	}
 }

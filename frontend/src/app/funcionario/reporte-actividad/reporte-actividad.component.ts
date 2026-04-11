@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -22,13 +23,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { catchError, map, of, switchMap, take, tap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
 
 import { Informe } from '../../core/models/informe.model';
 import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
+import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
 
 export type ModoEntrada = 'texto' | 'voz';
 
@@ -60,6 +62,7 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly router = inject(Router);
   private readonly tareaService = inject(TareaService);
   private readonly informeService = inject(InformeService);
+  private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthService);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
@@ -336,6 +339,7 @@ export class ReporteActividadComponent implements OnDestroy {
       .crearInforme(informe)
       .pipe(
         switchMap(() => this.tareaService.completarTarea(t.id!)),
+        switchMap((tareaResp) => this.flujoPostCompletar$(t.id!, tareaResp)),
         take(1),
       )
       .subscribe({
@@ -345,6 +349,31 @@ export class ReporteActividadComponent implements OnDestroy {
         },
         error: () => this.enviando.set(false),
       });
+  }
+
+  private flujoPostCompletar$(tareaId: string, resp: Tarea): Observable<unknown> {
+    if (!resp.requiereDecision || !resp.opcionesDecision?.length) {
+      return of(null);
+    }
+    return this.dialog
+      .open(DecisionRamaDialogComponent, {
+        width: '440px',
+        maxWidth: '92vw',
+        disableClose: true,
+        data: {
+          condicion: resp.condicionDecision ?? '',
+          opciones: resp.opcionesDecision,
+        },
+      })
+      .afterClosed()
+      .pipe(
+        switchMap((rama: string | undefined) => {
+          if (!rama) {
+            return of(null);
+          }
+          return this.tareaService.decidirRama(tareaId, rama);
+        }),
+      );
   }
 
   tituloToolbar(): string {

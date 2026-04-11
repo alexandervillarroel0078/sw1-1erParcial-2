@@ -12,9 +12,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TareaAccionRequest {
 
-	/** "ATENDER" | "COMPLETAR" */
+	/** "ATENDER" | "COMPLETAR" | "DECIDIR" */
 	@NotBlank
 	private String accion;
-	/** Para nodos DECISION: rama elegida (ej. Sí / No). */
+	/** Rama elegida en COMPLETAR (opcional) o DECIDIR (obligatorio), ej. Sí / No. */
+	private String ramaDecision;
+	/** @deprecated usar {@link #ramaDecision} */
 	private String etiquetaArista;
 }

@@ -1,3 +1,8 @@
+export interface OpcionDecision {
+  etiqueta: string;
+  descripcion?: string | null;
+}
+
 export interface Tarea {
   id?: string;
   tramiteId: string;
@@ -16,6 +21,10 @@ export interface Tarea {
   estado: 'pendiente' | 'en_atencion' | 'completado';
   completadoA?: string;
   duracion?: string;
+  /** Respuesta PATCH COMPLETAR cuando el trámite espera elección de rama. */
+  requiereDecision?: boolean;
+  condicionDecision?: string | null;
+  opcionesDecision?: OpcionDecision[];
 }
 
 export function etiquetaClienteReferencia(

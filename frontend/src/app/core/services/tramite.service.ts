@@ -12,11 +12,13 @@ import { handleApiError } from '../utils/api-error.util';
 const ESTADO_TRAMITE: Record<string, Tramite['estado']> = {
   INICIADO: 'iniciado',
   EN_PROCESO: 'en_proceso',
+  ESPERANDO_DECISION: 'esperando_decision',
   DEMORADO: 'demorado',
   COMPLETADO: 'completado',
   CANCELADO: 'cancelado',
   iniciado: 'iniciado',
   en_proceso: 'en_proceso',
+  esperando_decision: 'esperando_decision',
   demorado: 'demorado',
   completado: 'completado',
   cancelado: 'cancelado',

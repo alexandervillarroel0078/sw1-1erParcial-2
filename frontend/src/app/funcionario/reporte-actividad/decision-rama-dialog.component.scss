@@ -1,0 +1,27 @@
+.dialog-body {
+  padding-top: 4px;
+  max-width: 420px;
+}
+
+.rule {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.12);
+  margin-bottom: 14px;
+}
+
+.condicion {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.condicion__k {
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Builder
@@ -29,4 +30,8 @@ public class TareaDTO {
 	private EstadoTarea estado;
 	private Instant creadoEn;
 	private Instant completadoEn;
+	/** Solo en respuesta PATCH COMPLETAR cuando el flujo queda esperando rama. */
+	private Boolean requiereDecision;
+	private String condicionDecision;
+	private List<OpcionDecisionDTO> opcionesDecision;
 }

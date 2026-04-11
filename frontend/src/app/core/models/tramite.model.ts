@@ -13,7 +13,13 @@ export interface Tramite {
   clienteId?: string;
   clienteNombre?: string;
   creadoPorUsuarioId?: string;
-  estado: 'iniciado' | 'en_proceso' | 'demorado' | 'completado' | 'cancelado';
+  estado:
+    | 'iniciado'
+    | 'en_proceso'
+    | 'esperando_decision'
+    | 'demorado'
+    | 'completado'
+    | 'cancelado';
   esParalelo?: boolean;
   creadoEn?: Date;
   actualizadoEn?: Date;

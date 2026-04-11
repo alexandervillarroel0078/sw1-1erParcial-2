@@ -43,7 +43,9 @@ public class TareaController {
 		return switch (accion) {
 			case "ATENDER" -> tareaService.atender(id, authentication.getName());
 			case "COMPLETAR" -> tareaService.completar(id, authentication.getName(), req);
-			default -> throw new ApiException(HttpStatus.BAD_REQUEST, "Acción no válida: use ATENDER o COMPLETAR");
+			case "DECIDIR" -> tareaService.decidir(id, authentication.getName(), req);
+			default -> throw new ApiException(HttpStatus.BAD_REQUEST,
+					"Acción no válida: use ATENDER, COMPLETAR o DECIDIR");
 		};
 	}
 }

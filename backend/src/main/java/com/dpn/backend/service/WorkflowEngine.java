@@ -1,5 +1,7 @@
 package com.dpn.backend.service;
 
+import com.dpn.backend.dto.AvanzarFlujoResult;
+import com.dpn.backend.dto.OpcionDecisionDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.model.Departamento;
 import com.dpn.backend.model.Politica;
@@ -41,9 +43,9 @@ public class WorkflowEngine {
 	/**
 	 * Tras completar una tarea: avanza el flujo según aristas de la política.
 	 *
-	 * @param etiquetaArista opcional para ramas DECISION (ej. "Sí", "No").
+	 * @param eleccionRama etiqueta de arista (Sí/No) si aplica; {@code null} si aún no se eligió.
 	 */
-	public void avanzarFlujo(String tramiteId, String tareaId, String usuarioId, String etiquetaArista) {
+	public AvanzarFlujoResult avanzarFlujo(String tramiteId, String tareaId, String usuarioId, String eleccionRama) {
 		Tarea tarea = tareaRepository.findById(tareaId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
 		if (!tramiteId.equals(tarea.getTramiteId())) {
@@ -53,7 +55,7 @@ public class WorkflowEngine {
 			throw new ApiException(HttpStatus.FORBIDDEN, "La tarea no está asignada al usuario actual");
 		}
 		if (tarea.getEstado() == EstadoTarea.COMPLETADO) {
-			return;
+			return AvanzarFlujoResult.sinDecision();
 		}
 
 		Tramite tramite = tramiteRepository.findById(tramiteId)
@@ -68,10 +70,12 @@ public class WorkflowEngine {
 		tarea.setCompletadoEn(Instant.now());
 		tareaRepository.save(tarea);
 
+		String rama = trimToNull(eleccionRama);
+
 		List<AristaPolitica> salientes = aristasSalientes(politica, nodoActual.getId());
-		if (nodoActual.getTipo() == TipoNodo.DECISION && etiquetaArista != null && !etiquetaArista.isBlank()) {
+		if (nodoActual.getTipo() == TipoNodo.DECISION && rama != null) {
 			salientes = salientes.stream()
-					.filter(a -> etiquetaArista.equalsIgnoreCase(trimToNull(a.getEtiqueta())))
+					.filter(a -> rama.equalsIgnoreCase(trimToNull(a.getEtiqueta())))
 					.toList();
 		}
 
@@ -80,22 +84,140 @@ public class WorkflowEngine {
 			findNodoById(politica, a.getHaciaNodoId()).ifPresent(siguientes::add);
 		}
 
+		// Una sola arista desde ACTIVIDAD hacia nodo DECISION → esperar elección (sin rama)
+		if (nodoActual.getTipo() == TipoNodo.ACTIVIDAD
+				&& salientes.size() == 1
+				&& siguientes.size() == 1
+				&& siguientes.get(0).getTipo() == TipoNodo.DECISION
+				&& rama == null) {
+			NodoPolitica decision = siguientes.get(0);
+			tramite.setEstado(EstadoTramite.ESPERANDO_DECISION);
+			tramite.setNodoDecisionPendienteId(decision.getId());
+			tramite.setActividadActual(decision.getEtiqueta());
+			tramite.setActualizadoEn(Instant.now());
+			tramiteRepository.save(tramite);
+			return construirResultadoEsperaDecision(politica, decision);
+		}
+
+		// Misma transición pero la rama viene en la misma petición COMPLETAR
+		if (nodoActual.getTipo() == TipoNodo.ACTIVIDAD
+				&& salientes.size() == 1
+				&& siguientes.size() == 1
+				&& siguientes.get(0).getTipo() == TipoNodo.DECISION
+				&& rama != null) {
+			NodoPolitica decision = siguientes.get(0);
+			boolean hayMasTareas = expandirDesdeNodoDecisionConRama(tramite, politica, decision.getId(), rama);
+			actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
+			return AvanzarFlujoResult.sinDecision();
+		}
+
 		boolean hayMasTareas = false;
 		for (NodoPolitica sig : siguientes) {
 			hayMasTareas |= expandirDesdeNodo(tramite, politica, sig);
 		}
 
-		if (!hayMasTareas && tareaRepository.findByTramiteId(tramiteId).stream()
-				.allMatch(t -> t.getEstado() == EstadoTarea.COMPLETADO)) {
-			tramite.setEstado(EstadoTramite.COMPLETADO);
-			tramite.setActividadActual(null);
-			tramite.setActualizadoEn(Instant.now());
-			tramiteRepository.save(tramite);
-		} else {
-			tramite.setEstado(EstadoTramite.EN_PROCESO);
-			tramite.setActualizadoEn(Instant.now());
-			tramiteRepository.save(tramite);
+		actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
+		return AvanzarFlujoResult.sinDecision();
+	}
+
+	/**
+	 * Continúa el flujo cuando el trámite está en {@link EstadoTramite#ESPERANDO_DECISION} tras elegir rama.
+	 */
+	public AvanzarFlujoResult continuarDespuesDecision(String tramiteId, String tareaId, String usuarioId, String rama) {
+		String ramaNorm = trimToNull(rama);
+		if (ramaNorm == null) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "ramaDecision es obligatoria");
 		}
+		Tarea tarea = tareaRepository.findById(tareaId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
+		if (!tramiteId.equals(tarea.getTramiteId())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "La tarea no pertenece al trámite");
+		}
+		if (tarea.getUsuarioAsignadoId() == null || !tarea.getUsuarioAsignadoId().equals(usuarioId)) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
+		}
+		if (tarea.getEstado() != EstadoTarea.COMPLETADO) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "La tarea debe estar completada");
+		}
+		Tramite tramite = tramiteRepository.findById(tramiteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		if (tramite.getEstado() != EstadoTramite.ESPERANDO_DECISION) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "El trámite no está esperando una decisión");
+		}
+		String nodoDecisionId = tramite.getNodoDecisionPendienteId();
+		if (nodoDecisionId == null || nodoDecisionId.isBlank()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "No hay nodo de decisión pendiente");
+		}
+		Politica politica = politicaRepository.findById(tramite.getPoliticaId())
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Política no encontrada"));
+
+		boolean hayMasTareas = expandirDesdeNodoDecisionConRama(tramite, politica, nodoDecisionId, ramaNorm);
+		tramite.setNodoDecisionPendienteId(null);
+		tramite.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramite);
+
+		actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
+		return AvanzarFlujoResult.sinDecision();
+	}
+
+	private AvanzarFlujoResult construirResultadoEsperaDecision(Politica politica, NodoPolitica decision) {
+		List<OpcionDecisionDTO> opciones = new ArrayList<>();
+		for (AristaPolitica a : aristasSalientes(politica, decision.getId())) {
+			String et = trimToNull(a.getEtiqueta());
+			String etiquetaOpt = et != null ? et : "—";
+			String desc = findNodoById(politica, a.getHaciaNodoId())
+					.map(n -> n.getEtiqueta() != null && !n.getEtiqueta().isBlank()
+							? "Siguiente: " + n.getEtiqueta().trim()
+							: null)
+					.orElse(null);
+			opciones.add(OpcionDecisionDTO.builder()
+					.etiqueta(etiquetaOpt)
+					.descripcion(desc)
+					.build());
+		}
+		String condicion = decision.getEtiqueta() != null && !decision.getEtiqueta().isBlank()
+				? decision.getEtiqueta().trim()
+				: "Decisión";
+		return AvanzarFlujoResult.builder()
+				.requiereDecision(true)
+				.condicionDecision(condicion)
+				.opcionesDecision(opciones)
+				.build();
+	}
+
+	private boolean expandirDesdeNodoDecisionConRama(Tramite tramite, Politica politica, String nodoDecisionId, String rama) {
+		List<AristaPolitica> filtradas = aristasSalientes(politica, nodoDecisionId).stream()
+				.filter(a -> {
+					String et = trimToNull(a.getEtiqueta());
+					return et != null && rama.equalsIgnoreCase(et);
+				})
+				.toList();
+		if (filtradas.isEmpty()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "No hay arista con la etiqueta indicada: " + rama);
+		}
+		boolean any = false;
+		for (AristaPolitica a : filtradas) {
+			Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
+			if (next.isPresent()) {
+				any |= expandirDesdeNodo(tramite, politica, next.get());
+			}
+		}
+		return any;
+	}
+
+	private void actualizarEstadoTramiteTrasAvance(String tramiteId, boolean hayMasTareasCreadas) {
+		Tramite tr = tramiteRepository.findById(tramiteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		boolean todasTareasCompletas = tareaRepository.findByTramiteId(tramiteId).stream()
+				.allMatch(t -> t.getEstado() == EstadoTarea.COMPLETADO);
+		if (!hayMasTareasCreadas && todasTareasCompletas) {
+			tr.setEstado(EstadoTramite.COMPLETADO);
+			tr.setActividadActual(null);
+		} else {
+			tr.setEstado(EstadoTramite.EN_PROCESO);
+		}
+		tr.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tr);
 	}
 
 	/**

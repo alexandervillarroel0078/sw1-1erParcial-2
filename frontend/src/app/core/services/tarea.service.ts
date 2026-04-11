@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable, of } from 'rxjs';
+import type { OpcionDecision } from '../models/tarea.model';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
@@ -12,6 +13,9 @@ import { handleApiError } from '../utils/api-error.util';
 type TareaApi = Omit<Tarea, 'estado'> & {
   estado?: string;
   completadoEn?: string;
+  requiereDecision?: boolean;
+  condicionDecision?: string | null;
+  opcionesDecision?: OpcionDecision[];
 };
 
 const ESTADO_TAREA: Record<string, Tarea['estado']> = {
@@ -46,6 +50,9 @@ export class TareaService {
       ...rest,
       estado,
       completadoA,
+      requiereDecision: raw.requiereDecision === true,
+      condicionDecision: raw.condicionDecision ?? undefined,
+      opcionesDecision: raw.opcionesDecision,
     };
   }
 
@@ -84,9 +91,26 @@ export class TareaService {
       );
   }
 
-  completarTarea(id: string): Observable<Tarea> {
+  completarTarea(
+    id: string,
+    ramaDecision?: string | null,
+  ): Observable<Tarea> {
+    const body: Record<string, unknown> = { accion: 'COMPLETAR' };
+    if (ramaDecision !== undefined) {
+      body['ramaDecision'] = ramaDecision;
+    }
+    return this.http.patch<TareaApi>(`${this.base}/${id}`, body).pipe(
+      map((x) => this.mapTarea(x)),
+      catchError((err) => handleApiError(this.auth, this.snack, err)),
+    );
+  }
+
+  decidirRama(id: string, rama: string): Observable<Tarea> {
     return this.http
-      .patch<TareaApi>(`${this.base}/${id}`, { accion: 'COMPLETAR' })
+      .patch<TareaApi>(`${this.base}/${id}`, {
+        accion: 'DECIDIR',
+        ramaDecision: rama,
+      })
       .pipe(
         map((x) => this.mapTarea(x)),
         catchError((err) => handleApiError(this.auth, this.snack, err)),

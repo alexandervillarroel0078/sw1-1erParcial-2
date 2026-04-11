@@ -34,6 +34,8 @@ public class Tramite {
 	private EstadoTramite estado;
 	@Field("es_paralelo")
 	private Boolean esParalelo;
+	@Field("nodo_decision_pendiente_id")
+	private String nodoDecisionPendienteId;
 	@Field("actividad_actual")
 	private String actividadActual;
 	@Field("paso_actual")
