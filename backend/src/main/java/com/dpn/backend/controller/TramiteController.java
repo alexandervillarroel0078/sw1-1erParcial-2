@@ -23,6 +23,10 @@ public class TramiteController {
 	private final TramiteService tramiteService;
 	private final TareaService tareaService;
 
+	/**
+	 * Listado admin: cada ítem incluye {@code porcentajeAvance} (100 si está completado;
+	 * si no, actividades ACTIVIDAD completadas / {@code totalPasos}).
+	 */
 	@GetMapping("/api/admin/tramites")
 	public List<Tramite> listarAdmin() {
 		return tramiteService.listar();

@@ -25,6 +25,9 @@ export interface Tramite {
   actualizadoEn?: Date;
   /** Actividad en curso (mock / backend) */
   actividadActual?: string;
+  /** Actividades ACTIVIDAD ya completadas (0 … totalPasos). */
   pasoActual?: number;
   totalPasos?: number;
+  /** Listado admin: porcentaje calculado en backend. */
+  porcentajeAvance?: number;
 }

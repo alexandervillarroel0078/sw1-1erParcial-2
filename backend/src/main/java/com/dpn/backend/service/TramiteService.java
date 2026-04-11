@@ -26,7 +26,27 @@ public class TramiteService {
 	private final WorkflowEngine workflowEngine;
 
 	public List<Tramite> listar() {
-		return tramiteRepository.findAll();
+		List<Tramite> list = tramiteRepository.findAll();
+		for (Tramite t : list) {
+			t.setPorcentajeAvance(calcularPorcentajeAvance(t));
+		}
+		return list;
+	}
+
+	/**
+	 * Porcentaje de avance alineado al monitor: 100% si el trámite está completado;
+	 * si no, {@code pasoActual} cuenta actividades ACTIVIDAD ya completadas sobre {@code totalPasos}.
+	 */
+	public static int calcularPorcentajeAvance(Tramite t) {
+		if (t.getEstado() == EstadoTramite.COMPLETADO) {
+			return 100;
+		}
+		Integer total = t.getTotalPasos();
+		if (total == null || total <= 0) {
+			return 0;
+		}
+		int paso = t.getPasoActual() != null ? t.getPasoActual() : 0;
+		return Math.min(100, (int) Math.round((paso * 100.0) / total));
 	}
 
 	public Tramite crear(TramiteCreateDTO dto, String creadoPorUsuarioId) {

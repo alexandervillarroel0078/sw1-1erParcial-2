@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -46,4 +47,7 @@ public class Tramite {
 	private Instant creadoEn;
 	@Field("actualizado_en")
 	private Instant actualizadoEn;
+	/** Solo respuesta HTTP listado admin; no se persiste en MongoDB. */
+	@Transient
+	private Integer porcentajeAvance;
 }

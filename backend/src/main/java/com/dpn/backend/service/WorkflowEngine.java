@@ -70,6 +70,14 @@ public class WorkflowEngine {
 		tarea.setCompletadoEn(Instant.now());
 		tareaRepository.save(tarea);
 
+		tramite = tramiteRepository.findById(tramiteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		if (nodoActual.getTipo() == TipoNodo.ACTIVIDAD) {
+			incrementarPasoTramitePorActividadCompletada(tramite);
+			tramite = tramiteRepository.findById(tramiteId)
+					.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		}
+
 		String rama = trimToNull(eleccionRama);
 
 		List<AristaPolitica> salientes = aristasSalientes(politica, nodoActual.getId());
@@ -217,12 +225,31 @@ public class WorkflowEngine {
 				.allMatch(t -> t.getEstado() == EstadoTarea.COMPLETADO);
 		if (!hayMasTareasCreadas && todasTareasCompletas) {
 			tr.setEstado(EstadoTramite.COMPLETADO);
-			tr.setActividadActual(null);
+			tr.setActividadActual("Completado");
+			int total = tr.getTotalPasos() != null ? tr.getTotalPasos() : 0;
+			if (total > 0) {
+				tr.setPasoActual(total);
+			}
 		} else {
 			tr.setEstado(EstadoTramite.EN_PROCESO);
 		}
 		tr.setActualizadoEn(Instant.now());
 		tramiteRepository.save(tr);
+	}
+
+	/**
+	 * {@code pasoActual} del trámite = cantidad de nodos ACTIVIDAD ya completados (no DECISION ni barras).
+	 */
+	private void incrementarPasoTramitePorActividadCompletada(Tramite tramite) {
+		int total = tramite.getTotalPasos() != null ? tramite.getTotalPasos() : 0;
+		int cur = tramite.getPasoActual() != null ? tramite.getPasoActual() : 0;
+		int next = cur + 1;
+		if (total > 0) {
+			next = Math.min(next, total);
+		}
+		tramite.setPasoActual(next);
+		tramite.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramite);
 	}
 
 	/**
@@ -266,9 +293,9 @@ public class WorkflowEngine {
 
 		boolean paralelo = politica.getNodos().stream().anyMatch(n -> n.getTipo() == TipoNodo.FORK_BAR);
 		tramite.setEsParalelo(paralelo);
-		int totalPasos = (int) politica.getNodos().stream().filter(n -> n.getTipo() == TipoNodo.ACTIVIDAD).count();
+		int totalPasos = contarNodosActividad(politica);
 		tramite.setTotalPasos(totalPasos);
-		tramite.setPasoActual(1);
+		tramite.setPasoActual(0);
 		tramiteRepository.save(tramite);
 
 		for (AristaPolitica a : aristasSalientes(politica, start.getId())) {
@@ -335,6 +362,11 @@ public class WorkflowEngine {
 		Tramite tramiteActual = tramiteRepository.findById(tramite.getId()).orElse(tramite);
 		String nombreCliente = tareaServiceProvider.getObject().resolverNombreClienteParaNuevaTarea(tramiteActual);
 
+		int completados = Optional.ofNullable(tramiteActual.getPasoActual()).orElse(0);
+		int totalFlujo = Optional.ofNullable(tramiteActual.getTotalPasos()).orElse(0);
+		int pasoMostrarEnTarea = totalFlujo > 0 ? Math.min(completados + 1, totalFlujo) : Math.max(completados + 1, 1);
+		int totalMostrarEnTarea = totalFlujo > 0 ? totalFlujo : Math.max(pasoMostrarEnTarea, 1);
+
 		Tarea t = Tarea.builder()
 				.id(UUID.randomUUID().toString())
 				.tramiteId(tramite.getId())
@@ -343,8 +375,8 @@ public class WorkflowEngine {
 				.actividadEtiqueta(nodo.getEtiqueta())
 				.departamentoTexto(deptoNombre)
 				.politicaNombre(tramite.getPoliticaNombre())
-				.pasoActual(Optional.ofNullable(tramite.getPasoActual()).orElse(1))
-				.totalPasos(Optional.ofNullable(tramite.getTotalPasos()).orElse(1))
+				.pasoActual(pasoMostrarEnTarea)
+				.totalPasos(totalMostrarEnTarea)
 				.clienteNombre(nombreCliente)
 				.tramiteClienteId(tramiteActual.getClienteId())
 				.estado(EstadoTarea.PENDIENTE)
@@ -375,5 +407,15 @@ public class WorkflowEngine {
 		}
 		String t = s.trim();
 		return t.isEmpty() ? null : t;
+	}
+
+	/** Solo nodos humanos ACTIVIDAD (excluye START, END, DECISION, FORK_BAR, JOIN_BAR). */
+	private static int contarNodosActividad(Politica politica) {
+		if (politica.getNodos() == null) {
+			return 0;
+		}
+		return (int) politica.getNodos().stream()
+				.filter(n -> n.getTipo() == TipoNodo.ACTIVIDAD)
+				.count();
 	}
 }

@@ -34,9 +34,14 @@ export class TramiteService {
   private mapTramite(raw: Tramite & { estado?: string }): Tramite {
     const estadoKey = raw.estado ?? 'iniciado';
     const estado = ESTADO_TRAMITE[estadoKey] ?? 'iniciado';
+    const porcentajeAvance =
+      typeof raw.porcentajeAvance === 'number' && !Number.isNaN(raw.porcentajeAvance)
+        ? raw.porcentajeAvance
+        : undefined;
     return {
       ...raw,
       estado,
+      porcentajeAvance,
       creadoEn:
         raw.creadoEn != null
           ? typeof raw.creadoEn === 'string'

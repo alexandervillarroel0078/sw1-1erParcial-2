@@ -67,10 +67,13 @@ export class TramiteDetalleComponent {
     return Array.from({ length: n }, (_, i) => i + 1);
   }
 
-  pasoActualClamped(d: TramiteDetalleResponse): number {
-    const tot = this.totalPasos(d);
-    const p = d.tramite.pasoActual ?? 1;
-    return Math.min(Math.max(1, p), tot);
+  /** Actividades ACTIVIDAD ya completadas (API); por defecto 0. */
+  pasoActividadesCompletadas(d: TramiteDetalleResponse): number {
+    const p = d.tramite.pasoActual;
+    if (p != null && p >= 0) {
+      return p;
+    }
+    return 0;
   }
 
   stepState(
@@ -81,11 +84,12 @@ export class TramiteDetalleComponent {
     if (est === 'COMPLETADO') {
       return 'done';
     }
-    const cur = this.pasoActualClamped(d);
-    if (step < cur) {
+    const tot = this.totalPasos(d);
+    const c = this.pasoActividadesCompletadas(d);
+    if (step <= c) {
       return 'done';
     }
-    if (step === cur) {
+    if (step === c + 1 && c < tot) {
       return 'current';
     }
     return 'pending';

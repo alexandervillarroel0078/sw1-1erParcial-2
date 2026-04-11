@@ -113,6 +113,10 @@ export class MonitorComponent {
 
   private toCardVm(t: Tramite): MonitorCardVM {
     const stripe = this.stripeForEstado(t.estado);
+    const actividadActual =
+      t.estado === 'completado'
+        ? 'Completado'
+        : (t.actividadActual?.trim() || '—');
     return {
       tramiteId: t.id ?? '—',
       politicaNombre: t.politicaNombre ?? 'Política',
@@ -125,7 +129,7 @@ export class MonitorComponent {
       estadoLabel: this.estadoLabel(t.estado),
       diasTranscurridos: this.diasDesde(t.creadoEn),
       progreso: this.progresoPct(t),
-      actividadActual: t.actividadActual ?? '—',
+      actividadActual,
       stripeColor: stripe.color,
       badgeClass: stripe.badgeClass,
       progressColor: stripe.progress,
@@ -159,6 +163,15 @@ export class MonitorComponent {
 
   private progresoPct(t: Tramite): number {
     if (
+      t.porcentajeAvance != null &&
+      !Number.isNaN(t.porcentajeAvance)
+    ) {
+      return Math.min(100, Math.max(0, Math.round(t.porcentajeAvance)));
+    }
+    if (t.estado === 'completado') {
+      return 100;
+    }
+    if (
       t.pasoActual != null &&
       t.totalPasos != null &&
       t.totalPasos > 0
@@ -170,15 +183,13 @@ export class MonitorComponent {
     }
     switch (t.estado) {
       case 'iniciado':
-        return 20;
+        return 0;
       case 'en_proceso':
-        return 55;
+        return 0;
       case 'esperando_decision':
-        return 48;
+        return 0;
       case 'demorado':
-        return 70;
-      case 'completado':
-        return 100;
+        return 0;
       case 'cancelado':
         return 0;
       default:
