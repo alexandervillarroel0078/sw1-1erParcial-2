@@ -221,6 +221,12 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
 type WizardFlujo = 'directo' | 'paralelo' | 'existente' | 'fin';
 type WizardNoModo = 'actividad' | 'fin' | 'bucle';
 
+type RamaDecisionPanelItem = {
+  aristaId: string;
+  kind: 'si' | 'no' | 'sin' | 'otro';
+  chipText: string;
+};
+
 type RecVoz = {
   lang: string;
   interimResults: boolean;
@@ -397,6 +403,47 @@ export class PolicyDesignerComponent implements OnInit {
     const v = n.slaHoras;
     if (v == null || !Number.isFinite(v)) return null;
     return Math.round(v);
+  });
+
+  /**
+   * Aristas salientes del nodo DECISION seleccionado, con texto y estilo de chip
+   * para el panel Propiedades.
+   */
+  readonly ramasSalientesDecisionSeleccion = computed((): RamaDecisionPanelItem[] => {
+    const n = this.nodoSeleccionado();
+    if (!n || n.tipo !== 'DECISION') {
+      return [];
+    }
+    const porId = new Map(this.nodos().map((x) => [x.id, x]));
+    const salientes = this.aristas().filter((a) => a.desdeNodoId === n.id);
+    return salientes.map((ar) => {
+      const dest = porId.get(ar.haciaNodoId);
+      const nombreDest =
+        dest != null
+          ? (dest.etiqueta?.trim() ? dest.etiqueta.trim() : this.tipoLabel(dest.tipo))
+          : '(nodo desconocido)';
+      const raw = (ar.etiqueta ?? '').trim();
+      const t = raw
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '');
+      let kind: 'si' | 'no' | 'sin' | 'otro';
+      let chipText: string;
+      if (t === 'si' || t === 'yes') {
+        kind = 'si';
+        chipText = `Sí → ${nombreDest}`;
+      } else if (t === 'no') {
+        kind = 'no';
+        chipText = `No → ${nombreDest}`;
+      } else if (!raw) {
+        kind = 'sin';
+        chipText = `Sin etiqueta → ${nombreDest}`;
+      } else {
+        kind = 'otro';
+        chipText = `${raw} → ${nombreDest}`;
+      }
+      return { aristaId: ar.id, kind, chipText };
+    });
   });
 
   readonly aristaSeleccionada = computed(() => {

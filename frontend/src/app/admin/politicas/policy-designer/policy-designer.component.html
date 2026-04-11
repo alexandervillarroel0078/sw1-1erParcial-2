@@ -684,16 +684,36 @@
                 </button>
               }
               @case ('DECISION') {
-                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <span class="pd-props__badge pd-props__badge--decision">DECISION</span>
                 <mat-form-field appearance="outline" class="pd-props__field">
-                  <mat-label>Nombre / etiqueta</mat-label>
+                  <mat-label>Nombre / condición</mat-label>
                   <input
                     matInput
+                    placeholder="¿Cuál es la condición?"
                     [ngModel]="sn.etiqueta"
                     (ngModelChange)="patchEtiqueta($event)"
                     (blur)="commitPropiedadesNodo()"
                   />
                 </mat-form-field>
+                <h3 class="pd-props__ramas-title">Ramas configuradas</h3>
+                @if (ramasSalientesDecisionSeleccion().length === 0) {
+                  <p class="pd-props__hint pd-props__hint--ramas-vacio">
+                    Conectá las salidas del nodo para ver las ramas
+                  </p>
+                } @else {
+                  <mat-chip-set class="pd-props__ramas-chips" aria-label="Ramas desde la decisión">
+                    @for (rama of ramasSalientesDecisionSeleccion(); track rama.aristaId) {
+                      <mat-chip
+                        class="pd-props__chip-rama"
+                        [class.pd-props__chip-rama--si]="rama.kind === 'si'"
+                        [class.pd-props__chip-rama--no]="rama.kind === 'no'"
+                        [class.pd-props__chip-rama--sin]="rama.kind === 'sin' || rama.kind === 'otro'"
+                      >
+                        {{ rama.chipText }}
+                      </mat-chip>
+                    }
+                  </mat-chip-set>
+                }
                 <button
                   mat-stroked-button
                   color="warn"

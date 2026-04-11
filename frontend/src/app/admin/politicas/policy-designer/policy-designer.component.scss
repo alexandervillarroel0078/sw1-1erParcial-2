@@ -823,6 +823,56 @@
   background: #e3f2fd;
   color: #0d47a1;
 }
+
+.pd-props__badge--decision {
+  background: #fff9c4;
+  color: #5d4037;
+  border: 1px solid #fbc02d;
+}
+
+.pd-props__ramas-title {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0000009e;
+}
+
+.pd-props__hint--ramas-vacio {
+  margin-top: 0;
+}
+
+.pd-props__ramas-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pd-props__chip-rama {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.pd-props__chip-rama--si {
+  background: #e8f5e9 !important;
+  color: #1b5e20 !important;
+  border-color: #81c784 !important;
+}
+
+.pd-props__chip-rama--no {
+  background: #ffebee !important;
+  color: #b71c1c !important;
+  border-color: #e57373 !important;
+}
+
+.pd-props__chip-rama--sin {
+  background: #eceff1 !important;
+  color: #37474f !important;
+  border-color: #b0bec5 !important;
+}
+
 .pd-props__chip-row {
   margin-bottom: 12px;
 }
