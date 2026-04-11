@@ -25,5 +25,7 @@ public class UsuarioCreateRequest {
 	@NotNull
 	private RolUsuario rol;
 	private String departamentoId;
+	/** Con {@code @Builder}: el valor por defecto solo aplica si se usa {@code @Builder.Default}. */
+	@Builder.Default
 	private boolean activo = true;
 }
