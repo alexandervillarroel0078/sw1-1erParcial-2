@@ -1,6 +1,18 @@
 import { Routes } from '@angular/router';
 
+/**
+ * Rutas bajo `/admin/`.
+ * El diseñador de políticas va primero: pantalla completa sin `AdminLayoutComponent`
+ * (sin sidebar ni toolbar del admin); el resto usa layout con hijos.
+ */
 export const ADMIN_ROUTES: Routes = [
+  {
+    path: 'politicas/:id/editor',
+    loadComponent: () =>
+      import('./politicas/policy-designer/policy-designer.component').then(
+        (m) => m.PolicyDesignerComponent,
+      ),
+  },
   {
     path: '',
     loadComponent: () =>
@@ -28,13 +40,6 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () =>
           import('./politicas/formulario-designer/formulario-designer.component').then(
             (m) => m.FormularioDesignerComponent,
-          ),
-      },
-      {
-        path: 'politicas/:id/editor',
-        loadComponent: () =>
-          import('./politicas/policy-designer/policy-designer.component').then(
-            (m) => m.PolicyDesignerComponent,
           ),
       },
       {
