@@ -600,7 +600,7 @@
                     type="number"
                     min="1"
                     step="1"
-                    [ngModel]="sn.slaHoras ?? null"
+                    [ngModel]="slaHorasPanel()"
                     (ngModelChange)="patchSla($event)"
                     (blur)="commitPropiedadesNodo()"
                   />

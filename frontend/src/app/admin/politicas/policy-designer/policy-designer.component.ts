@@ -303,6 +303,18 @@ export class PolicyDesignerComponent implements OnInit {
     return this.nodos().find((n) => n.id === id) ?? null;
   });
 
+  /**
+   * Valor del input «SLA (horas)» en el panel. Depende de `nodos()` para que,
+   * con OnPush, el campo se actualice al seleccionar o hidratar un nodo ACTIVIDAD.
+   */
+  readonly slaHorasPanel = computed(() => {
+    const n = this.nodoSeleccionado();
+    if (!n || n.tipo !== 'ACTIVIDAD') return null;
+    const v = n.slaHoras;
+    if (v == null || !Number.isFinite(v)) return null;
+    return Math.round(v);
+  });
+
   readonly aristaSeleccionada = computed(() => {
     const id = this.aristaSeleccionId();
     if (!id) return null;

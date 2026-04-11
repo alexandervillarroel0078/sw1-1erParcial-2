@@ -104,6 +104,19 @@ INFORME    → después de llenarse (resultado)
 
 
 
+cd backend
+mvn spring-boot:run
+
+cd frontend
+ng serve
+
+ng serve --configuration=local --host 0.0.0.0
+
+git add .
+git commit -m "simulando tramites"
+git push origin main
+
+
 
 
 
