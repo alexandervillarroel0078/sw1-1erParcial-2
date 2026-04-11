@@ -113,7 +113,7 @@ ng serve
 ng serve --configuration=local --host 0.0.0.0
 
 git add .
-git commit -m "simulando tramites"
+git commit -m "completo flujo de creacion de politicas y funcionario"
 git push origin main
 
 

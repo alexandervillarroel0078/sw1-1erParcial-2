@@ -1,13 +1,16 @@
 package com.dpn.backend.controller;
 
+import com.dpn.backend.dto.MisActividadesFuncionarioResponseDTO;
 import com.dpn.backend.dto.UsuarioCreateRequest;
 import com.dpn.backend.dto.UsuarioDTO;
 import com.dpn.backend.dto.UsuarioUpdateRequest;
 import com.dpn.backend.mapper.EntityMapper;
 import com.dpn.backend.model.Usuario;
+import com.dpn.backend.service.FuncionarioMisActividadesService;
 import com.dpn.backend.service.UsuarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,5 +59,21 @@ public class UsuarioController {
 	@DeleteMapping("/{id}")
 	public void eliminar(@PathVariable String id) {
 		usuarioService.eliminar(id);
+	}
+}
+
+/**
+ * Rutas de funcionario: no pueden compartir {@code @RequestMapping} con
+ * {@link UsuarioController} ({@code /api/admin/...}), por eso este bean aparte en el mismo archivo.
+ */
+@RestController
+@RequiredArgsConstructor
+class FuncionarioMisActividadesController {
+
+	private final FuncionarioMisActividadesService funcionarioMisActividadesService;
+
+	@GetMapping("/api/funcionario/mis-actividades")
+	public MisActividadesFuncionarioResponseDTO misActividades(Authentication authentication) {
+		return funcionarioMisActividadesService.listarPorUsuarioAutenticado(authentication.getName());
 	}
 }

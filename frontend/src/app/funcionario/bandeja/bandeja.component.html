@@ -25,6 +25,37 @@
     <mat-button-toggle value="completado">Completadas</mat-button-toggle>
   </mat-button-toggle-group>
 
+  <mat-accordion class="mis-actividades-accordion">
+    <mat-expansion-panel [expanded]="false">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Mi departamento: {{ vm.departamentoNombre }}
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div class="mis-actividades">
+        <p class="mis-actividades__intro">Políticas donde participo:</p>
+        @if (vm.misActividades.length === 0) {
+          <p class="mis-actividades__vacio">
+            No hay actividades asignadas a tu departamento en las políticas activas.
+          </p>
+        } @else {
+          @for (p of vm.misActividades; track $index) {
+            <div class="mis-actividades__politica">
+              <div class="mis-actividades__politica-titulo">
+                📋 {{ p.politicaNombre }}
+              </div>
+              <ul class="mis-actividades__lista">
+                @for (a of p.actividades; track a.paso + '-' + a.etiqueta) {
+                  <li>• {{ a.etiqueta }}</li>
+                }
+              </ul>
+            </div>
+          }
+        }
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+
   <div class="lista">
     @if (vm.lista.length === 0) {
       <p class="vacio">No hay tareas en esta vista.</p>
