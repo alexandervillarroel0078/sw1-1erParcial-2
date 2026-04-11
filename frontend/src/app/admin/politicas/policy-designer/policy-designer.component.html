@@ -613,29 +613,25 @@
       </div>
     </div>
 
-    <!-- Panel derecho: pestañas -->
+    <!-- Panel derecho: propiedades + asistente apilados -->
     <aside class="pd-props" aria-label="Panel del diseñador">
-      <mat-tab-group
-        class="pd-tabs"
-        [selectedIndex]="tabPanelDerecho()"
-        (selectedIndexChange)="onTabDerechoChange($event)"
-        animationDuration="200ms"
-      >
-        <mat-tab label="Propiedades">
-          <div class="pd-tab-body">
-            <h2 class="pd-props__title">Propiedades</h2>
-            @if (nodoSeleccionado(); as sn) {
-              <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
-              <mat-form-field appearance="outline" class="pd-props__field">
-                <mat-label>Nombre / etiqueta</mat-label>
-                <input
-                  matInput
-                  [ngModel]="sn.etiqueta"
-                  (ngModelChange)="patchEtiqueta($event)"
-                  (blur)="commitPropiedadesNodo()"
-                />
-              </mat-form-field>
-              @if (sn.tipo === 'ACTIVIDAD') {
+      <section class="pd-panel-section pd-panel-section--props">
+        <h2 class="pd-props__heading">Propiedades</h2>
+        <mat-divider class="pd-panel-divider" />
+        <div class="pd-panel-section__body">
+          @if (nodoSeleccionado(); as sn) {
+            @switch (sn.tipo) {
+              @case ('ACTIVIDAD') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Nombre / etiqueta</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="sn.etiqueta"
+                    (ngModelChange)="patchEtiqueta($event)"
+                    (blur)="commitPropiedadesNodo()"
+                  />
+                </mat-form-field>
                 <mat-form-field
                   appearance="outline"
                   class="pd-props__field pd-props__field--no-sub"
@@ -677,18 +673,87 @@
                   <mat-icon>dynamic_form</mat-icon>
                   Diseñar formulario
                 </button>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  class="pd-props__delete"
+                  (click)="eliminarNodoSeleccionado()"
+                >
+                  Eliminar nodo
+                </button>
               }
-              <button
-                mat-stroked-button
-                color="warn"
-                type="button"
-                class="pd-props__delete"
-                [disabled]="sn.tipo === 'START'"
-                (click)="eliminarNodoSeleccionado()"
-              >
-                Eliminar nodo
-              </button>
-            } @else if (aristaSeleccionada(); as sa) {
+              @case ('DECISION') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Nombre / etiqueta</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="sn.etiqueta"
+                    (ngModelChange)="patchEtiqueta($event)"
+                    (blur)="commitPropiedadesNodo()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  class="pd-props__delete"
+                  (click)="eliminarNodoSeleccionado()"
+                >
+                  Eliminar nodo
+                </button>
+              }
+              @case ('START') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+              }
+              @case ('END') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+              }
+              @case ('FORK_BAR') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Nombre / etiqueta</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="sn.etiqueta"
+                    (ngModelChange)="patchEtiqueta($event)"
+                    (blur)="commitPropiedadesNodo()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  class="pd-props__delete"
+                  (click)="eliminarNodoSeleccionado()"
+                >
+                  Eliminar nodo
+                </button>
+              }
+              @case ('JOIN_BAR') {
+                <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <mat-form-field appearance="outline" class="pd-props__field">
+                  <mat-label>Nombre / etiqueta</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="sn.etiqueta"
+                    (ngModelChange)="patchEtiqueta($event)"
+                    (blur)="commitPropiedadesNodo()"
+                  />
+                </mat-form-field>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  class="pd-props__delete"
+                  (click)="eliminarNodoSeleccionado()"
+                >
+                  Eliminar nodo
+                </button>
+              }
+            }
+          } @else if (aristaSeleccionada(); as sa) {
               @if (esAristaDesdeDecision(sa)) {
                 <mat-chip-set class="pd-props__chip-row">
                   <mat-chip selected class="pd-props__chip-dec">
@@ -723,26 +788,23 @@
                 Eliminar arista
               </button>
             } @else {
-              <p class="pd-props__empty">Seleccioná un nodo o una arista</p>
+              <p class="pd-props__empty">Seleccioná un nodo para ver sus propiedades</p>
             }
-          </div>
-        </mat-tab>
+        </div>
+      </section>
 
-        <mat-tab label="Asistente">
-          <div class="pd-tab-body">
-            <mat-button-toggle-group
-              class="pd-asistente-toggle"
-              [ngModel]="asistenteSub()"
-              (ngModelChange)="asistenteSub.set($event)"
-              hideSingleSelectionIndicator
-            >
-              <mat-button-toggle value="wizard">Flujo asistido</mat-button-toggle>
-              <mat-button-toggle value="ia">IA</mat-button-toggle>
-            </mat-button-toggle-group>
+      <mat-divider class="pd-panel-divider pd-panel-divider--between" />
 
-            @if (asistenteSub() === 'wizard') {
-            <div class="pd-wizard">
-            <h2 class="pd-props__title">Asistente de flujo</h2>
+      <section class="pd-panel-section pd-panel-section--asistente">
+        <h2 class="pd-props__heading">Asistente</h2>
+        <mat-tab-group
+          class="pd-asistente-tabs"
+          [selectedIndex]="asistenteTabIndex()"
+          (selectedIndexChange)="asistenteTabIndex.set($event)"
+          animationDuration="200ms"
+        >
+          <mat-tab label="Flujo asistido">
+            <div class="pd-asistente-tab-body pd-wizard">
             <p class="pd-wizard__hint">
               Elegí un nodo origen en el canvas; el asistente agrega elementos a la
               derecha o en paralelo.
@@ -1003,9 +1065,9 @@
               }
             }
             </div>
-            } @else {
-            <div class="pd-chat">
-            <h2 class="pd-props__title">Chat IA</h2>
+          </mat-tab>
+          <mat-tab label="IA">
+            <div class="pd-asistente-tab-body pd-chat">
             <p class="pd-chat__hint">
               Instrucciones de ejemplo: «conecta validación con aprobación», «agrega una
               actividad de revisión técnica»
@@ -1051,10 +1113,9 @@
               </button>
             </div>
             </div>
-            }
-          </div>
-        </mat-tab>
-      </mat-tab-group>
+          </mat-tab>
+        </mat-tab-group>
+      </section>
     </aside>
   </div>
 </div>

@@ -23,10 +23,10 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatCheckboxChange, MatCheckboxModule } from '@angular/material/checkbox';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
 import { map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -245,10 +245,10 @@ type RecVoz = {
     MatSnackBarModule,
     MatIconModule,
     MatTooltipModule,
+    MatDividerModule,
     MatTabsModule,
     MatRadioModule,
     MatCheckboxModule,
-    MatButtonToggleModule,
     MatChipsModule,
   ],
   templateUrl: './policy-designer.component.html',
@@ -450,9 +450,8 @@ export class PolicyDesignerComponent implements OnInit {
   readonly puedeDeshacer = signal(false);
   readonly puedeRehacer = signal(false);
 
-  readonly tabPanelDerecho = signal(0);
-  /** Subvista dentro de la pestaña Asistente: wizard o chat IA */
-  readonly asistenteSub = signal<'wizard' | 'ia'>('wizard');
+  /** Pestañas internas del asistente: 0 = Flujo asistido, 1 = IA */
+  readonly asistenteTabIndex = signal(0);
 
   readonly wizardPaso = signal<1 | 2 | 3>(1);
   readonly wizardAddTipo = signal<'ACTIVIDAD' | 'DECISION' | null>(null);
@@ -1444,10 +1443,6 @@ export class PolicyDesignerComponent implements OnInit {
 
   tipoLabel(t: NodoCanvasTipo): string {
     return t;
-  }
-
-  onTabDerechoChange(index: number): void {
-    this.tabPanelDerecho.set(index);
   }
 
   reiniciarWizardFormulario(): void {

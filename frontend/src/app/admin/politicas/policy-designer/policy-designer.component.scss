@@ -595,41 +595,100 @@
   position: relative;
   z-index: 0;
   isolation: isolate;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: #fff;
-  padding: 0;
-  overflow: hidden;
   border-left: 1px solid #00000014;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pd-panel-section {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.pd-tabs {
+.pd-panel-section--props {
+  flex: 0 0 auto;
+}
+
+.pd-panel-section--asistente {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-panel-section--asistente > .pd-props__heading {
+  flex-shrink: 0;
+}
+
+.pd-props__heading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0000009e;
+}
+
+.pd-panel-divider {
+  margin: 0 0 12px;
+}
+
+.pd-panel-divider--between {
+  margin: 12px 0;
+}
+
+.pd-panel-section__body {
+  min-height: 0;
+}
+
+.pd-asistente-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 8px;
+}
+
+.pd-asistente-tabs ::ng-deep .mat-mdc-tab-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-asistente-tabs ::ng-deep .mat-mdc-tab-header {
+  flex-shrink: 0;
+}
+
+.pd-asistente-tabs ::ng-deep .mat-mdc-tab-body-wrapper {
   flex: 1;
   min-height: 0;
 }
 
-.pd-tabs ::ng-deep .mat-mdc-tab-body-wrapper {
-  flex: 1;
+.pd-asistente-tabs ::ng-deep .mat-mdc-tab-body-content {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
 }
 
-.pd-tabs ::ng-deep .mat-mdc-tab-body-content {
-  overflow: auto;
-  max-height: calc(100dvh - 200px);
-}
-
-.pd-tab-body {
-  padding: 12px;
-}
-
-.pd-asistente-toggle {
-  width: 100%;
-  margin-bottom: 12px;
-}
-
-.pd-asistente-toggle mat-button-toggle {
-  flex: 1;
+.pd-asistente-tab-body {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 2px 8px 0;
 }
 
 .pd-wizard__hint {
@@ -752,11 +811,6 @@
 .pd-chat__field {
   flex: 1 1 140px;
   min-width: 0;
-}
-.pd-props__title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 700;
 }
 .pd-props__badge {
   display: inline-block;
