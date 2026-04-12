@@ -8,7 +8,8 @@ cd frontend
 ng serve
 
 cd mobile
-
+flutter devices
+flutter run -d R9TN8090ABJ
 
 
 git add .
