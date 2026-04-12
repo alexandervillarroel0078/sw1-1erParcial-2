@@ -1,6 +1,7 @@
 package com.dpn.backend.dto;
 
 import com.dpn.backend.model.enums.EstadoTarea;
+import com.dpn.backend.model.enums.EstadoTramite;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,10 @@ public class TareaDTO {
 	private String clienteNombre;
 	private String tramiteClienteId;
 	private Integer diasAbierto;
+	/** SLA del nodo ACTIVIDAD (minutos); solo en listados enriquecidos (p. ej. mis tareas). */
+	private Integer slaMinutos;
+	/** Estado actual del trámite (p. ej. DEMORADO); solo en listados enriquecidos. */
+	private EstadoTramite tramiteEstado;
 	private String usuarioAsignadoId;
 	private EstadoTarea estado;
 	private Instant creadoEn;

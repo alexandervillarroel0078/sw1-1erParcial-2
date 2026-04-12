@@ -16,9 +16,15 @@ export interface Tarea {
   /** Copia de cliente del trámite (referencia en UI si falta nombre). */
   tramiteClienteId?: string;
   diasAbierto?: number;
+  /** Inicio de la tarea (ISO); para comparar con SLA en bandeja. */
+  creadoEn?: string;
+  /** SLA del nodo en minutos (listado «mis tareas» enriquecido). */
+  slaMinutos?: number;
+  /** Estado del trámite (p. ej. DEMORADO) en listados enriquecidos. */
+  tramiteEstado?: string;
   transcurrido?: string;
   usuarioAsignadoId?: string;
-  estado: 'pendiente' | 'en_atencion' | 'completado';
+  estado: 'pendiente' | 'en_atencion' | 'demorado' | 'completado';
   completadoA?: string;
   duracion?: string;
   /** Respuesta PATCH COMPLETAR cuando el trámite espera elección de rama. */

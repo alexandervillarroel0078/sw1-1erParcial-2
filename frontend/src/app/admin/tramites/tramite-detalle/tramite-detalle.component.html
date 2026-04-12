@@ -130,9 +130,26 @@
                       Decisión: {{ t.decisionEtiqueta }}
                     </mat-chip>
                   }
-                  <mat-chip class="chip-mini chip-mini--muted">{{
-                    tareaEstadoLegible(t)
-                  }}</mat-chip>
+                  @if (tareaMostrarChipEnAtencion(t)) {
+                    <mat-chip class="chip-tarea chip-tarea--en-atencion" selected>
+                      En atención
+                    </mat-chip>
+                  }
+                  @if (tareaMostrarChipDemoradoTramite(t, d)) {
+                    <mat-chip class="chip-tarea chip-tarea--demorado-alerta" selected>
+                      ⚠️ Demorado
+                    </mat-chip>
+                  }
+                  @if (tareaMostrarChipDemoradoSoloTarea(t)) {
+                    <mat-chip class="chip-tarea chip-tarea--demorado" selected>
+                      Demorado
+                    </mat-chip>
+                  }
+                  @if (tareaMostrarChipEstadoMuted(t)) {
+                    <mat-chip class="chip-mini chip-mini--muted">{{
+                      tareaEstadoLegible(t)
+                    }}</mat-chip>
+                  }
                 </mat-chip-set>
                 @if (tieneContenidoInforme(t)) {
                   <mat-expansion-panel class="informe-panel">

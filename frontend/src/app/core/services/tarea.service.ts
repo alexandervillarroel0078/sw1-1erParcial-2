@@ -21,9 +21,11 @@ type TareaApi = Omit<Tarea, 'estado'> & {
 const ESTADO_TAREA: Record<string, Tarea['estado']> = {
   PENDIENTE: 'pendiente',
   EN_ATENCION: 'en_atencion',
+  DEMORADO: 'demorado',
   COMPLETADO: 'completado',
   pendiente: 'pendiente',
   en_atencion: 'en_atencion',
+  demorado: 'demorado',
   completado: 'completado',
 };
 

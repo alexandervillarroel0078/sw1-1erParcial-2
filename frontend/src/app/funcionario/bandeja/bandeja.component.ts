@@ -76,7 +76,12 @@ export class BandejaComponent {
           ? tareas
           : tareas.filter((t) => t.estado === f);
       lista.sort((a, b) => {
-        const orden = { pendiente: 0, en_atencion: 1, completado: 2 };
+        const orden: Record<Tarea['estado'], number> = {
+          pendiente: 0,
+          demorado: 0,
+          en_atencion: 1,
+          completado: 2,
+        };
         const oa = orden[a.estado];
         const ob = orden[b.estado];
         if (oa !== ob) return oa - ob;
@@ -97,6 +102,7 @@ export class BandejaComponent {
           estadoLabel: this.estadoLabel(t.estado),
           stripeClass: `stripe--${t.estado}`,
           badgeClass: `badge--${t.estado}`,
+          bandejaSegundoBadgeDemorado: this.bandejaSegundoBadgeDemorado(t),
         })),
       };
     }),
@@ -106,12 +112,47 @@ export class BandejaComponent {
     return etiquetaClienteReferencia(t);
   }
 
+  /**
+   * Tarea en atención cuyo tiempo abierto supera el SLA del nodo (misma idea que el monitor SLA).
+   * Usa `creadoEn` en minutos si viene del API; si no, aproxima con días × 1440 frente al SLA en minutos.
+   */
+  bandejaDemoradoPorSla(t: Tarea): boolean {
+    if (t.estado !== 'en_atencion') {
+      return false;
+    }
+    const sla = t.slaMinutos;
+    if (sla == null || sla <= 0) {
+      return false;
+    }
+    const cre = t.creadoEn;
+    if (cre) {
+      const min = Math.floor((Date.now() - new Date(cre).getTime()) / 60_000);
+      return min > sla;
+    }
+    const dias = t.diasAbierto ?? 0;
+    return dias * 1440 > sla;
+  }
+
+  /** Segundo chip rojo junto a «En atención»: trámite demorado o tiempo abierto mayor que el SLA. */
+  bandejaSegundoBadgeDemorado(t: Tarea): boolean {
+    if (t.estado !== 'en_atencion') {
+      return false;
+    }
+    const te = (t.tramiteEstado ?? '').toString().toUpperCase();
+    if (te === 'DEMORADO') {
+      return true;
+    }
+    return this.bandejaDemoradoPorSla(t);
+  }
+
   estadoLabel(estado: Tarea['estado']): string {
     switch (estado) {
       case 'pendiente':
         return 'Pendiente';
       case 'en_atencion':
         return 'En atención';
+      case 'demorado':
+        return 'Demorado';
       case 'completado':
         return 'Completada';
       default:

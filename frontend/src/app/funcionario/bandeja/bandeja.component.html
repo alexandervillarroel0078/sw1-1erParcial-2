@@ -21,6 +21,7 @@
   >
     <mat-button-toggle value="todas">Todas</mat-button-toggle>
     <mat-button-toggle value="pendiente">Pendientes</mat-button-toggle>
+    <mat-button-toggle value="demorado">Demoradas</mat-button-toggle>
     <mat-button-toggle value="en_atencion">En atención</mat-button-toggle>
     <mat-button-toggle value="completado">Completadas</mat-button-toggle>
   </mat-button-toggle-group>
@@ -66,9 +67,26 @@
         <div class="tarjeta__body">
           <div class="tarjeta__head">
             <h3 class="tarjeta__actividad">{{ t.actividadEtiqueta }}</h3>
-            <mat-chip class="badge" [ngClass]="t.badgeClass" selected>
-              {{ t.estadoLabel }}
-            </mat-chip>
+            <div class="tarjeta__badges">
+              @if (t.estado === 'en_atencion') {
+                <mat-chip class="badge badge--en_atencion" selected>
+                  En atención
+                </mat-chip>
+              } @else if (t.estado === 'demorado') {
+                <mat-chip class="badge badge--demorado" selected>
+                  Demorado
+                </mat-chip>
+              } @else {
+                <mat-chip class="badge" [ngClass]="t.badgeClass" selected>
+                  {{ t.estadoLabel }}
+                </mat-chip>
+              }
+              @if (t.bandejaSegundoBadgeDemorado) {
+                <mat-chip class="badge badge--demorado-alerta" selected>
+                  ⚠️ Demorado
+                </mat-chip>
+              }
+            </div>
           </div>
           <div class="tarjeta__meta">
             <div class="meta">
@@ -85,7 +103,7 @@
             </div>
           </div>
           <div class="tarjeta__acciones">
-            @if (t.estado === 'pendiente') {
+            @if (t.estado === 'pendiente' || t.estado === 'demorado') {
               <button
                 mat-raised-button
                 color="primary"

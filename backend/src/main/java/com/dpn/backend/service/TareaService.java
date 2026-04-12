@@ -16,6 +16,7 @@ import com.dpn.backend.model.Tramite;
 import com.dpn.backend.model.Usuario;
 import com.dpn.backend.model.embedded.NodoPolitica;
 import com.dpn.backend.model.enums.EstadoTarea;
+import com.dpn.backend.model.enums.EstadoTramite;
 import com.dpn.backend.model.enums.TipoNodo;
 import com.dpn.backend.repository.InformeRepository;
 import com.dpn.backend.repository.PoliticaRepository;
@@ -58,9 +59,53 @@ public class TareaService {
 	}
 
 	public List<TareaDTO> listarMisTareas(String usuarioId) {
+		Map<String, Tramite> tramiteCache = new HashMap<>();
+		Map<String, Politica> politicaCache = new HashMap<>();
 		return tareaRepository.findByUsuarioAsignadoId(usuarioId).stream()
-				.map(EntityMapper::toTareaDTO)
+				.map((t) -> {
+					TareaDTO dto = EntityMapper.toTareaDTO(t);
+					enrichMisTareaMeta(t, dto, tramiteCache, politicaCache);
+					return dto;
+				})
 				.toList();
+	}
+
+	/**
+	 * SLA del nodo y estado del trámite para la bandeja del funcionario.
+	 */
+	private void enrichMisTareaMeta(
+			Tarea t,
+			TareaDTO dto,
+			Map<String, Tramite> tramiteCache,
+			Map<String, Politica> politicaCache) {
+		if (t.getTramiteId() == null) {
+			return;
+		}
+		Tramite tramite = tramiteCache.computeIfAbsent(
+				t.getTramiteId(),
+				id -> tramiteRepository.findById(id).orElse(null));
+		if (tramite == null) {
+			return;
+		}
+		EstadoTramite estTr = tramite.getEstado();
+		if (estTr != null) {
+			dto.setTramiteEstado(estTr);
+		}
+		if (t.getNodoFlujoId() == null || t.getNodoFlujoId().isBlank()
+				|| tramite.getPoliticaId() == null) {
+			return;
+		}
+		Politica politica = politicaCache.computeIfAbsent(
+				tramite.getPoliticaId(),
+				id -> politicaRepository.findById(id).orElse(null));
+		if (politica == null || politica.getNodos() == null) {
+			return;
+		}
+		politica.getNodos().stream()
+				.filter(n -> t.getNodoFlujoId().equals(n.getId()))
+				.findFirst()
+				.map(NodoPolitica::getSlaMinutos)
+				.ifPresent(dto::setSlaMinutos);
 	}
 
 	public List<TareaDTO> listarTodas() {

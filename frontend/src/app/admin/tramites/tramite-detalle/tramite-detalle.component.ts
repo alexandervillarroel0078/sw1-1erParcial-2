@@ -210,10 +210,37 @@ export class TramiteDetalleComponent {
     if (e === 'COMPLETADO') {
       return 'dot--verde';
     }
+    if (e === 'DEMORADO') {
+      return 'dot--rojo';
+    }
     if (e === 'EN_ATENCION') {
       return 'dot--amarillo';
     }
     return 'dot--gris';
+  }
+
+  tramiteEsDemorado(d: TramiteDetalleResponse): boolean {
+    return (d.tramite.estado ?? '').toUpperCase() === 'DEMORADO';
+  }
+
+  tareaMostrarChipEnAtencion(t: TramiteDetalleTarea): boolean {
+    return this.tareaEstadoUpper(t) === 'EN_ATENCION';
+  }
+
+  tareaMostrarChipDemoradoTramite(
+    t: TramiteDetalleTarea,
+    d: TramiteDetalleResponse,
+  ): boolean {
+    return this.tareaMostrarChipEnAtencion(t) && this.tramiteEsDemorado(d);
+  }
+
+  tareaMostrarChipDemoradoSoloTarea(t: TramiteDetalleTarea): boolean {
+    return this.tareaEstadoUpper(t) === 'DEMORADO';
+  }
+
+  tareaMostrarChipEstadoMuted(t: TramiteDetalleTarea): boolean {
+    const e = this.tareaEstadoUpper(t);
+    return e !== 'EN_ATENCION' && e !== 'DEMORADO';
   }
 
   tareaEstadoLegible(t: TramiteDetalleTarea): string {
@@ -223,6 +250,8 @@ export class TramiteDetalleComponent {
         return 'Pendiente';
       case 'EN_ATENCION':
         return 'En atención';
+      case 'DEMORADO':
+        return 'Demorado';
       case 'COMPLETADO':
         return 'Completado';
       default:
@@ -237,6 +266,9 @@ export class TramiteDetalleComponent {
     }
     if (e === 'EN_ATENCION') {
       return 'En proceso — informe pendiente';
+    }
+    if (e === 'DEMORADO') {
+      return 'Actividad marcada por vencimiento de SLA';
     }
     if (e === 'COMPLETADO' && t.completadoEn) {
       return `Completada el ${new Date(t.completadoEn).toLocaleString()}`;

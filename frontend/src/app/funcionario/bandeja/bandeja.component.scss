@@ -118,6 +118,10 @@
   background: #e24b4a;
 }
 
+.stripe--demorado {
+  background: #b71c1c;
+}
+
 .stripe--en_atencion {
   background: #ef9f27;
 }
@@ -138,6 +142,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.tarjeta__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: min(100%, 320px);
 }
 
 .tarjeta__actividad {
@@ -174,6 +186,17 @@
 .badge--pendiente {
   background: rgba(226, 75, 74, 0.14) !important;
   color: #e24b4a !important;
+}
+
+.badge--demorado {
+  background: rgba(183, 28, 28, 0.16) !important;
+  color: #b71c1c !important;
+}
+
+.badge--demorado-alerta {
+  background: rgba(183, 28, 28, 0.2) !important;
+  color: #7f1010 !important;
+  font-weight: 800 !important;
 }
 
 .badge--en_atencion {

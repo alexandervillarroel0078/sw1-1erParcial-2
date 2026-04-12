@@ -208,6 +208,11 @@
   box-shadow: 0 0 0 3px rgba(239, 159, 39, 0.22);
 }
 
+.dot--rojo {
+  background: #b71c1c;
+  box-shadow: 0 0 0 3px rgba(183, 28, 28, 0.22);
+}
+
 .dot--gris {
   background: #bdbdbd;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
@@ -266,6 +271,27 @@
 .chip-mini--muted {
   background: rgba(0, 0, 0, 0.06) !important;
   color: rgba(0, 0, 0, 0.55) !important;
+}
+
+.chip-tarea {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  min-height: 28px !important;
+}
+
+.chip-tarea--en-atencion {
+  background: rgba(239, 159, 39, 0.2) !important;
+  color: #c7780a !important;
+}
+
+.chip-tarea--demorado {
+  background: rgba(183, 28, 28, 0.16) !important;
+  color: #b71c1c !important;
+}
+
+.chip-tarea--demorado-alerta {
+  background: rgba(183, 28, 28, 0.22) !important;
+  color: #7f1010 !important;
 }
 
 .informe-panel {

@@ -22,8 +22,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Marca tareas y trámites en {@link EstadoTarea#DEMORADO} / {@link EstadoTramite#DEMORADO}
- * cuando se supera el SLA del nodo de política (solo marca; no cancela ni elimina).
+ * Cuando se supera el SLA del nodo: marca el trámite en {@link EstadoTramite#DEMORADO}.
+ * La tarea solo pasa a {@link EstadoTarea#DEMORADO} si estaba {@link EstadoTarea#PENDIENTE};
+ * si está {@link EstadoTarea#EN_ATENCION} no se modifica el estado de la tarea.
  */
 @Slf4j
 @Service
@@ -51,7 +52,7 @@ public class SlaMonitorService {
 	}
 
 	/**
-	 * @return {@code true} si la tarea pasó a DEMORADO en esta ejecución
+	 * @return {@code true} si en esta ejecución se marcó el trámite como DEMORADO por SLA
 	 */
 	private boolean marcarSiVencida(Tarea tarea, Map<String, Politica> politicasCache) {
 		if (tarea.getNodoFlujoId() == null || tarea.getNodoFlujoId().isBlank()) {
@@ -97,8 +98,10 @@ public class SlaMonitorService {
 			return false;
 		}
 
-		tarea.setEstado(EstadoTarea.DEMORADO);
-		tareaRepository.save(tarea);
+		if (tarea.getEstado() == EstadoTarea.PENDIENTE) {
+			tarea.setEstado(EstadoTarea.DEMORADO);
+			tareaRepository.save(tarea);
+		}
 
 		tramite.setEstado(EstadoTramite.DEMORADO);
 		tramite.setActualizadoEn(Instant.now());
