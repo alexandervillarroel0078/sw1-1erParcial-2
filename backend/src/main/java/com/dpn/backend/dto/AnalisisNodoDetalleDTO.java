@@ -17,5 +17,6 @@ public class AnalisisNodoDetalleDTO {
 	private String departamento;
 	private double tiempoPromedio;
 	private long cantidadTareas;
+	private int cantidadDemorados;
 	private EstadoAnalisisNodo estado;
 }

@@ -30,6 +30,12 @@
           <span class="metric__unit">días</span>
         </div>
       </mat-card>
+      <mat-card class="metric metric--delayed" appearance="outlined">
+        <div class="metric__label">Total demorados</div>
+        <div class="metric__value metric__value--delayed">
+          {{ vm.totalDemorados }}
+        </div>
+      </mat-card>
       <mat-card class="metric metric--critical" appearance="outlined">
         <div class="metric__label">Nodo crítico</div>
         <div class="metric__value metric__value--red">{{ vm.nodoCriticoNombre }}</div>
@@ -97,6 +103,20 @@
             <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
             <td mat-cell *matCellDef="let row">
               {{ formatoDias(row.tiempoPromedioDias) }} días
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="demorados">
+            <th mat-header-cell *matHeaderCellDef>Demorados</th>
+            <td mat-cell *matCellDef="let row">
+              @if (row.cantidadDemorados > 0) {
+                <span class="cell-demorados cell-demorados--alert">
+                  <mat-icon class="cell-demorados__icon">warning</mat-icon>
+                  {{ row.cantidadDemorados }}
+                </span>
+              } @else {
+                <span class="cell-demorados cell-demorados--none">—</span>
+              }
             </td>
           </ng-container>
 

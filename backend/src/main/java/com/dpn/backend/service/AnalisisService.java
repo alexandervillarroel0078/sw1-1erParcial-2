@@ -46,6 +46,7 @@ public class AnalisisService {
 			return vacio(politicaId);
 		}
 		Set<String> tramiteIds = tramites.stream().map(Tramite::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+		int totalDemorados = (int) tareaRepository.findByTramiteIdInAndEstado(tramiteIds, EstadoTarea.DEMORADO).size();
 		List<Tarea> tareas = tareaRepository.findByTramiteIdInAndEstado(tramiteIds, EstadoTarea.COMPLETADO);
 
 		Map<String, NodoPolitica> nodoPorId = politica.getNodos().stream()
@@ -78,6 +79,7 @@ public class AnalisisService {
 			return AnalisisPoliticaMetricasDTO.builder()
 					.politicaId(politicaId)
 					.tramitesAnalizados(0)
+					.totalDemorados(totalDemorados)
 					.tiempoPromedioTotal(0.0)
 					.nodoCriticoId(null)
 					.nodoCriticoEtiqueta("—")
@@ -94,12 +96,14 @@ public class AnalisisService {
 			NodoPolitica np = nodoPorId.get(nodoId);
 			String etiqueta = etiquetaNodo(np, nodoId, tareas);
 			String departamento = departamentoNodo(np, nodoId, tareas);
+			int cantidadDemorados = contarDemoradosEnNodo(nodoId, tramiteIds);
 			detalle.add(AnalisisNodoDetalleDTO.builder()
 					.nodoId(nodoId)
 					.etiqueta(etiqueta)
 					.departamento(departamento)
 					.tiempoPromedio(promedio)
 					.cantidadTareas(vals.size())
+					.cantidadDemorados(cantidadDemorados)
 					.estado(estadoDesdeDiasPromedio(promedio))
 					.build());
 		}
@@ -112,6 +116,7 @@ public class AnalisisService {
 		return AnalisisPoliticaMetricasDTO.builder()
 				.politicaId(politicaId)
 				.tramitesAnalizados(tramitesConTareaValida.size())
+				.totalDemorados(totalDemorados)
 				.tiempoPromedioTotal(tiempoPromedioTotal)
 				.nodoCriticoId(critico.getNodoId())
 				.nodoCriticoEtiqueta(critico.getEtiqueta())
@@ -120,10 +125,17 @@ public class AnalisisService {
 				.build();
 	}
 
+	private int contarDemoradosEnNodo(String nodoFlujoId, Set<String> tramiteIdsPolitica) {
+		return (int) tareaRepository.findByNodoFlujoIdAndEstado(nodoFlujoId, EstadoTarea.DEMORADO).stream()
+				.filter(t -> t.getTramiteId() != null && tramiteIdsPolitica.contains(t.getTramiteId()))
+				.count();
+	}
+
 	private static AnalisisPoliticaMetricasDTO vacio(String politicaId) {
 		return AnalisisPoliticaMetricasDTO.builder()
 				.politicaId(politicaId)
 				.tramitesAnalizados(0)
+				.totalDemorados(0)
 				.tiempoPromedioTotal(0.0)
 				.nodoCriticoId(null)
 				.nodoCriticoEtiqueta("—")

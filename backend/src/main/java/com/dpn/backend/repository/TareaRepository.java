@@ -17,5 +17,7 @@ public interface TareaRepository extends MongoRepository<Tarea, String> {
 
 	List<Tarea> findByTramiteIdInAndEstado(Collection<String> tramiteIds, EstadoTarea estado);
 
+	List<Tarea> findByNodoFlujoIdAndEstado(String nodoFlujoId, EstadoTarea estado);
+
 	List<Tarea> findByUsuarioAsignadoIdAndEstadoNot(String usuarioAsignadoId, EstadoTarea estado);
 }

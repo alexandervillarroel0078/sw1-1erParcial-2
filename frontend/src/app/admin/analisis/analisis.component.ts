@@ -33,6 +33,7 @@ export type NodoCuelloRow = {
   actividad: string;
   responsable: string;
   tiempoPromedioDias: number;
+  cantidadDemorados: number;
   severidad: SeveridadNivel;
 };
 
@@ -63,6 +64,7 @@ export type AnalisisVm = {
   politicaNombre: string;
   insuficiente: boolean;
   tramitesAnalizados: number;
+  totalDemorados: number;
   tiempoPromedioTotal: number;
   nodoCriticoNombre: string;
   nodoCriticoDias: number;
@@ -143,6 +145,7 @@ export class AnalisisComponent {
     return {
       politicaId,
       tramitesAnalizados: 0,
+      totalDemorados: 0,
       tiempoPromedioTotal: 0,
       nodoCriticoId: null,
       nodoCriticoEtiqueta: '—',
@@ -164,6 +167,7 @@ export class AnalisisComponent {
       politicaNombre: '',
       insuficiente: false,
       tramitesAnalizados: 0,
+      totalDemorados: 0,
       tiempoPromedioTotal: 0,
       nodoCriticoNombre: '—',
       nodoCriticoDias: 0,
@@ -173,7 +177,13 @@ export class AnalisisComponent {
       maxDias: 1,
       barras: [],
       filasTabla: [],
-      displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+      displayedColumns: [
+        'actividad',
+        'responsable',
+        'tiempo',
+        'demorados',
+        'estado',
+      ],
     };
   }
 
@@ -194,6 +204,7 @@ export class AnalisisComponent {
         politicaNombre,
         insuficiente: true,
         tramitesAnalizados: dto.tramitesAnalizados ?? 0,
+        totalDemorados: dto.totalDemorados ?? 0,
         tiempoPromedioTotal: 0,
         nodoCriticoNombre: '—',
         nodoCriticoDias: 0,
@@ -203,7 +214,13 @@ export class AnalisisComponent {
         maxDias: 1,
         barras: [],
         filasTabla: [],
-        displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+        displayedColumns: [
+          'actividad',
+          'responsable',
+          'tiempo',
+          'demorados',
+          'estado',
+        ],
       };
     }
 
@@ -212,6 +229,7 @@ export class AnalisisComponent {
       actividad: (n.etiqueta ?? n.nodoId).trim() || n.nodoId,
       responsable: (n.departamento ?? '—').trim() || '—',
       tiempoPromedioDias: n.tiempoPromedio,
+      cantidadDemorados: n.cantidadDemorados ?? 0,
       severidad: severidadDesdeApi(String(n.estado)),
     }));
 
@@ -241,6 +259,7 @@ export class AnalisisComponent {
       politicaNombre,
       insuficiente: false,
       tramitesAnalizados: dto.tramitesAnalizados,
+      totalDemorados: dto.totalDemorados ?? 0,
       tiempoPromedioTotal,
       nodoCriticoNombre,
       nodoCriticoDias,
@@ -259,7 +278,13 @@ export class AnalisisComponent {
         severidadLabel: etiquetaSeveridad(n.severidad),
         badgeClass: `badge--${n.severidad}`,
       })),
-      displayedColumns: ['actividad', 'responsable', 'tiempo', 'estado'],
+      displayedColumns: [
+        'actividad',
+        'responsable',
+        'tiempo',
+        'demorados',
+        'estado',
+      ],
     };
   }
 

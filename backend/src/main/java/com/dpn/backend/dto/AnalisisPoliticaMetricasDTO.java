@@ -16,6 +16,7 @@ public class AnalisisPoliticaMetricasDTO {
 
 	private String politicaId;
 	private int tramitesAnalizados;
+	private int totalDemorados;
 	private double tiempoPromedioTotal;
 	private String nodoCriticoId;
 	private String nodoCriticoEtiqueta;

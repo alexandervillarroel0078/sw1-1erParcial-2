@@ -32,7 +32,7 @@
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -66,6 +66,10 @@
     line-height: 1.25;
     word-break: break-word;
   }
+
+  &__value--delayed {
+    color: #e24b4a;
+  }
 }
 
 .metric--blue .metric__value {
@@ -77,6 +81,10 @@
 }
 
 .metric--critical .metric__label {
+  font-weight: 600;
+}
+
+.metric--delayed .metric__label {
   font-weight: 600;
 }
 
@@ -194,6 +202,29 @@
   width: 100%;
 }
 
+.cell-demorados {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.cell-demorados--alert {
+  color: #e24b4a;
+}
+
+.cell-demorados__icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #e24b4a;
+}
+
+.cell-demorados--none {
+  color: rgba(0, 0, 0, 0.38);
+  font-weight: 600;
+}
+
 .badge {
   font-weight: 800;
   font-size: 12px;
@@ -221,7 +252,7 @@
 
 @media (max-width: 960px) {
   .metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .bar-row {
