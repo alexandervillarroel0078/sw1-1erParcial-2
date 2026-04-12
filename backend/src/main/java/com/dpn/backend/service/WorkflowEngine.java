@@ -23,10 +23,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -338,7 +342,9 @@ public class WorkflowEngine {
 				yield any;
 			}
 			case JOIN_BAR -> {
-				// TODO: sincronizar ramas paralelas antes de seguir (contador / estado de join)
+				if (!puedeAvanzarJoinBar(tramite, politica, nodo)) {
+					yield false;
+				}
 				boolean any = false;
 				for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
 					Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
@@ -423,9 +429,130 @@ public class WorkflowEngine {
 	}
 
 	private static List<AristaPolitica> aristasSalientes(Politica p, String desdeId) {
+		if (p.getAristas() == null) {
+			return List.of();
+		}
 		return p.getAristas().stream()
 				.filter(a -> desdeId.equals(a.getDesdeNodoId()))
 				.toList();
+	}
+
+	/** Aristas cuyo destino es {@code haciaId}. */
+	private static List<AristaPolitica> aristasEntrantes(Politica p, String haciaId) {
+		if (p.getAristas() == null) {
+			return List.of();
+		}
+		return p.getAristas().stream()
+				.filter(a -> haciaId.equals(a.getHaciaNodoId()))
+				.toList();
+	}
+
+	/**
+	 * No expande tras el JOIN hasta que todas las tareas ACTIVIDAD de la región paralela
+	 * (entre el FORK_BAR asociado y este JOIN) estén {@link EstadoTarea#COMPLETADO}.
+	 */
+	private boolean puedeAvanzarJoinBar(Tramite tramite, Politica politica, NodoPolitica join) {
+		String joinId = join.getId();
+		String forkId = encontrarForkBarParaJoin(politica, joinId);
+		Set<String> idsActividad = new HashSet<>();
+		if (forkId != null) {
+			idsActividad.addAll(actividadNodesEnRegionForkJoin(politica, forkId, joinId));
+		}
+		if (idsActividad.isEmpty()) {
+			idsActividad.addAll(actividadesDirectasAntesDeJoin(politica, joinId));
+		}
+		if (idsActividad.isEmpty()) {
+			return true;
+		}
+		List<Tarea> tareas = tareaRepository.findByTramiteId(tramite.getId());
+		for (String actId : idsActividad) {
+			List<Tarea> ts = tareas.stream()
+					.filter(t -> actId.equals(t.getNodoFlujoId()))
+					.toList();
+			if (ts.isEmpty()) {
+				return false;
+			}
+			if (ts.stream().anyMatch(t -> t.getEstado() != EstadoTarea.COMPLETADO)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Busca un único FORK_BAR ancestro de las ramas que convergen en {@code joinId}
+	 * (subiendo desde cada predecesor directo del JOIN).
+	 */
+	private static String encontrarForkBarParaJoin(Politica politica, String joinId) {
+		Set<String> forks = new HashSet<>();
+		for (AristaPolitica in : aristasEntrantes(politica, joinId)) {
+			String f = buscarForkBarHaciaAtras(politica, in.getDesdeNodoId(), new HashSet<>());
+			if (f != null) {
+				forks.add(f);
+			}
+		}
+		return forks.size() == 1 ? forks.iterator().next() : null;
+	}
+
+	private static String buscarForkBarHaciaAtras(Politica politica, String nodoId, Set<String> visitados) {
+		if (!visitados.add(nodoId)) {
+			return null;
+		}
+		Optional<NodoPolitica> n = findNodoById(politica, nodoId);
+		if (n.isPresent() && n.get().getTipo() == TipoNodo.FORK_BAR) {
+			return nodoId;
+		}
+		for (AristaPolitica in : aristasEntrantes(politica, nodoId)) {
+			String ant = in.getDesdeNodoId();
+			String f = buscarForkBarHaciaAtras(politica, ant, visitados);
+			if (f != null) {
+				return f;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Nodos ACTIVIDAD alcanzables desde el FORK sin atravesar el JOIN (región paralela).
+	 */
+	private static Set<String> actividadNodesEnRegionForkJoin(Politica politica, String forkId, String joinId) {
+		Set<String> actividadIds = new HashSet<>();
+		Deque<String> dq = new ArrayDeque<>();
+		for (AristaPolitica a : aristasSalientes(politica, forkId)) {
+			dq.addLast(a.getHaciaNodoId());
+		}
+		Set<String> seen = new HashSet<>();
+		while (!dq.isEmpty()) {
+			String nid = dq.removeFirst();
+			if (!seen.add(nid) || joinId.equals(nid)) {
+				continue;
+			}
+			findNodoById(politica, nid).ifPresent(node -> {
+				if (node.getTipo() == TipoNodo.ACTIVIDAD) {
+					actividadIds.add(nid);
+				}
+			});
+			for (AristaPolitica a : aristasSalientes(politica, nid)) {
+				String h = a.getHaciaNodoId();
+				if (!joinId.equals(h)) {
+					dq.addLast(h);
+				}
+			}
+		}
+		return actividadIds;
+	}
+
+	/** Predecesores directos del JOIN que sean nodos ACTIVIDAD (fallback sin FORK detectado). */
+	private static Set<String> actividadesDirectasAntesDeJoin(Politica politica, String joinId) {
+		Set<String> out = new HashSet<>();
+		for (AristaPolitica in : aristasEntrantes(politica, joinId)) {
+			findNodoById(politica, in.getDesdeNodoId()).ifPresent(pred -> {
+				if (pred.getTipo() == TipoNodo.ACTIVIDAD) {
+					out.add(pred.getId());
+				}
+			});
+		}
+		return out;
 	}
 
 	private static Optional<NodoPolitica> findNodoById(Politica p, String id) {
