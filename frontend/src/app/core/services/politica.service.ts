@@ -23,9 +23,9 @@ export class PoliticaService {
   private readonly base = `${environment.apiUrl}/admin/politicas`;
   private readonly funcionarioPoliticas = `${environment.apiUrl}/funcionario/politicas`;
 
-  /** SLA positivo desde API (`slaHoras` o `sla_horas`, número o string). */
-  private static pickSlaHoras(n: Nodo & Record<string, unknown>): number | undefined {
-    const raw = n.slaHoras ?? n['sla_horas'];
+  /** SLA positivo desde API (`slaMinutos` o `sla_minutos`, número o string). */
+  private static pickSlaMinutos(n: Nodo & Record<string, unknown>): number | undefined {
+    const raw = n.slaMinutos ?? n['sla_minutos'];
     if (raw == null || raw === '') return undefined;
     const num = Number(raw);
     return Number.isFinite(num) && num > 0 ? Math.round(num) : undefined;
@@ -47,7 +47,7 @@ export class PoliticaService {
       nodos: p.nodos?.map((n) => ({
         ...n,
         tipo: normalizeNodoTipo(n.tipo as string),
-        slaHoras: PoliticaService.pickSlaHoras(n as Nodo & Record<string, unknown>),
+        slaMinutos: PoliticaService.pickSlaMinutos(n as Nodo & Record<string, unknown>),
       })),
     };
   }

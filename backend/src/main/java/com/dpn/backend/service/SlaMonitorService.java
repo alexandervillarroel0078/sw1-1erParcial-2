@@ -87,12 +87,12 @@ public class SlaMonitorService {
 			return false;
 		}
 
-		Integer slaHoras = nodoOpt.get().getSlaHoras();
-		if (slaHoras == null || slaHoras <= 0) {
+		Integer slaMinutos = nodoOpt.get().getSlaMinutos();
+		if (slaMinutos == null || slaMinutos <= 0) {
 			return false;
 		}
 
-		Instant limite = tarea.getCreadoEn().plus(slaHoras.longValue(), ChronoUnit.HOURS);
+		Instant limite = tarea.getCreadoEn().plus(slaMinutos.longValue(), ChronoUnit.MINUTES);
 		if (!Instant.now().isAfter(limite)) {
 			return false;
 		}

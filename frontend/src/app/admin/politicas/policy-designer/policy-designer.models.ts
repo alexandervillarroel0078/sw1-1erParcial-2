@@ -33,7 +33,7 @@ export interface NodoCanvas {
   /** Calle asignada (ACTividades por posición en el canvas) */
   calleId?: string;
   /** Solo aplica visual/lógica a ACTIVIDAD */
-  slaHoras?: number;
+  slaMinutos?: number;
 }
 
 export interface AristaCanvas {

@@ -23,6 +23,6 @@ public class NodoPolitica {
 	private String calleId;
 	private Double ancho;
 	private Double alto;
-	@Field("sla_horas")
-	private Integer slaHoras;
+	@Field("sla_minutos")
+	private Integer slaMinutos;
 }

@@ -651,17 +651,17 @@
                   </mat-select>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="pd-props__field">
-                  <mat-label>SLA límite (horas)</mat-label>
+                  <mat-label>SLA (minutos)</mat-label>
                   <input
                     matInput
                     type="number"
                     min="1"
                     step="1"
-                    [ngModel]="slaHorasPanel()"
+                    [ngModel]="slaMinutosPanel()"
                     (ngModelChange)="patchSla($event)"
                     (blur)="commitPropiedadesNodo()"
                   />
-                  <mat-hint>Ej: 24 = 1 día hábil</mat-hint>
+                  <mat-hint>Ej: 30 = 30 min, 60 = 1 hora, 1440 = 1 día</mat-hint>
                 </mat-form-field>
                 <button
                   mat-stroked-button

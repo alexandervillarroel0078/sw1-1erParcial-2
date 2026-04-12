@@ -130,7 +130,7 @@ export function buildValidation(
 
   for (const n of nodos) {
     if (n.tipo === 'ACTIVIDAD') {
-      const sla = n.slaHoras;
+      const sla = n.slaMinutos;
       if (sla == null || sla <= 0) {
         advertencias.push(
           `La actividad «${n.etiqueta}» no tiene SLA definido`,

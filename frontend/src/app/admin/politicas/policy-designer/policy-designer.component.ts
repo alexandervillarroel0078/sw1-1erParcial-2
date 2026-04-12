@@ -204,7 +204,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     departamento: n.departamentoId,
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
-    slaHoras: n.slaHoras,
+    slaMinutos: n.slaMinutos,
   };
 }
 
@@ -218,7 +218,7 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     departamentoId: n.departamento,
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
-    slaHoras: n.slaHoras,
+    slaMinutos: n.slaMinutos,
   };
 }
 
@@ -398,13 +398,13 @@ export class PolicyDesignerComponent implements OnInit {
   });
 
   /**
-   * Valor del input «SLA (horas)» en el panel. Depende de `nodos()` para que,
+   * Valor del input «SLA (minutos)» en el panel. Depende de `nodos()` para que,
    * con OnPush, el campo se actualice al seleccionar o hidratar un nodo ACTIVIDAD.
    */
-  readonly slaHorasPanel = computed(() => {
+  readonly slaMinutosPanel = computed(() => {
     const n = this.nodoSeleccionado();
     if (!n || n.tipo !== 'ACTIVIDAD') return null;
-    const v = n.slaHoras;
+    const v = n.slaMinutos;
     if (v == null || !Number.isFinite(v)) return null;
     return Math.round(v);
   });
@@ -1458,7 +1458,7 @@ export class PolicyDesignerComponent implements OnInit {
     const sla =
       Number.isFinite(num) && num > 0 ? Math.round(num) : undefined;
     this.nodos.update((arr) =>
-      arr.map((n) => (n.id === id ? { ...n, slaHoras: sla } : n)),
+      arr.map((n) => (n.id === id ? { ...n, slaMinutos: sla } : n)),
     );
   }
 
