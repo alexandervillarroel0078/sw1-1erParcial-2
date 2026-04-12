@@ -10,11 +10,15 @@ import com.dpn.backend.dto.TramiteResumenDetalleDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.mapper.EntityMapper;
 import com.dpn.backend.model.Informe;
+import com.dpn.backend.model.Politica;
 import com.dpn.backend.model.Tarea;
 import com.dpn.backend.model.Tramite;
 import com.dpn.backend.model.Usuario;
+import com.dpn.backend.model.embedded.NodoPolitica;
 import com.dpn.backend.model.enums.EstadoTarea;
+import com.dpn.backend.model.enums.TipoNodo;
 import com.dpn.backend.repository.InformeRepository;
+import com.dpn.backend.repository.PoliticaRepository;
 import com.dpn.backend.repository.TareaRepository;
 import com.dpn.backend.repository.TramiteRepository;
 import com.dpn.backend.repository.UsuarioRepository;
@@ -40,6 +44,7 @@ public class TareaService {
 
 	private final TareaRepository tareaRepository;
 	private final TramiteRepository tramiteRepository;
+	private final PoliticaRepository politicaRepository;
 	private final InformeRepository informeRepository;
 	private final UsuarioRepository usuarioRepository;
 	private final WorkflowEngine workflowEngine;
@@ -99,6 +104,9 @@ public class TareaService {
 		Tramite tramite = tramiteRepository.findById(tramiteId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
 
+		Map<String, TipoNodo> tipoPorNodoFlujoId = mapTipoNodoPorId(
+				politicaRepository.findById(tramite.getPoliticaId()).orElse(null));
+
 		List<Tarea> tareas = new ArrayList<>(tareaRepository.findByTramiteId(tramiteId));
 		tareas.sort(Comparator.comparing(Tarea::getCreadoEn, Comparator.nullsLast(Comparator.naturalOrder())));
 
@@ -133,6 +141,7 @@ public class TareaService {
 			int dias = (int) Math.max(0, ChronoUnit.DAYS.between(inicio, fin));
 
 			String decision = trimNullToNull(t.getAristaEtiquetaEntrada());
+			String tipoNodoNombre = tipoNodoNombreParaTarea(nodoId, tipoPorNodoFlujoId);
 
 			lista.add(TareaTramiteDetalleDTO.builder()
 					.id(t.getId())
@@ -148,6 +157,7 @@ public class TareaService {
 					.esIterativo(esIter)
 					.iterativoSecuencia(sec)
 					.decisionEtiqueta(decision)
+					.tipoNodo(tipoNodoNombre)
 					.informe(informeDto)
 					.build());
 		}
@@ -168,6 +178,27 @@ public class TareaService {
 				.tramite(resumen)
 				.tareas(lista)
 				.build();
+	}
+
+	private static Map<String, TipoNodo> mapTipoNodoPorId(Politica politica) {
+		if (politica == null || politica.getNodos() == null) {
+			return Map.of();
+		}
+		Map<String, TipoNodo> out = new HashMap<>();
+		for (NodoPolitica n : politica.getNodos()) {
+			if (n.getId() != null && n.getTipo() != null) {
+				out.put(n.getId(), n.getTipo());
+			}
+		}
+		return out;
+	}
+
+	private static String tipoNodoNombreParaTarea(String nodoFlujoId, Map<String, TipoNodo> tipoPorNodoFlujoId) {
+		if (nodoFlujoId == null) {
+			return null;
+		}
+		TipoNodo tipo = tipoPorNodoFlujoId.get(nodoFlujoId);
+		return tipo != null ? tipo.name() : null;
 	}
 
 	private InformeResumenDTO mapInformeResumen(Informe i) {

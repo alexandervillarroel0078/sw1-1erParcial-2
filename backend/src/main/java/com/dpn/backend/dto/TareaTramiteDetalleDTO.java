@@ -27,5 +27,7 @@ public class TareaTramiteDetalleDTO {
 	private boolean esIterativo;
 	private int iterativoSecuencia;
 	private String decisionEtiqueta;
+	/** Tipo del nodo de flujo en la política (p. ej. ACTIVIDAD, DECISION). */
+	private String tipoNodo;
 	private InformeResumenDTO informe;
 }

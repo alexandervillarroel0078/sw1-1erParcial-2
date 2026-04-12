@@ -155,9 +155,16 @@
 }
 
 .step__cap {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.step__estado {
   font-size: 11px;
-  opacity: 0.75;
+  opacity: 0.72;
   font-weight: 600;
+  margin-top: 2px;
 }
 
 .timeline {

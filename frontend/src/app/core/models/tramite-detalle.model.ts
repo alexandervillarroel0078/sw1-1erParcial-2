@@ -8,6 +8,8 @@ export interface TramiteDetalleInforme {
 export interface TramiteDetalleTarea {
   id: string;
   nodoFlujoId?: string | null;
+  /** Tipo de nodo en la política; solo ACTIVIDAD cuenta como paso humano. */
+  tipoNodo?: string | null;
   actividadEtiqueta?: string | null;
   departamentoTexto?: string | null;
   usuarioAsignadoNombre?: string | null;

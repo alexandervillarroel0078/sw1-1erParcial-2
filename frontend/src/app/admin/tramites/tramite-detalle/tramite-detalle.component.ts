@@ -54,17 +54,54 @@ export class TramiteDetalleComponent {
     void this.router.navigate(['/admin/monitor']);
   }
 
+  /** Solo tareas ligadas a nodos ACTIVIDAD (excluye DECISION, START, etc. si aparecieran en API). */
+  tareasSoloActividad(d: TramiteDetalleResponse): TramiteDetalleTarea[] {
+    return d.tareas.filter((task) => {
+      const tipo = (task.tipoNodo ?? 'ACTIVIDAD').toUpperCase();
+      return tipo === 'ACTIVIDAD';
+    });
+  }
+
   totalPasos(d: TramiteDetalleResponse): number {
     const t = d.tramite.totalPasos;
     if (t != null && t > 0) {
       return t;
     }
-    return Math.max(1, d.tareas.length);
+    const n = this.tareasSoloActividad(d).length;
+    return Math.max(1, n);
   }
 
-  stepsArray(d: TramiteDetalleResponse): number[] {
-    const n = this.totalPasos(d);
-    return Array.from({ length: n }, (_, i) => i + 1);
+  /** Pasos humanos (solo nodos ACTIVIDAD): número + etiqueta deducida del historial filtrado. */
+  pasosFlujoActividad(d: TramiteDetalleResponse): { paso: number; etiqueta: string }[] {
+    const tot = this.totalPasos(d);
+    const out: { paso: number; etiqueta: string }[] = [];
+    const ordenadas = [...this.tareasSoloActividad(d)].sort(
+      (a, b) =>
+        +new Date(a.creadoEn ?? 0) - +new Date(b.creadoEn ?? 0),
+    );
+    const vistos = new Set<string>();
+    for (const t of ordenadas) {
+      const nid = (t.nodoFlujoId ?? '').trim();
+      if (!nid || vistos.has(nid)) {
+        continue;
+      }
+      vistos.add(nid);
+      out.push({
+        paso: out.length + 1,
+        etiqueta:
+          t.actividadEtiqueta?.trim() || `Actividad ${out.length + 1}`,
+      });
+      if (out.length >= tot) {
+        break;
+      }
+    }
+    while (out.length < tot) {
+      out.push({
+        paso: out.length + 1,
+        etiqueta: `Actividad ${out.length + 1}`,
+      });
+    }
+    return out;
   }
 
   /** Actividades ACTIVIDAD ya completadas (API); por defecto 0. */

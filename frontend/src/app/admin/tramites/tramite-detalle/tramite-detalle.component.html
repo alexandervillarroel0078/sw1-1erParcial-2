@@ -42,7 +42,9 @@
     <mat-card class="card" appearance="outlined">
       <mat-card-header>
         <mat-card-title>Posición en el flujo</mat-card-title>
-        <mat-card-subtitle>Pasos lineales según el trámite</mat-card-subtitle>
+        <mat-card-subtitle>
+          Solo nodos ACTIVIDAD (sin decisión / inicio / fin / barras)
+        </mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
         @if (d.tramite.esFlujoParalelo) {
@@ -56,22 +58,23 @@
           </mat-chip-set>
         }
         <div class="steps" role="list">
-          @for (step of stepsArray(d); track step; let idx = $index) {
+          @for (p of pasosFlujoActividad(d); track p.paso; let idx = $index) {
             <div class="step" role="listitem">
               @if (idx > 0) {
                 <span class="step__arrow" aria-hidden="true">→</span>
               }
               <div
                 class="step__box"
-                [class.step__box--done]="stepState(d, step) === 'done'"
-                [class.step__box--current]="stepState(d, step) === 'current'"
+                [class.step__box--done]="stepState(d, p.paso) === 'done'"
+                [class.step__box--current]="stepState(d, p.paso) === 'current'"
               >
                 <span class="step__icon" aria-hidden="true">{{
-                  stepIcon(d, step)
+                  stepIcon(d, p.paso)
                 }}</span>
                 <div class="step__meta">
-                  <div class="step__n">Paso {{ step }}</div>
-                  <div class="step__cap">{{ stepCaption(d, step) }}</div>
+                  <div class="step__n">Paso {{ p.paso }}</div>
+                  <div class="step__cap">{{ p.etiqueta }}</div>
+                  <div class="step__estado">{{ stepCaption(d, p.paso) }}</div>
                 </div>
               </div>
             </div>
@@ -83,11 +86,13 @@
     <mat-card class="card" appearance="outlined">
       <mat-card-header>
         <mat-card-title>Historial de actividades</mat-card-title>
-        <mat-card-subtitle>{{ d.tareas.length }} registro(s)</mat-card-subtitle>
+        <mat-card-subtitle>
+          {{ tareasSoloActividad(d).length }} actividad(es)
+        </mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
         <ul class="timeline">
-          @for (t of d.tareas; track t.id) {
+          @for (t of tareasSoloActividad(d); track t.id) {
             <li class="row">
               <div class="row__dot-wrap" aria-hidden="true">
                 <span class="row__dot" [ngClass]="tareaDotClass(t)"></span>

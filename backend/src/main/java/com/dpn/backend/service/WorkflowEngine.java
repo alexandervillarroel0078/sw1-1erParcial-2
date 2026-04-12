@@ -33,6 +33,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WorkflowEngine {
 
+	/**
+	 * {@code true} mientras se expande el flujo tras {@link #continuarDespuesDecision(String, String, String, String)}:
+	 * la nueva tarea ACTIVIDAD debe llevar el mismo índice de paso que el trámite (no +1), y no se incrementa
+	 * {@link Tramite#getPasoActual()} aquí (solo al completar nodos ACTIVIDAD en {@link #avanzarFlujo}).
+	 */
+	private static final ThreadLocal<Boolean> CREANDO_TAREA_TRAS_DECISION = new ThreadLocal<>();
+
 	private final PoliticaRepository politicaRepository;
 	private final TramiteRepository tramiteRepository;
 	private final TareaRepository tareaRepository;
@@ -135,6 +142,8 @@ public class WorkflowEngine {
 
 	/**
 	 * Continúa el flujo cuando el trámite está en {@link EstadoTramite#ESPERANDO_DECISION} tras elegir rama.
+	 * No incrementa {@link Tramite#getPasoActual()} (solo lo hace completar una tarea de nodo ACTIVIDAD en
+	 * {@link #avanzarFlujo}); no crea tarea para el nodo DECISION, solo expande por la arista elegida.
 	 */
 	public AvanzarFlujoResult continuarDespuesDecision(String tramiteId, String tareaId, String usuarioId, String rama) {
 		String ramaNorm = trimToNull(rama);
@@ -164,10 +173,18 @@ public class WorkflowEngine {
 		Politica politica = politicaRepository.findById(tramite.getPoliticaId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Política no encontrada"));
 
-		boolean hayMasTareas = expandirDesdeNodoDecisionConRama(tramite, politica, nodoDecisionId, ramaNorm);
-		tramite.setNodoDecisionPendienteId(null);
-		tramite.setActualizadoEn(Instant.now());
-		tramiteRepository.save(tramite);
+		CREANDO_TAREA_TRAS_DECISION.set(Boolean.TRUE);
+		boolean hayMasTareas;
+		try {
+			hayMasTareas = expandirDesdeNodoDecisionConRama(tramite, politica, nodoDecisionId, ramaNorm);
+		} finally {
+			CREANDO_TAREA_TRAS_DECISION.remove();
+		}
+		Tramite trActualizado = tramiteRepository.findById(tramiteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		trActualizado.setNodoDecisionPendienteId(null);
+		trActualizado.setActualizadoEn(Instant.now());
+		tramiteRepository.save(trActualizado);
 
 		actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
 		return AvanzarFlujoResult.sinDecision();
@@ -364,7 +381,19 @@ public class WorkflowEngine {
 
 		int completados = Optional.ofNullable(tramiteActual.getPasoActual()).orElse(0);
 		int totalFlujo = Optional.ofNullable(tramiteActual.getTotalPasos()).orElse(0);
-		int pasoMostrarEnTarea = totalFlujo > 0 ? Math.min(completados + 1, totalFlujo) : Math.max(completados + 1, 1);
+		boolean trasDecision = Boolean.TRUE.equals(CREANDO_TAREA_TRAS_DECISION.get());
+		// Tras elegir rama: no se incrementa pasoActual del trámite; la nueva ACTIVIDAD usa el mismo índice de paso
+		// que el contador actual (próxima humano-tarea aún no suma hasta completarse).
+		int pasoMostrarEnTarea;
+		if (trasDecision) {
+			pasoMostrarEnTarea = totalFlujo > 0
+					? Math.min(Math.max(completados, 1), totalFlujo)
+					: Math.max(completados, 1);
+		} else {
+			pasoMostrarEnTarea = totalFlujo > 0
+					? Math.min(completados + 1, totalFlujo)
+					: Math.max(completados + 1, 1);
+		}
 		int totalMostrarEnTarea = totalFlujo > 0 ? totalFlujo : Math.max(pasoMostrarEnTarea, 1);
 
 		Tarea t = Tarea.builder()
@@ -385,10 +414,12 @@ public class WorkflowEngine {
 				.build();
 		tareaRepository.save(t);
 
-		tramite.setActividadActual(nodo.getEtiqueta());
-		tramite.setEstado(EstadoTramite.EN_PROCESO);
-		tramite.setActualizadoEn(Instant.now());
-		tramiteRepository.save(tramite);
+		Tramite tramiteParaEstado = tramiteRepository.findById(tramite.getId())
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
+		tramiteParaEstado.setActividadActual(nodo.getEtiqueta());
+		tramiteParaEstado.setEstado(EstadoTramite.EN_PROCESO);
+		tramiteParaEstado.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramiteParaEstado);
 	}
 
 	private static List<AristaPolitica> aristasSalientes(Politica p, String desdeId) {
@@ -409,8 +440,11 @@ public class WorkflowEngine {
 		return t.isEmpty() ? null : t;
 	}
 
-	/** Solo nodos humanos ACTIVIDAD (excluye START, END, DECISION, FORK_BAR, JOIN_BAR). */
-	private static int contarNodosActividad(Politica politica) {
+	/**
+	 * Solo nodos humanos ACTIVIDAD (excluye START, END, DECISION, FORK_BAR, JOIN_BAR).
+	 * Público para reutilizar en {@link TramiteService} u otros servicios.
+	 */
+	public static int contarNodosActividad(Politica politica) {
 		if (politica.getNodos() == null) {
 			return 0;
 		}

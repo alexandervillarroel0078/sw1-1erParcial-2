@@ -60,6 +60,8 @@ public class TramiteService {
 				dto.getClienteTelefono(),
 				dto.getClienteEmail());
 
+		int totalPasosActividad = WorkflowEngine.contarNodosActividad(p);
+
 		Tramite t = Tramite.builder()
 				.id(UUID.randomUUID().toString())
 				.politicaId(p.getId())
@@ -68,6 +70,8 @@ public class TramiteService {
 				.clienteNombre(cliente.getNombreCompleto())
 				.creadoPorUsuarioId(creadoPorUsuarioId)
 				.estado(EstadoTramite.INICIADO)
+				.totalPasos(totalPasosActividad)
+				.pasoActual(0)
 				.creadoEn(Instant.now())
 				.actualizadoEn(Instant.now())
 				.build();
