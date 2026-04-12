@@ -7,8 +7,12 @@ mvn spring-boot:run
 cd frontend
 ng serve
 
+cd mobile
+
+
+
 git add .
-git commit -m "simulando tramites"
+git commit -m "flutter mobile"
 git push origin main
 
 
