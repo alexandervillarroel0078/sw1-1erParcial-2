@@ -36,6 +36,9 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/**").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/archivos/upload")
+							.hasAnyRole("FUNCIONARIO", "ADMINISTRADOR")
+						.requestMatchers("/api/archivos/**").authenticated()
 						.requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
 						.requestMatchers("/api/funcionario/**").hasRole("FUNCIONARIO")
 						// JWT con rol CLIENTE (mismo esquema Bearer que el resto de la API)

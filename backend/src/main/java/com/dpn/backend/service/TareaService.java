@@ -251,6 +251,7 @@ public class TareaService {
 				.descripcion(i.getDescripcion())
 				.resultado(i.getResultado())
 				.enviadoEn(i.getEnviadoEn())
+				.archivos(i.getArchivos() != null ? i.getArchivos() : List.of())
 				.build();
 	}
 

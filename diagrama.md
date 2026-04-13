@@ -13,7 +13,7 @@ flutter run -d R9TN8090ABJ
 
 
 git add .
-git commit -m "flutter mobile"
+git commit -m "subir archivos"
 git push origin main
 
 
@@ -133,10 +133,25 @@ el funcionario deberia poder cargar la informacion a ese formulario ya sea un in
 3. encontrar el cuello de botella mediante analisis
 en la atencion al cliente en una determinada politica 
 
+# extras
+1. Admin pide análisis de una política
+    ↓
+FastAPI recibe los datos de tiempos
+    ↓
+LangChain analiza los patrones
+    ↓
+Devuelve recomendaciones en lenguaje natural:
+"La actividad Aprobación tiene 3x más demora
+que el promedio. Recomiendo dividir la carga
+entre 2 funcionarios de Dirección."
 
 
-
-
+# posibles preguntas de examen 
+1. ¿Cómo funciona el sistema? → explicar arquitectura
+2. ¿Qué innovaciones tiene? → editor, IA, voz, paralelo
+3. ¿Cómo funciona el WorkflowEngine? → explicar motor
+4. Demostrar algo en vivo → mostrar flujo completo
+5. ¿Qué tecnologías usaron? → stack completo
 
 
 PRE-REQUISITO

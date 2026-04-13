@@ -6,6 +6,7 @@ spring:
       uri: mongodb://localhost:27017
       database: dpn_workflow
   servlet:
+    # Límites para POST multipart (p. ej. /api/archivos/upload)
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB

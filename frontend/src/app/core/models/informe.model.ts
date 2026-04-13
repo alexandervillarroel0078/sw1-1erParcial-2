@@ -1,3 +1,13 @@
+/** Referencia a un archivo en GridFS (`POST /api/archivos/upload`). */
+export interface ArchivoAdjunto {
+  id: string;
+  nombre: string;
+  tipo?: string;
+  tamanoBytes?: number;
+  url?: string;
+  subidoEn?: Date;
+}
+
 export interface Informe {
   id?: string;
   tramiteId: string;
@@ -7,6 +17,7 @@ export interface Informe {
   descripcion: string;
   resultado: string;
   observaciones?: string;
+  archivos?: ArchivoAdjunto[];
   esBorrador: boolean;
   creadoEn?: Date;
   enviadoEn?: Date;

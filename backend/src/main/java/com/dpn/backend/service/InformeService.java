@@ -3,12 +3,14 @@ package com.dpn.backend.service;
 import com.dpn.backend.dto.InformeCreateDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.model.Informe;
+import com.dpn.backend.model.embedded.ArchivoAdjunto;
 import com.dpn.backend.repository.InformeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +22,7 @@ public class InformeService {
 
 	public Informe crear(InformeCreateDTO dto, String funcionarioId) {
 		Instant now = Instant.now();
+		List<ArchivoAdjunto> archivosNorm = normalizarArchivos(dto.getArchivos(), now);
 		Informe i = Informe.builder()
 				.id(UUID.randomUUID().toString())
 				.tramiteId(dto.getTramiteId())
@@ -29,12 +32,33 @@ public class InformeService {
 				.descripcion(dto.getDescripcion())
 				.resultado(dto.getResultado())
 				.observaciones(dto.getObservaciones())
-				.archivos(dto.getArchivos() != null ? dto.getArchivos() : List.of())
+				.archivos(archivosNorm)
 				.esBorrador(dto.isEsBorrador())
 				.creadoEn(now)
 				.enviadoEn(dto.isEsBorrador() ? null : now)
 				.build();
 		return informeRepository.save(i);
+	}
+
+	private static List<ArchivoAdjunto> normalizarArchivos(List<ArchivoAdjunto> in, Instant ahora) {
+		if (in == null || in.isEmpty()) {
+			return List.of();
+		}
+		List<ArchivoAdjunto> out = new ArrayList<>(in.size());
+		for (ArchivoAdjunto a : in) {
+			if (a.getId() == null || a.getId().isBlank()) {
+				continue;
+			}
+			out.add(ArchivoAdjunto.builder()
+					.id(a.getId())
+					.nombre(a.getNombre())
+					.url(a.getUrl())
+					.tipo(a.getTipo())
+					.tamanoBytes(a.getTamanoBytes())
+					.subidoEn(a.getSubidoEn() != null ? a.getSubidoEn() : ahora)
+					.build());
+		}
+		return out;
 	}
 
 	public List<Informe> listarPorTramite(String tramiteId) {

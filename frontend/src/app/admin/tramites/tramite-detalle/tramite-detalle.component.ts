@@ -18,6 +18,7 @@ import {
   TramiteDetalleResponse,
   TramiteDetalleTarea,
 } from '../../../core/models/tramite-detalle.model';
+import { InformeService } from '../../../core/services/informe.service';
 import { TramiteService } from '../../../core/services/tramite.service';
 
 @Component({
@@ -43,6 +44,7 @@ export class TramiteDetalleComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly tramiteService = inject(TramiteService);
+  private readonly informeService = inject(InformeService);
 
   readonly detalle$ = this.route.paramMap.pipe(
     map((p) => p.get('id')),
@@ -284,10 +286,24 @@ export class TramiteDetalleComponent {
     if (!i) {
       return false;
     }
+    const arch = i.archivos?.length ?? 0;
     return !!(
       (i.descripcion && i.descripcion.trim()) ||
       (i.resultado && i.resultado.trim()) ||
-      i.enviadoEn
+      i.enviadoEn ||
+      arch > 0
     );
+  }
+
+  verAdjuntoInforme(id: string): void {
+    this.informeService.verArchivoNuevaPestana(id);
+  }
+
+  esPdfAdjunto(tipo?: string | null): boolean {
+    return (tipo ?? '').toLowerCase().includes('pdf');
+  }
+
+  iconoAdjunto(tipo?: string | null): string {
+    return this.esPdfAdjunto(tipo) ? 'picture_as_pdf' : 'image';
   }
 }

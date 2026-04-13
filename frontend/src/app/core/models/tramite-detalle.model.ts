@@ -1,8 +1,18 @@
+export interface TramiteDetalleArchivo {
+  id: string;
+  nombre: string;
+  tipo?: string | null;
+  tamanoBytes?: number | null;
+  url?: string | null;
+  subidoEn?: string | null;
+}
+
 /** Respuesta GET /api/admin/tramites/{id}/detalle */
 export interface TramiteDetalleInforme {
   descripcion?: string | null;
   resultado?: string | null;
   enviadoEn?: string | null;
+  archivos?: TramiteDetalleArchivo[] | null;
 }
 
 export interface TramiteDetalleTarea {

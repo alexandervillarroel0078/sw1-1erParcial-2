@@ -49,8 +49,77 @@
             <mat-label>Observaciones</mat-label>
             <textarea matInput rows="3" formControlName="observaciones"></textarea>
           </mat-form-field>
+
+          @if (informe()?.archivos?.length) {
+            <div class="adjuntos-readonly">
+              <div class="adjuntos-readonly__title">Archivos adjuntos</div>
+              <ul class="adjuntos-readonly__list">
+                @for (ar of informe()!.archivos!; track ar.id) {
+                  <li class="adjuntos-readonly__row">
+                    <mat-icon class="adjuntos-readonly__icon">{{
+                      esPdfAdjunto(ar.tipo ?? '') ? 'picture_as_pdf' : 'image'
+                    }}</mat-icon>
+                    <span class="adjuntos-readonly__name">{{ ar.nombre }}</span>
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      color="primary"
+                      (click)="verAdjuntoInforme(ar.id)"
+                    >
+                      Ver
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
         </form>
       } @else {
+        <input
+          #adjuntoInput
+          type="file"
+          class="adjunto-input-hidden"
+          accept="image/*,application/pdf"
+          (change)="onArchivoSeleccionado($event)"
+        />
+        <div class="adjuntos-toolbar">
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="subiendoArchivo()"
+            (click)="adjuntoInput.click()"
+          >
+            <mat-icon>attach_file</mat-icon>
+            Adjuntar archivo
+          </button>
+          @if (subiendoArchivo()) {
+            <mat-spinner class="adjuntos-toolbar__spinner" diameter="22" />
+          }
+        </div>
+        @if (adjuntos().length) {
+          <ul class="adjuntos-preview">
+            @for (a of adjuntos(); track a.id; let i = $index) {
+              <li class="adjuntos-preview__item">
+                @if (a.previewUrl) {
+                  <img [src]="a.previewUrl" alt="" class="adjuntos-preview__thumb" />
+                } @else {
+                  <mat-icon class="adjuntos-preview__doc">picture_as_pdf</mat-icon>
+                }
+                <span class="adjuntos-preview__fname">{{ a.nombre }}</span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="adjuntos-preview__remove"
+                  aria-label="Quitar adjunto"
+                  (click)="quitarAdjunto(i)"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
         <mat-button-toggle-group
           class="modo-toggle"
           [value]="modo()"

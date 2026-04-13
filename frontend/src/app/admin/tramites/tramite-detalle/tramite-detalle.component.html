@@ -174,6 +174,29 @@
                         {{ t.informe!.enviadoEn | date: 'short' }}
                       </p>
                     }
+                    @if (t.informe?.archivos?.length) {
+                      <div class="informe__adjuntos">
+                        <span class="informe__k">Adjuntos</span>
+                        <ul class="informe__archivos">
+                          @for (ar of t.informe!.archivos!; track ar.id) {
+                            <li class="informe__archivo-fila">
+                              <mat-icon class="informe__archivo-icon">{{
+                                iconoAdjunto(ar.tipo)
+                              }}</mat-icon>
+                              <span class="informe__archivo-nombre">{{ ar.nombre }}</span>
+                              <button
+                                mat-stroked-button
+                                type="button"
+                                color="primary"
+                                (click)="verAdjuntoInforme(ar.id)"
+                              >
+                                Ver
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    }
                   </mat-expansion-panel>
                 }
               </div>

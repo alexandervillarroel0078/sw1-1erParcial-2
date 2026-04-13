@@ -13,6 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -25,7 +26,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
 
-import { Informe } from '../../core/models/informe.model';
+import { ArchivoAdjunto, Informe } from '../../core/models/informe.model';
 import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { InformeService } from '../../core/services/informe.service';
@@ -33,6 +34,16 @@ import { TareaService } from '../../core/services/tarea.service';
 import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
 
 export type ModoEntrada = 'texto' | 'voz';
+
+/** Adjunto ya subido a GridFS pendiente de enviar con el informe. */
+export type AdjuntoPendiente = {
+  id: string;
+  nombre: string;
+  tipo: string;
+  tamanoBytes: number;
+  /** Solo imágenes: preview local (revocar al quitar o destruir). */
+  previewUrl?: string;
+};
 
 @Component({
   selector: 'app-reporte-actividad',
@@ -64,6 +75,7 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly informeService = inject(InformeService);
   private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthService);
+  private readonly snack = inject(MatSnackBar);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -77,6 +89,9 @@ export class ReporteActividadComponent implements OnDestroy {
   readonly lineaVoz = signal('');
   readonly speechDisponible = signal(false);
   readonly enviando = signal(false);
+  /** Archivos subidos (GridFS) asociados al informe en curso. */
+  readonly adjuntos = signal<AdjuntoPendiente[]>([]);
+  readonly subiendoArchivo = signal(false);
 
   private acumuladoFinal = '';
   /** Web Speech API — tipado laxo (webkit / prefijos) */
@@ -103,6 +118,7 @@ export class ReporteActividadComponent implements OnDestroy {
         tap(() => {
           this.cargando.set(true);
           this.informe.set(null);
+          this.limpiarAdjuntosLocales();
         }),
         takeUntilDestroyed(this.destroyRef),
         switchMap((pm) => {
@@ -189,6 +205,88 @@ export class ReporteActividadComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.detenerReconocimiento();
+    this.limpiarAdjuntosLocales();
+  }
+
+  private limpiarAdjuntosLocales(): void {
+    for (const a of this.adjuntos()) {
+      if (a.previewUrl) {
+        URL.revokeObjectURL(a.previewUrl);
+      }
+    }
+    this.adjuntos.set([]);
+  }
+
+  onArchivoSeleccionado(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    const okTipo =
+      file.type.startsWith('image/') || file.type === 'application/pdf';
+    if (!okTipo) {
+      this.snack.open('Solo imágenes o PDF', 'Cerrar', { duration: 4000 });
+      return;
+    }
+    const max = 10 * 1024 * 1024;
+    if (file.size > max) {
+      this.snack.open('El archivo supera 10 MB', 'Cerrar', { duration: 4000 });
+      return;
+    }
+    this.subiendoArchivo.set(true);
+    this.informeService.subirArchivo(file).subscribe({
+      next: (resp) => {
+        let previewUrl: string | undefined;
+        if (file.type.startsWith('image/')) {
+          previewUrl = URL.createObjectURL(file);
+        }
+        this.adjuntos.update((list) => [
+          ...list,
+          {
+            id: resp.id,
+            nombre: resp.nombre,
+            tipo: resp.tipo,
+            tamanoBytes: resp.tamanoBytes,
+            previewUrl,
+          },
+        ]);
+        this.subiendoArchivo.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.subiendoArchivo.set(false);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  quitarAdjunto(index: number): void {
+    const list = [...this.adjuntos()];
+    const [rem] = list.splice(index, 1);
+    if (rem?.previewUrl) {
+      URL.revokeObjectURL(rem.previewUrl);
+    }
+    this.adjuntos.set(list);
+    this.cdr.markForCheck();
+  }
+
+  verAdjuntoInforme(id: string): void {
+    this.informeService.verArchivoNuevaPestana(id);
+  }
+
+  private adjuntosParaInforme(): ArchivoAdjunto[] {
+    return this.adjuntos().map((a) => ({
+      id: a.id,
+      nombre: a.nombre,
+      tipo: a.tipo,
+      tamanoBytes: a.tamanoBytes,
+    }));
+  }
+
+  esPdfAdjunto(tipo: string): boolean {
+    return tipo.toLowerCase().includes('pdf');
   }
 
   volverBandeja(): void {
@@ -305,6 +403,7 @@ export class ReporteActividadComponent implements OnDestroy {
       descripcion: this.form.controls.descripcion.value || '(borrador)',
       resultado: this.form.controls.resultado.value || 'En revisión',
       observaciones: this.form.controls.observaciones.value || undefined,
+      archivos: this.adjuntosParaInforme(),
       esBorrador: true,
       creadoEn: new Date(),
     };
@@ -330,6 +429,7 @@ export class ReporteActividadComponent implements OnDestroy {
       descripcion,
       resultado,
       observaciones: observaciones?.trim() || undefined,
+      archivos: this.adjuntosParaInforme(),
       esBorrador: false,
       creadoEn: new Date(),
       enviadoEn: new Date(),
