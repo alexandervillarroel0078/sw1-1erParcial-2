@@ -11,9 +11,12 @@ cd mobile
 flutter devices
 flutter run -d R9TN8090ABJ
 
+cd ia-service
+venv\Scripts\activate
+python main.py
 
 git add .
-git commit -m "subir archivos"
+git commit -m "ia service fast api"
 git push origin main
 
 
