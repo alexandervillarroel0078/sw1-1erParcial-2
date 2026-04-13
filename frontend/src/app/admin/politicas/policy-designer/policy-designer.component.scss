@@ -863,6 +863,24 @@
   flex: 1 1 140px;
   min-width: 0;
 }
+
+.pd-chat__field--ia {
+  display: block;
+  width: 100%;
+}
+
+.pd-ia__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pd-ia__toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
 .pd-props__badge {
   display: inline-block;
   margin-bottom: 12px;

@@ -1115,44 +1115,39 @@
               Instrucciones de ejemplo: «conecta validación con aprobación», «agrega una
               actividad de revisión técnica»
             </p>
-            <div class="pd-chat__lista" role="log" aria-live="polite">
-              @for (m of chatMensajes(); track $index) {
-                <div
-                  class="pd-chat__msg"
-                  [class.pd-chat__msg--user]="m.rol === 'usuario'"
-                >
-                  {{ m.texto }}
-                </div>
-              }
-            </div>
-            <div class="pd-chat__input-row">
-              <mat-form-field appearance="outline" class="pd-chat__field">
-                <mat-label>Instrucción</mat-label>
-                <input
-                  matInput
-                  placeholder="conecta validación con aprobación"
-                  [ngModel]="chatBorrador()"
-                  (ngModelChange)="chatBorrador.set($event)"
-                  (keydown.enter)="$event.preventDefault(); chatEnviar()"
-                />
-              </mat-form-field>
+            <mat-form-field appearance="outline" class="pd-chat__field pd-chat__field--ia">
+              <mat-label>Instrucción</mat-label>
+              <textarea
+                matInput
+                rows="6"
+                [ngModel]="iaInstruccion()"
+                (ngModelChange)="iaInstruccion.set($event)"
+                placeholder="Ej: agrega una decisión después de validación con ramas aprobado y rechazado"
+              ></textarea>
+            </mat-form-field>
+            <div class="pd-ia__toolbar">
               <button
                 mat-icon-button
                 type="button"
-                [color]="escuchandoVoz() ? 'warn' : undefined"
-                [attr.aria-pressed]="escuchandoVoz()"
-                aria-label="Dictar"
-                (click)="alternarMicrofono()"
+                [color]="iaEscuchandoVoz() ? 'warn' : undefined"
+                [attr.aria-pressed]="iaEscuchandoVoz()"
+                aria-label="Dictar instrucción"
+                (click)="iaAlternarMicrofono()"
               >
-                <mat-icon>{{ escuchandoVoz() ? 'mic' : 'mic_none' }}</mat-icon>
+                <mat-icon>{{ iaEscuchandoVoz() ? 'mic' : 'mic_none' }}</mat-icon>
               </button>
+              @if (iaEnviando()) {
+                <mat-spinner diameter="24" aria-label="Enviando a IA" />
+              }
+              <span class="pd-ia__toolbar-spacer" aria-hidden="true"></span>
               <button
-                mat-flat-button
+                mat-raised-button
                 color="primary"
                 type="button"
-                (click)="chatEnviar()"
+                [disabled]="iaEnviando()"
+                (click)="aplicarIaDiagrama()"
               >
-                Enviar
+                ✨ Aplicar con IA
               </button>
             </div>
             </div>

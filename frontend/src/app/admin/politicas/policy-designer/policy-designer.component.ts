@@ -28,7 +28,8 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatCheckboxChange, MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
-import { map, switchMap, take } from 'rxjs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { finalize, map, switchMap, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import type {
@@ -45,6 +46,7 @@ import {
 import type { Departamento } from '../../../core/models/departamento.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { PoliticaService } from '../../../core/services/politica.service';
+import { IaService } from '../../../core/services/ia.service';
 import type {
   AristaCanvas,
   CalleCanvas,
@@ -222,6 +224,16 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
   };
 }
 
+function mapCanvasToArista(a: AristaCanvas): Arista {
+  return {
+    id: a.id,
+    desdeNodoId: a.desdeNodoId,
+    haciaNodoId: a.haciaNodoId,
+    etiqueta: a.etiqueta,
+    haciaPuerto: a.haciaPuerto,
+  };
+}
+
 type WizardFlujo = 'directo' | 'paralelo' | 'existente' | 'fin';
 type WizardNoModo = 'actividad' | 'fin' | 'bucle';
 
@@ -233,6 +245,7 @@ type RamaDecisionPanelItem = {
 
 type RecVoz = {
   lang: string;
+  continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
   onresult: ((ev: { results: SpeechRecognitionResultList }) => void) | null;
@@ -260,6 +273,7 @@ type RecVoz = {
     MatRadioModule,
     MatCheckboxModule,
     MatChipsModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './policy-designer.component.html',
   styleUrl: './policy-designer.component.scss',
@@ -270,6 +284,7 @@ export class PolicyDesignerComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly politicaService = inject(PoliticaService);
   private readonly departamentoService = inject(DepartamentoService);
+  private readonly iaService = inject(IaService);
   private readonly snack = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -523,12 +538,10 @@ export class PolicyDesignerComponent implements OnInit {
   readonly wizardNoNombre = signal('');
   readonly wizardNoDepto = signal('');
 
-  readonly chatMensajes = signal<{ rol: 'usuario' | 'asistente'; texto: string }[]>(
-    [],
-  );
-  readonly chatBorrador = signal('');
-  private reconocimiento: { stop: () => void } | null = null;
-  readonly escuchandoVoz = signal(false);
+  readonly iaInstruccion = signal('');
+  readonly iaEnviando = signal(false);
+  private iaReconocimiento: { stop: () => void } | null = null;
+  readonly iaEscuchandoVoz = signal(false);
 
   readonly actividadesParaEnlace = computed(() => {
     const origenId = this.seleccionId();
@@ -619,7 +632,7 @@ export class PolicyDesignerComponent implements OnInit {
     });
 
     this.destroyRef.onDestroy(() => {
-      this.detenerReconocimientoVoz();
+      this.detenerIaReconocimiento();
       if (this.resaltarTimer) {
         clearTimeout(this.resaltarTimer);
         this.resaltarTimer = null;
@@ -1954,23 +1967,58 @@ export class PolicyDesignerComponent implements OnInit {
     });
   }
 
-  chatEnviar(): void {
-    const t = this.chatBorrador().trim();
-    if (!t) return;
-    this.chatMensajes.update((m) => [...m, { rol: 'usuario', texto: t }]);
-    this.chatBorrador.set('');
-    this.chatMensajes.update((m) => [
-      ...m,
-      {
-        rol: 'asistente',
-        texto: `Procesando: ${t}...`,
-      },
-    ]);
+  aplicarIaDiagrama(): void {
+    const instruccion = this.iaInstruccion().trim();
+    if (!instruccion || this.iaEnviando()) return;
+    this.iaEnviando.set(true);
+    const nodosCanvas = this.nodos();
+    const aristasCanvas = this.aristas();
+    const nodosPayload = nodosCanvas.map(mapCanvasToNodo);
+    const aristasPayload = aristasCanvas.map(mapCanvasToArista);
+    const req$ =
+      nodosCanvas.length > 0
+        ? this.iaService.editarDiagrama(
+            instruccion,
+            nodosPayload,
+            aristasPayload,
+          )
+        : this.iaService.generarDiagrama(instruccion);
+    req$
+      .pipe(
+        take(1),
+        finalize(() => this.iaEnviando.set(false)),
+      )
+      .subscribe({
+        next: (resp) => {
+          const nodosIa = Array.isArray(resp.nodos) ? resp.nodos : [];
+          const aristasIa = Array.isArray(resp.aristas) ? resp.aristas : [];
+          const mappedNodos = nodosIa.map((raw) =>
+            this.mapearNodoIaDesdeApi(raw as Record<string, unknown>),
+          );
+          const mappedAristas = aristasIa.map((raw) =>
+            this.mapearAristaIaDesdeApi(raw as Record<string, unknown>),
+          );
+          this.pushSnapshot();
+          this.nodos.set(mappedNodos);
+          this.aristas.set(mappedAristas);
+          this.sincronizarCallesEnActividades();
+          this.syncHistorialFlags();
+          this.centrarVista();
+          this.snack.open('✨ Diagrama actualizado con IA', 'Cerrar', {
+            duration: 3200,
+          });
+        },
+        error: () => {
+          this.snack.open('Error al conectar con el asistente IA', 'Cerrar', {
+            duration: 4000,
+          });
+        },
+      });
   }
 
-  alternarMicrofono(): void {
-    if (this.escuchandoVoz()) {
-      this.detenerReconocimientoVoz();
+  iaAlternarMicrofono(): void {
+    if (this.iaEscuchandoVoz()) {
+      this.detenerIaReconocimiento();
       return;
     }
     const W = globalThis as unknown as {
@@ -1987,36 +2035,92 @@ export class PolicyDesignerComponent implements OnInit {
     try {
       const rec = new SR();
       rec.lang = 'es-ES';
+      rec.continuous = false;
       rec.interimResults = false;
       rec.maxAlternatives = 1;
       rec.onresult = (ev) => {
         const tx = ev.results[0]?.[0]?.transcript?.trim() ?? '';
         if (tx) {
-          this.chatBorrador.update((b) => (b ? `${b} ${tx}` : tx));
+          this.iaInstruccion.update((b) => (b ? `${b} ${tx}` : tx));
         }
-        this.detenerReconocimientoVoz();
+        this.detenerIaReconocimiento();
       };
-      rec.onerror = () => this.detenerReconocimientoVoz();
-      rec.onend = () => this.escuchandoVoz.set(false);
-      this.reconocimiento = rec;
-      this.escuchandoVoz.set(true);
+      rec.onerror = () => this.detenerIaReconocimiento();
+      rec.onend = () => this.iaEscuchandoVoz.set(false);
+      this.iaReconocimiento = rec;
+      this.iaEscuchandoVoz.set(true);
       rec.start();
     } catch {
       this.snack.open('No se pudo iniciar el micrófono', 'Cerrar', {
         duration: 3000,
       });
-      this.escuchandoVoz.set(false);
+      this.iaEscuchandoVoz.set(false);
     }
   }
 
-  private detenerReconocimientoVoz(): void {
+  private detenerIaReconocimiento(): void {
     try {
-      this.reconocimiento?.stop();
+      this.iaReconocimiento?.stop();
     } catch {
       /* ignore */
     }
-    this.reconocimiento = null;
-    this.escuchandoVoz.set(false);
+    this.iaReconocimiento = null;
+    this.iaEscuchandoVoz.set(false);
+  }
+
+  private mapearNodoIaDesdeApi(raw: Record<string, unknown>): NodoCanvas {
+    const x = Number(raw['posicionX'] ?? raw['x'] ?? 100);
+    const y = Number(raw['posicionY'] ?? raw['y'] ?? 100);
+    const tipo = normalizeNodoTipo(String(raw['tipo'] ?? 'ACTIVIDAD'));
+    const id = String(raw['id'] ?? `nd-${uuid()}`);
+    const etiqueta = String(raw['etiqueta'] ?? '');
+    const slaRaw = raw['slaMinutos'];
+    const slaNum =
+      slaRaw === null || slaRaw === undefined || slaRaw === ''
+        ? undefined
+        : Number(slaRaw);
+    const deptNombreRaw = raw['departamento'];
+    const deptNombre =
+      deptNombreRaw != null && String(deptNombreRaw).trim() !== ''
+        ? String(deptNombreRaw).trim()
+        : '';
+    const n: NodoCanvas = {
+      id,
+      tipo,
+      etiqueta,
+      x: Number.isFinite(x) ? x : 100,
+      y: Number.isFinite(y) ? y : 100,
+    };
+    if (tipo === 'ACTIVIDAD' && Number.isFinite(slaNum as number)) {
+      n.slaMinutos = slaNum as number;
+    }
+    if (tipo === 'ACTIVIDAD' && deptNombre) {
+      const d = this.departamentosLista().find(
+        (dep) =>
+          dep.nombre?.trim().toLowerCase() === deptNombre.toLowerCase(),
+      );
+      if (d?.id) {
+        n.departamento = d.id;
+        n.departamentoTexto = d.nombre;
+        const calle = this.calles().find((c) => c.departamentoId === d.id);
+        if (calle) n.calleId = calle.id;
+      } else {
+        n.departamentoTexto = deptNombre;
+      }
+    }
+    return n;
+  }
+
+  private mapearAristaIaDesdeApi(raw: Record<string, unknown>): AristaCanvas {
+    return {
+      id: String(raw['id'] ?? `ar-${uuid()}`),
+      desdeNodoId: String(raw['desdeNodoId'] ?? ''),
+      haciaNodoId: String(raw['haciaNodoId'] ?? ''),
+      etiqueta:
+        raw['etiqueta'] != null && String(raw['etiqueta']).trim() !== ''
+          ? String(raw['etiqueta'])
+          : undefined,
+    };
   }
 
   private hidratarPolitica(idRuta: string, p: Politica): void {
