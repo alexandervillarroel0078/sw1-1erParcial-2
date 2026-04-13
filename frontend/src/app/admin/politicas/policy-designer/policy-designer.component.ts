@@ -1995,6 +1995,18 @@ export class PolicyDesignerComponent implements OnInit {
           let mappedNodos = nodosIa.map((raw) =>
             this.mapearNodoIaDesdeApi(raw as Record<string, unknown>),
           );
+          const dptosUnicos = [
+            ...new Set(
+              mappedNodos
+                .map((n) => n.departamento?.trim())
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ];
+          for (const deptId of dptosUnicos) {
+            if (this.calles().some((c) => c.departamentoId === deptId)) continue;
+            const d = this.departamentosLista().find((x) => x.id === deptId);
+            if (d) this.agregarCalleDesdeDepartamento(d);
+          }
           mappedNodos = this.reposicionarNodosIaEnCalles(mappedNodos);
           const mappedAristas = aristasIa.map((raw) =>
             this.mapearAristaIaDesdeApi(raw as Record<string, unknown>),
