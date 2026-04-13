@@ -76,6 +76,8 @@ FORMATO DE RESPUESTA (JSON exacto):
 
 REGLAS IMPORTANTES:
 - Siempre START al inicio y END al final
+- Si hay varias ramas que terminan el flujo, cada rama debe tener su propio
+  nodo END separado con IDs diferentes (n_end1, n_end2, etc.)
 - DECISION solo tiene aristas Sí y No — nada más
 - FORK_BAR siempre seguido de JOIN_BAR
 - Posiciones X de izquierda a derecha (flujo horizontal)

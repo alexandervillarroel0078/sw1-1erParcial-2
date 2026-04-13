@@ -1992,9 +1992,10 @@ export class PolicyDesignerComponent implements OnInit {
         next: (resp) => {
           const nodosIa = Array.isArray(resp.nodos) ? resp.nodos : [];
           const aristasIa = Array.isArray(resp.aristas) ? resp.aristas : [];
-          const mappedNodos = nodosIa.map((raw) =>
+          let mappedNodos = nodosIa.map((raw) =>
             this.mapearNodoIaDesdeApi(raw as Record<string, unknown>),
           );
+          mappedNodos = this.reposicionarNodosIaEnCalles(mappedNodos);
           const mappedAristas = aristasIa.map((raw) =>
             this.mapearAristaIaDesdeApi(raw as Record<string, unknown>),
           );
@@ -2121,6 +2122,46 @@ export class PolicyDesignerComponent implements OnInit {
           ? String(raw['etiqueta'])
           : undefined,
     };
+  }
+
+  /**
+   * Tras importar nodos desde la IA, centra en X cada nodo con departamento
+   * en la calle correspondiente (misma Y).
+   */
+  private reposicionarNodosIaEnCalles(nodos: NodoCanvas[]): NodoCanvas[] {
+    if (!this.calles().length) return nodos;
+
+    if (this.orientacionCalles() === 'VERTICAL') {
+      const vl = this.swimVerticalLayout();
+      if (!vl?.items.length) return nodos;
+      return nodos.map((n) => {
+        const deptId = n.departamento?.trim();
+        if (!deptId) return n;
+        const item =
+          (n.calleId
+            ? vl.items.find((it) => it.calle.id === n.calleId)
+            : undefined) ??
+          vl.items.find((it) => it.calle.departamentoId === deptId);
+        if (!item) return n;
+        const cx = item.x0 + item.w / 2;
+        return { ...n, x: cx, y: n.y };
+      });
+    }
+
+    const hl = this.swimHorizontalLayout();
+    if (!hl?.items.length) return nodos;
+    const centerX = SWIM_ORIGIN_X + SWIM_LABEL_H + SWIM_HORIZ_CONTENT_W / 2;
+    return nodos.map((n) => {
+      const deptId = n.departamento?.trim();
+      if (!deptId) return n;
+      const item =
+        (n.calleId
+          ? hl.items.find((it) => it.calle.id === n.calleId)
+          : undefined) ??
+        hl.items.find((it) => it.calle.departamentoId === deptId);
+      if (!item) return n;
+      return { ...n, x: centerX, y: n.y };
+    });
   }
 
   private hidratarPolitica(idRuta: string, p: Politica): void {
