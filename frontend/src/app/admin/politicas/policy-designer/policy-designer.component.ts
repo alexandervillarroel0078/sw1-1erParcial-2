@@ -2007,10 +2007,10 @@ export class PolicyDesignerComponent implements OnInit {
             const d = this.departamentosLista().find((x) => x.id === deptId);
             if (d) this.agregarCalleDesdeDepartamento(d);
           }
-          mappedNodos = this.reposicionarNodosIaEnCalles(mappedNodos);
           const mappedAristas = aristasIa.map((raw) =>
             this.mapearAristaIaDesdeApi(raw as Record<string, unknown>),
           );
+          mappedNodos = this.reposicionarNodosIaEnCalles(mappedNodos, mappedAristas);
           this.pushSnapshot();
           this.nodos.set(mappedNodos);
           this.aristas.set(mappedAristas);
@@ -2137,43 +2137,170 @@ export class PolicyDesignerComponent implements OnInit {
   }
 
   /**
-   * Tras importar nodos desde la IA, centra en X cada nodo con departamento
-   * en la calle correspondiente (misma Y).
+   * Tras importar nodos desde la IA: reparte actividades por calle (vertical),
+   * luego coloca START, END y DECISION según el diagrama y las aristas.
    */
-  private reposicionarNodosIaEnCalles(nodos: NodoCanvas[]): NodoCanvas[] {
+  private reposicionarNodosIaEnCalles(
+    nodos: NodoCanvas[],
+    aristas: AristaCanvas[],
+  ): NodoCanvas[] {
+    const IA_LANE_Y0 = 150;
+    const IA_LANE_GAP = 80;
+
     if (!this.calles().length) return nodos;
+
+    const out = nodos.map((n) => ({ ...n }));
+    const byId = new Map(out.map((n) => [n.id, n]));
+
+    const findVerticalItem = (
+      n: NodoCanvas,
+      vl: NonNullable<ReturnType<PolicyDesignerComponent['swimVerticalLayout']>>,
+    ) => {
+      const deptId = n.departamento?.trim();
+      if (!deptId) return null;
+      return (
+        (n.calleId
+          ? vl.items.find((it) => it.calle.id === n.calleId)
+          : undefined) ??
+        vl.items.find((it) => it.calle.departamentoId === deptId) ??
+        null
+      );
+    };
 
     if (this.orientacionCalles() === 'VERTICAL') {
       const vl = this.swimVerticalLayout();
       if (!vl?.items.length) return nodos;
-      return nodos.map((n) => {
-        const deptId = n.departamento?.trim();
-        if (!deptId) return n;
-        const item =
-          (n.calleId
-            ? vl.items.find((it) => it.calle.id === n.calleId)
-            : undefined) ??
-          vl.items.find((it) => it.calle.departamentoId === deptId);
-        if (!item) return n;
+
+      for (const item of vl.items) {
+        const laneDept = item.calle.departamentoId?.trim();
+        if (!laneDept) continue;
+        const list = out.filter((n) => {
+          const d = n.departamento?.trim();
+          if (!d) return false;
+          return d === laneDept || n.calleId === item.calle.id;
+        });
+        list.sort(
+          (a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id),
+        );
+        let y = IA_LANE_Y0;
         const cx = item.x0 + item.w / 2;
-        return { ...n, x: cx, y: n.y };
-      });
+        for (const n of list) {
+          const cur = byId.get(n.id);
+          if (!cur) continue;
+          cur.x = cx;
+          cur.y = y;
+          y += IA_LANE_GAP;
+        }
+      }
+
+      const placedYs = out
+        .filter((n) => n.tipo !== 'START')
+        .map((n) => n.y);
+      const avgY =
+        placedYs.length > 0
+          ? placedYs.reduce((a, b) => a + b, 0) / placedYs.length
+          : IA_LANE_Y0;
+
+      for (const n of out) {
+        if (n.tipo === 'START') {
+          n.x = 50;
+          n.y = avgY;
+        }
+      }
+
+      const endX = vl.rightX + 100;
+      for (const n of out) {
+        if (n.tipo !== 'END') continue;
+        const incoming = aristas.find((a) => a.haciaNodoId === n.id);
+        const src = incoming ? byId.get(incoming.desdeNodoId) : undefined;
+        n.x = endX;
+        n.y = src?.y ?? avgY;
+      }
+
+      for (const n of out) {
+        if (n.tipo !== 'DECISION') continue;
+        const neighborIds = new Set<string>();
+        for (const a of aristas) {
+          if (a.desdeNodoId === n.id) neighborIds.add(a.haciaNodoId);
+          if (a.haciaNodoId === n.id) neighborIds.add(a.desdeNodoId);
+        }
+        const neighbors = [...neighborIds]
+          .map((id) => byId.get(id))
+          .filter((x): x is NodoCanvas => !!x);
+        if (!neighbors.length) continue;
+        const xs: number[] = [];
+        for (const nb of neighbors) {
+          const it = findVerticalItem(nb, vl);
+          xs.push(it ? it.x0 + it.w / 2 : nb.x);
+        }
+        n.x = (Math.min(...xs) + Math.max(...xs)) / 2;
+        n.y = neighbors.reduce((s, nb) => s + nb.y, 0) / neighbors.length;
+      }
+
+      return out;
     }
 
     const hl = this.swimHorizontalLayout();
     if (!hl?.items.length) return nodos;
     const centerX = SWIM_ORIGIN_X + SWIM_LABEL_H + SWIM_HORIZ_CONTENT_W / 2;
-    return nodos.map((n) => {
-      const deptId = n.departamento?.trim();
-      if (!deptId) return n;
-      const item =
-        (n.calleId
-          ? hl.items.find((it) => it.calle.id === n.calleId)
-          : undefined) ??
-        hl.items.find((it) => it.calle.departamentoId === deptId);
-      if (!item) return n;
-      return { ...n, x: centerX, y: n.y };
-    });
+    const horizOut = nodos.map((n) => ({ ...n }));
+    const horizById = new Map(horizOut.map((n) => [n.id, n]));
+    for (const item of hl.items) {
+      const laneDept = item.calle.departamentoId?.trim();
+      if (!laneDept) continue;
+      const list = horizOut.filter((n) => {
+        const d = n.departamento?.trim();
+        if (!d) return false;
+        return d === laneDept || n.calleId === item.calle.id;
+      });
+      list.sort(
+        (a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id),
+      );
+      let y = IA_LANE_Y0;
+      for (const n of list) {
+        const cur = horizById.get(n.id);
+        if (!cur) continue;
+        cur.x = centerX;
+        cur.y = y;
+        y += IA_LANE_GAP;
+      }
+    }
+    const hPlacedYs = horizOut
+      .filter((n) => n.tipo !== 'START')
+      .map((n) => n.y);
+    const hAvgY =
+      hPlacedYs.length > 0
+        ? hPlacedYs.reduce((a, b) => a + b, 0) / hPlacedYs.length
+        : IA_LANE_Y0;
+    for (const n of horizOut) {
+      if (n.tipo === 'START') {
+        n.x = 50;
+        n.y = hAvgY;
+      }
+    }
+    const endXH = SWIM_ORIGIN_X + SWIM_LABEL_H + SWIM_HORIZ_CONTENT_W + 100;
+    for (const n of horizOut) {
+      if (n.tipo !== 'END') continue;
+      const incoming = aristas.find((a) => a.haciaNodoId === n.id);
+      const src = incoming ? horizById.get(incoming.desdeNodoId) : undefined;
+      n.x = endXH;
+      n.y = src?.y ?? hAvgY;
+    }
+    for (const n of horizOut) {
+      if (n.tipo !== 'DECISION') continue;
+      const neighborIds = new Set<string>();
+      for (const a of aristas) {
+        if (a.desdeNodoId === n.id) neighborIds.add(a.haciaNodoId);
+        if (a.haciaNodoId === n.id) neighborIds.add(a.desdeNodoId);
+      }
+      const neighbors = [...neighborIds]
+        .map((id) => horizById.get(id))
+        .filter((x): x is NodoCanvas => !!x);
+      if (!neighbors.length) continue;
+      n.x = neighbors.reduce((s, nb) => s + nb.x, 0) / neighbors.length;
+      n.y = neighbors.reduce((s, nb) => s + nb.y, 0) / neighbors.length;
+    }
+    return horizOut;
   }
 
   private hidratarPolitica(idRuta: string, p: Politica): void {
