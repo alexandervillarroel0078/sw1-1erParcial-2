@@ -228,6 +228,39 @@
           >
             <circle cx="2" cy="2" r="1.2" class="pd-grid-dot" />
           </pattern>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker
+            id="arrowhead-si"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32" />
+          </marker>
+          <marker
+            id="arrowhead-no"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#c62828" />
+          </marker>
         </defs>
         <g
           #viewportG
@@ -421,6 +454,7 @@
                 fill="none"
                 pointer-events="none"
                 [attr.d]="pathArista(ar)"
+                [attr.marker-end]="markerEndArista(ar)"
               />
               @if (bg) {
                 <g

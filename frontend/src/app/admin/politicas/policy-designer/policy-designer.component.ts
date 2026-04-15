@@ -707,6 +707,24 @@ export class PolicyDesignerComponent implements OnInit {
     return pathBezierEntreNodos(a, b, ar.haciaPuerto);
   }
 
+  markerEndArista(ar: AristaCanvas): string {
+    if (!this.esAristaDesdeDecision(ar)) {
+      return 'url(#arrowhead)';
+    }
+    const t = (ar.etiqueta ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+    if (t === 'si' || t === 'yes') {
+      return 'url(#arrowhead-si)';
+    }
+    if (t === 'no') {
+      return 'url(#arrowhead-no)';
+    }
+    return 'url(#arrowhead)';
+  }
+
   nodoPorId(id: string): NodoCanvas | undefined {
     return this.nodos().find((n) => n.id === id);
   }
