@@ -821,6 +821,8 @@
           class="pd-asistente-tabs"
           [selectedIndex]="asistenteTabIndex()"
           (selectedIndexChange)="asistenteTabIndex.set($event)"
+          [disablePagination]="true"
+          mat-stretch-tabs="true"
           animationDuration="200ms"
         >
           <mat-tab label="Flujo asistido">

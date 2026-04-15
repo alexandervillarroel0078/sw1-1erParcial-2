@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "ia service fast api conectado a spring boot"
+git commit -m "flujo asistenci e ia "
 git push origin main
 
 
