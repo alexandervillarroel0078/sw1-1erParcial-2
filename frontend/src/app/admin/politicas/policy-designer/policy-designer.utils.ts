@@ -93,11 +93,26 @@ export function pathBezierEntreNodos(
 ): string {
   const a = puertoMundo(desde, 'out');
   const b = puntoEntradaHacia(hacia, haciaPuerto);
-  const dx = Math.max(80, Math.abs(b.x - a.x) * 0.45);
-  return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y} ${b.x - dx} ${b.y} ${b.x} ${b.y}`;
+  const { x: x1, y: y1 } = a;
+  const { x: x2, y: y2 } = b;
+
+  // Mismo nivel: segmento horizontal directo.
+  if (y1 === y2) {
+    return `M ${x1} ${y1} H ${x2}`;
+  }
+
+  // Flujo hacia derecha: H -> V -> H (forma Z/S).
+  if (x2 > x1) {
+    const midX = (x1 + x2) / 2;
+    return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+  }
+
+  // Flujo hacia izquierda / loop: V -> H -> V.
+  const midY = (y1 + y2) / 2;
+  return `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
 }
 
-/** t = 0.5 sobre la misma curva cúbica que {@link pathBezierEntreNodos}. */
+/** Punto medio geométrico sobre la polilínea ortogonal de la arista. */
 export function puntoMedioBezierArista(
   desde: NodoCanvas,
   hacia: NodoCanvas,
@@ -105,24 +120,45 @@ export function puntoMedioBezierArista(
 ): { x: number; y: number } {
   const a = puertoMundo(desde, 'out');
   const b = puntoEntradaHacia(hacia, haciaPuerto);
-  const dx = Math.max(80, Math.abs(b.x - a.x) * 0.45);
-  const p0 = { x: a.x, y: a.y };
-  const p1 = { x: a.x + dx, y: a.y };
-  const p2 = { x: b.x - dx, y: b.y };
-  const p3 = { x: b.x, y: b.y };
-  const t = 0.5;
-  const mt = 1 - t;
-  const x =
-    mt * mt * mt * p0.x +
-    3 * mt * mt * t * p1.x +
-    3 * mt * t * t * p2.x +
-    t * t * t * p3.x;
-  const y =
-    mt * mt * mt * p0.y +
-    3 * mt * mt * t * p1.y +
-    3 * mt * t * t * p2.y +
-    t * t * t * p3.y;
-  return { x, y };
+  const { x: x1, y: y1 } = a;
+  const { x: x2, y: y2 } = b;
+
+  const puntos: { x: number; y: number }[] = [{ x: x1, y: y1 }];
+  if (y1 === y2) {
+    puntos.push({ x: x2, y: y2 });
+  } else if (x2 > x1) {
+    const midX = (x1 + x2) / 2;
+    puntos.push({ x: midX, y: y1 }, { x: midX, y: y2 }, { x: x2, y: y2 });
+  } else {
+    const midY = (y1 + y2) / 2;
+    puntos.push({ x: x1, y: midY }, { x: x2, y: midY }, { x: x2, y: y2 });
+  }
+
+  const segs: { a: { x: number; y: number }; b: { x: number; y: number }; len: number }[] = [];
+  let total = 0;
+  for (let i = 0; i < puntos.length - 1; i++) {
+    const pa = puntos[i];
+    const pb = puntos[i + 1];
+    const len = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+    segs.push({ a: pa, b: pb, len });
+    total += len;
+  }
+  if (total <= 0) return { x: x1, y: y1 };
+
+  const half = total / 2;
+  let acc = 0;
+  for (const s of segs) {
+    if (acc + s.len >= half) {
+      const t = s.len > 0 ? (half - acc) / s.len : 0;
+      return {
+        x: s.a.x + (s.b.x - s.a.x) * t,
+        y: s.a.y + (s.b.y - s.a.y) * t,
+      };
+    }
+    acc += s.len;
+  }
+  const last = puntos[puntos.length - 1];
+  return { x: last.x, y: last.y };
 }
 
 export function snapshotFrom(
