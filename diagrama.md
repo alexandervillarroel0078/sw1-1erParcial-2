@@ -19,7 +19,50 @@ git add .
 git commit -m "flujo asistenci e ia "
 git push origin main
 
+🏦 Política: "Solicitud de Crédito Empresarial"
+Departamentos
 
+Atención al Cliente
+Validación Técnica
+Legal
+Riesgos
+Dirección
+[INICIO] → Atención al Cliente
+  │
+  ▼
+[Recepción de solicitud] → Atención al Cliente
+  │
+  ▼
+[Verificación de datos] → Validación Técnica
+  │
+  ▼
+◇ ¿Datos completos?
+  │ No → [Notificar al cliente] → Atención al Cliente → (vuelve a Verificación) ← ITERATIVO
+  │ Sí
+  ▼
+<+> FORK (Paralelo)
+  ├→ [Análisis legal] → Legal
+  ├→ [Evaluación de riesgo] → Riesgos
+  └→ [Revisión de historial] → Validación Técnica
+<+> JOIN
+  │
+  ▼
+◇ ¿Monto > $50,000?        ← ALTERNATIVO
+  │ Sí → [Aprobación Dirección] → Dirección
+  │ No → [Aprobación Riesgos] → Riesgos
+  │ (ambos convergen)
+  ▼
+◇ ¿Aprobado?
+  │ No → [Notificar rechazo] → Atención al Cliente → [FIN]
+  │ Sí
+  ▼
+[Generación de contrato] → Legal
+  │
+  ▼
+[Firma y desembolso] → Dirección
+  │
+  ▼
+[FIN]
 
 
 Es especialmente útil para visualizar procesos de negocio, flujos de trabajo (workflows) o la lógica de un algoritmo complejo.

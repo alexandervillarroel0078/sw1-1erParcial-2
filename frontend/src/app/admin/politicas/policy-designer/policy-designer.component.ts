@@ -1548,6 +1548,15 @@ export class PolicyDesignerComponent implements OnInit {
   eliminarNodoSeleccionado(): void {
     const n = this.nodoSeleccionado();
     if (!n || n.tipo === 'START') return;
+    if (n.tipo === 'END') {
+      const cantFin = this.nodos().filter((x) => x.tipo === 'END').length;
+      if (cantFin <= 1) {
+        this.snack.open('Debe existir al menos un nodo de fin', 'Cerrar', {
+          duration: 3000,
+        });
+        return;
+      }
+    }
     this.pushSnapshot();
     const id = n.id;
     this.nodos.update((arr) => arr.filter((x) => x.id !== id));

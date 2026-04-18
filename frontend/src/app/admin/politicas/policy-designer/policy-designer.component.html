@@ -863,6 +863,15 @@
               }
               @case ('END') {
                 <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  type="button"
+                  class="pd-props__delete"
+                  (click)="eliminarNodoSeleccionado()"
+                >
+                  Eliminar nodo
+                </button>
               }
               @case ('FORK_BAR') {
                 <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
