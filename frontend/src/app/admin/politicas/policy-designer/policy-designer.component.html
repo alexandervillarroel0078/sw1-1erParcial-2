@@ -528,24 +528,32 @@
                       />
                     }
                     @case ('FORK_BAR') {
-                      <rect
-                        x="-60"
-                        y="-10"
-                        width="120"
-                        height="20"
-                        rx="3"
-                        class="pd-shape pd-shape--bar"
+                      <polygon
+                        points="0,-40 40,0 0,40 -40,0"
+                        class="pd-shape pd-shape--parallel-gateway"
                       />
+                      <text
+                        class="pd-parallel-plus"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        pointer-events="none"
+                      >
+                        +
+                      </text>
                     }
                     @case ('JOIN_BAR') {
-                      <rect
-                        x="-60"
-                        y="-10"
-                        width="120"
-                        height="20"
-                        rx="3"
-                        class="pd-shape pd-shape--bar"
+                      <polygon
+                        points="0,-40 40,0 0,40 -40,0"
+                        class="pd-shape pd-shape--parallel-gateway"
                       />
+                      <text
+                        class="pd-parallel-plus"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        pointer-events="none"
+                      >
+                        +
+                      </text>
                     }
                   }
                   @if (n.tipo === 'ACTIVIDAD') {
@@ -561,6 +569,19 @@
                         <div class="pd-fo-act-inner">{{ n.etiqueta }}</div>
                       </div>
                     </foreignObject>
+                  } @else if (n.tipo === 'FORK_BAR' || n.tipo === 'JOIN_BAR') {
+                    <text
+                      class="pd-node-label pd-node-label--parallel"
+                      text-anchor="middle"
+                      y="56"
+                      pointer-events="none"
+                    >
+                      {{
+                        n.etiqueta.length > 18
+                          ? n.etiqueta.slice(0, 16) + '…'
+                          : n.etiqueta
+                      }}
+                    </text>
                   } @else {
                     <text
                       class="pd-node-label"
