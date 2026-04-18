@@ -100,6 +100,26 @@ function itemToCampoFormulario(item: CampoFormularioItem): CampoFormulario {
   } as CampoFormulario;
 }
 
+/** Cuando el GET del formulario responde 404 (aún no guardado en BD). */
+function camposInicialesPor404(): CampoFormularioItem[] {
+  return [
+    {
+      id: `cf-${uuid()}`,
+      nombre: 'Descripción del trabajo',
+      tipo: 'texto_largo',
+      obligatorio: true,
+      orden: 0,
+    },
+    {
+      id: `cf-${uuid()}`,
+      nombre: 'Observaciones',
+      tipo: 'texto_largo',
+      obligatorio: false,
+      orden: 1,
+    },
+  ];
+}
+
 @Component({
   selector: 'app-formulario-designer',
   standalone: true,
@@ -184,11 +204,13 @@ export class FormularioDesignerComponent {
           this.departamentoNombre.set(dep?.nombre ?? 'Sin departamento');
         });
         const items =
-          form?.campos?.length && form.campos.length > 0
-            ? [...form.campos]
-                .sort((a, b) => a.orden - b.orden)
-                .map((c) => campoApiToItem(c))
-            : [];
+          form == null
+            ? camposInicialesPor404()
+            : form.campos?.length && form.campos.length > 0
+              ? [...form.campos]
+                  .sort((a, b) => a.orden - b.orden)
+                  .map((c) => campoApiToItem(c))
+              : [];
         this.campos.set(items);
       });
   }

@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "flujo asistenci e ia "
+git commit -m "formulario"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"
