@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
@@ -19,6 +20,10 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { map, switchMap, take } from 'rxjs';
+import type {
+  CampoFormulario,
+  FormularioActividad,
+} from '../../../core/models/nodo.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { PoliticaService } from '../../../core/services/politica.service';
 import type {
@@ -44,31 +49,55 @@ function nombreDefaultPorTipo(t: CampoFormularioTipo): string {
   return mapa[t];
 }
 
-function camposMockIniciales(): CampoFormularioItem[] {
-  return [
-    {
-      id: `cf-${uuid()}`,
-      nombre: 'Descripción del trabajo',
-      tipo: 'texto_largo',
-      obligatorio: true,
-      orden: 0,
-    },
-    {
-      id: `cf-${uuid()}`,
-      nombre: 'Resultado',
-      tipo: 'select',
-      obligatorio: true,
-      orden: 1,
-      opcionesSelect: ['Aprobado', 'Rechazado', 'En revisión'],
-    },
-    {
-      id: `cf-${uuid()}`,
-      nombre: 'Observaciones',
-      tipo: 'texto_largo',
-      obligatorio: false,
-      orden: 2,
-    },
-  ];
+/** Nombres de enum `TipoCampo` del API Java en JSON. */
+const TIPO_API_A_ITEM: Record<string, CampoFormularioTipo> = {
+  TEXTO_CORTO: 'texto_corto',
+  TEXTO_LARGO: 'texto_largo',
+  SELECT: 'select',
+  IMAGEN: 'imagen',
+  ARCHIVO: 'archivo',
+  CHECKBOX: 'checkbox',
+  FECHA: 'fecha',
+};
+
+const TIPO_ITEM_A_API: Record<CampoFormularioTipo, string> = {
+  texto_corto: 'TEXTO_CORTO',
+  texto_largo: 'TEXTO_LARGO',
+  select: 'SELECT',
+  imagen: 'IMAGEN',
+  archivo: 'ARCHIVO',
+  checkbox: 'CHECKBOX',
+  fecha: 'FECHA',
+};
+
+function campoApiToItem(c: CampoFormulario): CampoFormularioItem {
+  const raw = String(c.tipo);
+  const tipo = TIPO_API_A_ITEM[raw] ?? 'texto_corto';
+  const opciones = c.opciones;
+  const opcionesSelect =
+    tipo === 'select' && Array.isArray(opciones)
+      ? opciones.map((x) => String(x))
+      : undefined;
+  return {
+    id: c.id?.trim() ? c.id : `cf-${uuid()}`,
+    nombre: c.etiqueta ?? '',
+    tipo,
+    obligatorio: !!c.obligatorio,
+    orden: c.orden,
+    opcionesSelect,
+  };
+}
+
+function itemToCampoFormulario(item: CampoFormularioItem): CampoFormulario {
+  return {
+    id: item.id,
+    formularioId: '',
+    orden: item.orden,
+    tipo: TIPO_ITEM_A_API[item.tipo] as CampoFormulario['tipo'],
+    etiqueta: item.nombre,
+    obligatorio: item.obligatorio,
+    opciones: item.tipo === 'select' ? [...(item.opcionesSelect ?? [])] : [],
+  } as CampoFormulario;
 }
 
 @Component({
@@ -127,12 +156,16 @@ export class FormularioDesignerComponent {
           const politicaId = pm.get('politicaId') ?? '';
           const nodoId = pm.get('nodoId') ?? '';
           return this.politicaService.getPoliticaById(politicaId).pipe(
-            map((p) => ({ politicaId, nodoId, politica: p })),
+            switchMap((politica) =>
+              this.politicaService
+                .getFormularioActividad(politicaId, nodoId)
+                .pipe(map((form) => ({ politicaId, nodoId, politica, form }))),
+            ),
           );
         }),
         takeUntilDestroyed(),
       )
-      .subscribe(({ politicaId, nodoId, politica }) => {
+      .subscribe(({ politicaId, nodoId, politica, form }) => {
         this.politicaId.set(politicaId || null);
         this.nodoId.set(nodoId || null);
         const nodo = politica?.nodos?.find((n) => n.id === nodoId);
@@ -150,7 +183,13 @@ export class FormularioDesignerComponent {
           const dep = deps.find((d) => d.id === nodo.departamentoId);
           this.departamentoNombre.set(dep?.nombre ?? 'Sin departamento');
         });
-        this.campos.set(camposMockIniciales());
+        const items =
+          form?.campos?.length && form.campos.length > 0
+            ? [...form.campos]
+                .sort((a, b) => a.orden - b.orden)
+                .map((c) => campoApiToItem(c))
+            : [];
+        this.campos.set(items);
       });
   }
 
@@ -235,13 +274,40 @@ export class FormularioDesignerComponent {
   }
 
   guardarFormulario(): void {
-    const payload = {
-      politicaId: this.politicaId(),
-      nodoActividadId: this.nodoId(),
-      campos: this.camposOrdenados(),
+    const pid = this.politicaId();
+    const nid = this.nodoId();
+    if (!pid || !nid) {
+      return;
+    }
+    const body: FormularioActividad = {
+      politicaId: pid,
+      nodoActividadId: nid,
+      campos: this.camposOrdenados().map((c) => itemToCampoFormulario(c)),
     };
-    console.log(JSON.stringify(payload, null, 2));
-    // TODO: persistir definición de formulario vía API
-    this.snack.open('Formulario guardado (mock)', 'Cerrar', { duration: 2800 });
+    this.politicaService
+      .putFormularioActividad(pid, nid, body)
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.snack.open('Formulario guardado', 'Cerrar', { duration: 3000 });
+        },
+        error: (err: unknown) => {
+          let msg = 'No se pudo guardar el formulario';
+          if (err instanceof HttpErrorResponse) {
+            const body = err.error;
+            if (
+              body &&
+              typeof body === 'object' &&
+              'message' in body &&
+              typeof (body as { message: unknown }).message === 'string'
+            ) {
+              msg = (body as { message: string }).message;
+            } else if (err.message) {
+              msg = err.message;
+            }
+          }
+          this.snack.open(msg, 'Cerrar', { duration: 5000 });
+        },
+      });
   }
 }

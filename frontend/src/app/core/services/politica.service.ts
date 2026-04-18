@@ -5,6 +5,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
+import type { FormularioActividad } from '../models/nodo.model';
 import type { Nodo } from '../models/politica.model';
 import {
   Politica,
@@ -78,6 +79,37 @@ export class PoliticaService {
         return handleApiError(this.auth, this.snack, err);
       }),
     );
+  }
+
+  getFormularioActividad(
+    politicaId: string,
+    nodoId: string,
+  ): Observable<FormularioActividad | null> {
+    return this.http
+      .get<FormularioActividad>(
+        `${this.base}/${politicaId}/nodos/${nodoId}/formulario`,
+      )
+      .pipe(
+        catchError((err) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) {
+            return of(null);
+          }
+          return handleApiError(this.auth, this.snack, err);
+        }),
+      );
+  }
+
+  putFormularioActividad(
+    politicaId: string,
+    nodoId: string,
+    body: FormularioActividad,
+  ): Observable<FormularioActividad> {
+    return this.http
+      .put<FormularioActividad>(
+        `${this.base}/${politicaId}/nodos/${nodoId}/formulario`,
+        body,
+      )
+      .pipe(catchError((err) => handleApiError(this.auth, this.snack, err)));
   }
 
   crearPolitica(politica: Politica): Observable<Politica> {
