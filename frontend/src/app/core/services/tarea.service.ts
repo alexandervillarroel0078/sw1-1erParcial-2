@@ -13,6 +13,7 @@ import { handleApiError } from '../utils/api-error.util';
 type TareaApi = Omit<Tarea, 'estado'> & {
   estado?: string;
   completadoEn?: string;
+  politica_id?: string;
   requiereDecision?: boolean;
   condicionDecision?: string | null;
   opcionesDecision?: OpcionDecision[];
@@ -41,15 +42,17 @@ export class TareaService {
   private mapTarea(raw: TareaApi): Tarea {
     const estadoKey = (raw.estado ?? 'PENDIENTE').toString();
     const estado = ESTADO_TAREA[estadoKey] ?? 'pendiente';
-    const { completadoEn, ...rest } = raw;
+    const { completadoEn, politica_id, ...rest } = raw;
     const completadoA =
       completadoEn != null
         ? typeof completadoEn === 'string'
           ? completadoEn
           : new Date(completadoEn).toISOString()
         : rest.completadoA;
+    const politicaId = rest.politicaId ?? politica_id;
     return {
       ...rest,
+      politicaId,
       estado,
       completadoA,
       requiereDecision: raw.requiereDecision === true,

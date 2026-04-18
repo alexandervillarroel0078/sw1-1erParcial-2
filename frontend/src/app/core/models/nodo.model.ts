@@ -1,9 +1,17 @@
 export interface CampoFormulario {
   id?: string;
-  formularioId: string;
+  formularioId?: string;
   orden: number;
-  tipo: 'texto_corto' | 'texto_largo' | 'select' | 
-        'imagen' | 'archivo' | 'checkbox' | 'fecha';
+  /** API Java: enum `TipoCampo` (p. ej. `TEXTO_LARGO`) o snake en minúsculas. */
+  tipo:
+    | 'texto_corto'
+    | 'texto_largo'
+    | 'select'
+    | 'imagen'
+    | 'archivo'
+    | 'checkbox'
+    | 'fecha'
+    | string;
   etiqueta: string;
   textoAyuda?: string;
   obligatorio: boolean;

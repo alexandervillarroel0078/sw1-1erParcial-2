@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  computed,
   DestroyRef,
   inject,
   OnDestroy,
@@ -10,7 +11,13 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  FormControl,
+  ReactiveFormsModule,
+  Validators,
+  type ValidatorFn,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -23,17 +30,29 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
 
 import { ArchivoAdjunto, Informe } from '../../core/models/informe.model';
+import type { CampoFormulario, FormularioActividad } from '../../core/models/nodo.model';
 import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
+import { FormularioFuncionarioService } from '../../core/services/formulario-funcionario.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
 import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
 
 export type ModoEntrada = 'texto' | 'voz';
+
+type TipoCampoReporte =
+  | 'texto_corto'
+  | 'texto_largo'
+  | 'select'
+  | 'imagen'
+  | 'archivo'
+  | 'checkbox'
+  | 'fecha';
 
 /** Adjunto ya subido a GridFS pendiente de enviar con el informe. */
 export type AdjuntoPendiente = {
@@ -62,6 +81,7 @@ export type AdjuntoPendiente = {
     MatIconModule,
     MatChipsModule,
     MatProgressSpinnerModule,
+    MatCheckboxModule,
   ],
   templateUrl: './reporte-actividad.component.html',
   styleUrl: './reporte-actividad.component.scss',
@@ -72,6 +92,7 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly tareaService = inject(TareaService);
+  private readonly formularioFuncionarioService = inject(FormularioFuncionarioService);
   private readonly informeService = inject(InformeService);
   private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthService);
@@ -83,6 +104,16 @@ export class ReporteActividadComponent implements OnDestroy {
   readonly cargando = signal(true);
   readonly tarea = signal<Tarea | null>(null);
   readonly informe = signal<Informe | null>(null);
+  readonly definicionFormulario = signal<FormularioActividad | null>(null);
+
+  readonly camposFormularioOrdenados = computed(() =>
+    [...(this.definicionFormulario()?.campos ?? [])].sort((a, b) => a.orden - b.orden),
+  );
+
+  readonly usarFormularioDinamico = computed(() => {
+    if (this.tarea()?.estado === 'completado') return false;
+    return this.camposFormularioOrdenados().length > 0;
+  });
 
   readonly modo = signal<ModoEntrada>('texto');
   readonly grabando = signal(false);
@@ -98,13 +129,8 @@ export class ReporteActividadComponent implements OnDestroy {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private recognition: any = null;
 
-  readonly form = this.fb.nonNullable.group({
-    descripcion: ['', [Validators.required, Validators.minLength(3)]],
-    resultado: this.fb.nonNullable.control<string>('', {
-      validators: [Validators.required],
-    }),
-    observaciones: [''],
-  });
+  /** Controles variables: fallback fijo o campos `f_*` del formulario dinámico. */
+  readonly form = this.fb.group({});
 
   readonly resultados = [
     { value: 'Aprobado', label: 'Aprobado' },
@@ -113,39 +139,71 @@ export class ReporteActividadComponent implements OnDestroy {
   ];
 
   constructor() {
+    type Carga = {
+      tarea: Tarea | null;
+      informe: Informe | null;
+      definicion: FormularioActividad | null;
+    };
+    const vacio: Carga = { tarea: null, informe: null, definicion: null };
+
     this.route.paramMap
       .pipe(
         tap(() => {
           this.cargando.set(true);
           this.informe.set(null);
+          this.definicionFormulario.set(null);
           this.limpiarAdjuntosLocales();
         }),
         takeUntilDestroyed(this.destroyRef),
         switchMap((pm) => {
           const id = pm.get('id');
           if (!id) {
-            return of({ tarea: null as Tarea | null, informe: null as Informe | null });
+            return of(vacio);
           }
           return this.tareaService.getTareaById(id).pipe(
             switchMap((t) => {
               if (!t) {
-                return of({ tarea: null as Tarea | null, informe: null as Informe | null });
+                return of(vacio);
               }
-              if (t.estado !== 'completado') {
-                return of({ tarea: t, informe: null as Informe | null });
+              if (t.estado === 'completado') {
+                return this.informeService.getInformePorTarea(id).pipe(
+                  map((informe) => ({
+                    tarea: t,
+                    informe,
+                    definicion: null as FormularioActividad | null,
+                  })),
+                );
               }
-              return this.informeService.getInformePorTarea(id).pipe(
-                map((informe) => ({ tarea: t, informe })),
+              const pid = (t.politicaId ?? '').trim();
+              const nid = (t.nodoFlujoId ?? '').trim();
+
+              console.log('[ReporteActividad][TEMP] antes llamada formulario', {
+                politicaId: pid,
+                nodoFlujoId: nid,
+                politicaIdCrudoEnTarea: t.politicaId,
+                nodoFlujoIdCrudoEnTarea: t.nodoFlujoId,
+              });
+
+              if (!pid || !nid) {
+                return of({ tarea: t, informe: null, definicion: null });
+              }
+              return this.formularioFuncionarioService.obtener(pid, nid).pipe(
+                tap((definicion) => {
+                  console.log('[ReporteActividad][TEMP] respuesta endpoint (en pipe, antes subscribe)', definicion);
+                }),
+                map((definicion) => ({
+                  tarea: t,
+                  informe: null as Informe | null,
+                  definicion,
+                })),
               );
             }),
-            catchError(() =>
-              of({ tarea: null as Tarea | null, informe: null as Informe | null }),
-            ),
+            catchError(() => of(vacio)),
           );
         }),
       )
       .subscribe({
-        next: ({ tarea, informe }) => {
+        next: ({ tarea, informe, definicion }) => {
           this.cargando.set(false);
           if (!tarea) {
             void this.router.navigate(['/funcionario/bandeja']);
@@ -153,38 +211,17 @@ export class ReporteActividadComponent implements OnDestroy {
           }
           this.tarea.set(tarea);
           this.informe.set(informe);
-          this.form.enable({ emitEvent: false });
-          this.form.reset(
-            {
-              descripcion: '',
-              resultado: '',
-              observaciones: '',
-            },
-            { emitEvent: false },
-          );
-          if (tarea.estado === 'completado') {
-            if (informe) {
-              // Los valores deben aplicarse con el formulario habilitado; `mat-select` no
-              // refleja bien el valor si se deshabilita el grupo en el mismo turno de CD.
-              this.form.patchValue(
-                {
-                  descripcion: informe.descripcion ?? '',
-                  resultado: informe.resultado ?? '',
-                  observaciones: informe.observaciones ?? '',
-                },
-                { emitEvent: false },
-              );
-              queueMicrotask(() => {
-                this.form.disable({ emitEvent: false });
-                this.cdr.detectChanges();
-              });
-            } else {
-              queueMicrotask(() => {
-                this.form.disable({ emitEvent: false });
-                this.cdr.detectChanges();
-              });
-            }
-          }
+          this.definicionFormulario.set(definicion);
+          console.log('[ReporteActividad][TEMP] tras definicionFormulario.set (antes rebuildForm)', {
+            usarFormularioDinamico: this.usarFormularioDinamico(),
+            camposLength: definicion?.campos?.length,
+            keysRespuesta: definicion && typeof definicion === 'object' ? Object.keys(definicion) : [],
+          });
+          this.rebuildForm(tarea, informe);
+          console.log('[ReporteActividad][TEMP] tras rebuildForm', {
+            usarFormularioDinamico: this.usarFormularioDinamico(),
+            controlNames: Object.keys(this.form.controls),
+          });
           this.cdr.markForCheck();
         },
         error: () => {
@@ -206,6 +243,225 @@ export class ReporteActividadComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.detenerReconocimiento();
     this.limpiarAdjuntosLocales();
+  }
+
+  campoControlKey(c: CampoFormulario): string {
+    const id = (c.id ?? `o${c.orden}`).toString().replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `f_${id}`;
+  }
+
+  normalizeTipoCampo(tipo: unknown): TipoCampoReporte {
+    const s = String(tipo ?? '').trim();
+    const u = s.toUpperCase().replace(/-/g, '_');
+    const map: Record<string, TipoCampoReporte> = {
+      TEXTO_CORTO: 'texto_corto',
+      TEXTO_LARGO: 'texto_largo',
+      SELECT: 'select',
+      IMAGEN: 'imagen',
+      ARCHIVO: 'archivo',
+      CHECKBOX: 'checkbox',
+      FECHA: 'fecha',
+      texto_corto: 'texto_corto',
+      texto_largo: 'texto_largo',
+      select: 'select',
+      imagen: 'imagen',
+      archivo: 'archivo',
+      checkbox: 'checkbox',
+      fecha: 'fecha',
+    };
+    return map[u] ?? map[s] ?? 'texto_corto';
+  }
+
+  opcionesCampoSelect(c: CampoFormulario): string[] {
+    const raw = c.opciones ?? [];
+    return raw.map((o) => (typeof o === 'string' ? o : String(o)));
+  }
+
+  private rebuildForm(t: Tarea, informe: Informe | null): void {
+    for (const k of Object.keys(this.form.controls)) {
+      this.form.removeControl(k, { emitEvent: false });
+    }
+
+    if (t.estado === 'completado') {
+      this.form.addControl('descripcion', this.fb.control(''));
+      this.form.addControl('resultado', this.fb.control(''));
+      this.form.addControl('observaciones', this.fb.control(''));
+      this.form.enable({ emitEvent: false });
+      if (informe) {
+        this.form.patchValue(
+          {
+            descripcion: informe.descripcion ?? '',
+            resultado: informe.resultado ?? '',
+            observaciones: informe.observaciones ?? '',
+          },
+          { emitEvent: false },
+        );
+        queueMicrotask(() => {
+          this.form.disable({ emitEvent: false });
+          this.cdr.detectChanges();
+        });
+      } else {
+        queueMicrotask(() => {
+          this.form.disable({ emitEvent: false });
+          this.cdr.detectChanges();
+        });
+      }
+      return;
+    }
+
+    const campos = [...(this.definicionFormulario()?.campos ?? [])].sort(
+      (a, b) => a.orden - b.orden,
+    );
+    if (campos.length > 0) {
+      for (const c of campos) {
+        this.form.addControl(this.campoControlKey(c), this.buildControlForCampo(c));
+      }
+      this.form.enable({ emitEvent: false });
+      this.form.markAsUntouched({ emitEvent: false });
+      this.form.markAsPristine({ emitEvent: false });
+      return;
+    }
+
+    this.form.addControl(
+      'descripcion',
+      this.fb.nonNullable.control('', [Validators.required, Validators.minLength(3)]),
+    );
+    this.form.addControl(
+      'resultado',
+      this.fb.nonNullable.control('En revisión', [Validators.required]),
+    );
+    this.form.addControl('observaciones', this.fb.nonNullable.control(''));
+    this.form.enable({ emitEvent: false });
+    this.form.markAsUntouched({ emitEvent: false });
+    this.form.markAsPristine({ emitEvent: false });
+  }
+
+  private buildControlForCampo(c: CampoFormulario): FormControl {
+    const tipo = this.normalizeTipoCampo(c.tipo);
+    const vals: ValidatorFn[] = [];
+    if (c.obligatorio) {
+      if (tipo === 'checkbox') {
+        vals.push(Validators.requiredTrue);
+      } else if (tipo !== 'imagen' && tipo !== 'archivo') {
+        vals.push(Validators.required);
+      }
+    }
+    if (tipo === 'texto_largo' && c.obligatorio) {
+      vals.push(Validators.minLength(3));
+    }
+
+    if (tipo === 'checkbox') {
+      return this.fb.nonNullable.control(false, vals);
+    }
+    if (tipo === 'select') {
+      const opts = this.opcionesCampoSelect(c);
+      const def = opts[0] ?? '';
+      return this.fb.nonNullable.control(def, vals);
+    }
+    if (tipo === 'imagen' || tipo === 'archivo') {
+      return this.fb.control({ value: '', disabled: true }, { validators: [] });
+    }
+    return this.fb.nonNullable.control('', vals);
+  }
+
+  private valorCampoComoTexto(c: CampoFormulario, v: unknown): string {
+    const tipo = this.normalizeTipoCampo(c.tipo);
+    if (tipo === 'checkbox') {
+      return v === true ? 'Sí' : 'No';
+    }
+    if (v == null) {
+      return '';
+    }
+    return String(v).trim();
+  }
+
+  private buildDescripcionDesdeCamposDinamicos(): string {
+    const lines: string[] = [];
+    for (const c of this.camposFormularioOrdenados()) {
+      const tipo = this.normalizeTipoCampo(c.tipo);
+      if (tipo === 'imagen' || tipo === 'archivo') {
+        continue;
+      }
+      const key = this.campoControlKey(c);
+      const v = this.form.get(key)?.value;
+      const texto = this.valorCampoComoTexto(c, v);
+      if (texto) {
+        lines.push(`${c.etiqueta}: ${texto}`);
+      }
+    }
+    return lines.join('\n').trim();
+  }
+
+  private valorObservacionesDinamicas(): string | undefined {
+    for (const c of this.camposFormularioOrdenados()) {
+      if (!(c.etiqueta ?? '').toLowerCase().includes('observacion')) {
+        continue;
+      }
+      const v = this.form.get(this.campoControlKey(c))?.value;
+      const s = this.valorCampoComoTexto(c, v);
+      return s || undefined;
+    }
+    return undefined;
+  }
+
+  private construirInformeDesdeForm(esBorrador: boolean): Informe | null {
+    const t = this.tarea();
+    const uid = this.auth.getUsuario().id;
+    if (!t?.tramiteId || !uid) {
+      return null;
+    }
+    if (this.usarFormularioDinamico()) {
+      const descripcion = this.buildDescripcionDesdeCamposDinamicos();
+      const observaciones = this.valorObservacionesDinamicas();
+      return {
+        tramiteId: t.tramiteId,
+        tareaId: esBorrador ? undefined : t.id,
+        funcionarioId: uid,
+        descripcion:
+          esBorrador && !descripcion.trim() ? '(borrador)' : descripcion.trim() || '(sin datos)',
+        resultado: 'En revisión',
+        observaciones,
+        archivos: this.adjuntosParaInforme(),
+        esBorrador,
+        creadoEn: new Date(),
+        enviadoEn: esBorrador ? undefined : new Date(),
+      };
+    }
+    const raw = this.form.getRawValue() as {
+      descripcion: string;
+      resultado: string;
+      observaciones?: string;
+    };
+    return {
+      tramiteId: t.tramiteId,
+      tareaId: esBorrador ? undefined : t.id,
+      funcionarioId: uid,
+      descripcion:
+        (raw.descripcion?.trim() || (esBorrador ? '(borrador)' : '')) ?? '',
+      resultado: (raw.resultado?.trim() || 'En revisión') ?? 'En revisión',
+      observaciones: raw.observaciones?.trim() || undefined,
+      archivos: this.adjuntosParaInforme(),
+      esBorrador,
+      creadoEn: new Date(),
+      enviadoEn: esBorrador ? undefined : new Date(),
+    };
+  }
+
+  private primerCampoVozDescripcionKey(): string | null {
+    if (!this.usarFormularioDinamico()) {
+      return 'descripcion';
+    }
+    for (const c of this.camposFormularioOrdenados()) {
+      if (this.normalizeTipoCampo(c.tipo) === 'texto_largo') {
+        return this.campoControlKey(c);
+      }
+    }
+    for (const c of this.camposFormularioOrdenados()) {
+      if (this.normalizeTipoCampo(c.tipo) === 'texto_corto') {
+        return this.campoControlKey(c);
+      }
+    }
+    return null;
   }
 
   private limpiarAdjuntosLocales(): void {
@@ -354,7 +610,10 @@ export class ReporteActividadComponent implements OnDestroy {
       this.grabando.set(false);
       const texto = (this.acumuladoFinal || this.lineaVoz()).trim();
       if (texto) {
-        this.form.patchValue({ descripcion: texto });
+        const key = this.primerCampoVozDescripcionKey();
+        if (key) {
+          this.form.patchValue({ [key]: texto } as Record<string, string>);
+        }
       }
       this.recognition = null;
     };
@@ -389,25 +648,17 @@ export class ReporteActividadComponent implements OnDestroy {
     this.detenerReconocimiento();
     this.acumuladoFinal = '';
     this.lineaVoz.set('');
-    this.form.patchValue({ descripcion: '' });
+    const key = this.primerCampoVozDescripcionKey();
+    if (key) {
+      this.form.get(key)?.reset('');
+    }
   }
 
   guardarBorrador(): void {
-    const t = this.tarea();
-    const uid = this.auth.getUsuario().id;
-    if (!t?.tramiteId || !uid) return;
-
-    const informe: Informe = {
-      tramiteId: t.tramiteId,
-      funcionarioId: uid,
-      descripcion: this.form.controls.descripcion.value || '(borrador)',
-      resultado: this.form.controls.resultado.value || 'En revisión',
-      observaciones: this.form.controls.observaciones.value || undefined,
-      archivos: this.adjuntosParaInforme(),
-      esBorrador: true,
-      creadoEn: new Date(),
-    };
-
+    const informe = this.construirInformeDesdeForm(true);
+    if (!informe) {
+      return;
+    }
     this.informeService.crearInforme(informe).pipe(take(1)).subscribe();
   }
 
@@ -419,21 +670,12 @@ export class ReporteActividadComponent implements OnDestroy {
     const uid = this.auth.getUsuario().id;
     if (!t?.id || !t.tramiteId || !uid) return;
 
-    this.enviando.set(true);
-    const { descripcion, resultado, observaciones } = this.form.getRawValue();
+    const informe = this.construirInformeDesdeForm(false);
+    if (!informe) {
+      return;
+    }
 
-    const informe: Informe = {
-      tramiteId: t.tramiteId,
-      tareaId: t.id,
-      funcionarioId: uid,
-      descripcion,
-      resultado,
-      observaciones: observaciones?.trim() || undefined,
-      archivos: this.adjuntosParaInforme(),
-      esBorrador: false,
-      creadoEn: new Date(),
-      enviadoEn: new Date(),
-    };
+    this.enviando.set(true);
 
     this.informeService
       .crearInforme(informe)

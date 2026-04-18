@@ -63,7 +63,7 @@ public class TareaService {
 		Map<String, Politica> politicaCache = new HashMap<>();
 		return tareaRepository.findByUsuarioAsignadoId(usuarioId).stream()
 				.map((t) -> {
-					TareaDTO dto = EntityMapper.toTareaDTO(t);
+					TareaDTO dto = toTareaDtoConPoliticaDesdeTramite(t, tramiteCache);
 					enrichMisTareaMeta(t, dto, tramiteCache, politicaCache);
 					return dto;
 				})
@@ -73,6 +73,27 @@ public class TareaService {
 	/**
 	 * SLA del nodo y estado del trámite para la bandeja del funcionario.
 	 */
+	/**
+	 * Tareas persistidas antes de guardar {@code politica_id} en Mongo: se completa el DTO
+	 * con el {@link Tramite#getPoliticaId()} del trámite asociado.
+	 */
+	private TareaDTO toTareaDtoConPoliticaDesdeTramite(Tarea t, Map<String, Tramite> tramiteCache) {
+		TareaDTO dto = EntityMapper.toTareaDTO(t);
+		if (dto.getPoliticaId() != null && !dto.getPoliticaId().isBlank()) {
+			return dto;
+		}
+		if (t.getTramiteId() == null || t.getTramiteId().isBlank()) {
+			return dto;
+		}
+		Tramite tramite = tramiteCache.computeIfAbsent(
+				t.getTramiteId(),
+				id -> tramiteRepository.findById(id).orElse(null));
+		if (tramite != null && tramite.getPoliticaId() != null && !tramite.getPoliticaId().isBlank()) {
+			dto.setPoliticaId(tramite.getPoliticaId());
+		}
+		return dto;
+	}
+
 	private void enrichMisTareaMeta(
 			Tarea t,
 			TareaDTO dto,
@@ -109,8 +130,9 @@ public class TareaService {
 	}
 
 	public List<TareaDTO> listarTodas() {
+		Map<String, Tramite> tramiteCache = new HashMap<>();
 		return tareaRepository.findAll().stream()
-				.map(EntityMapper::toTareaDTO)
+				.map((t) -> toTareaDtoConPoliticaDesdeTramite(t, tramiteCache))
 				.toList();
 	}
 
@@ -120,7 +142,7 @@ public class TareaService {
 		if (t.getUsuarioAsignadoId() == null || !t.getUsuarioAsignadoId().equals(usuarioId)) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
 		}
-		return EntityMapper.toTareaDTO(t);
+		return toTareaDtoConPoliticaDesdeTramite(t, new HashMap<>());
 	}
 
 	public TareaDTO atender(String id, String usuarioId) {
@@ -130,7 +152,7 @@ public class TareaService {
 			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
 		}
 		t.setEstado(EstadoTarea.EN_ATENCION);
-		return EntityMapper.toTareaDTO(tareaRepository.save(t));
+		return toTareaDtoConPoliticaDesdeTramite(tareaRepository.save(t), new HashMap<>());
 	}
 
 	public TareaDTO completar(String id, String usuarioId, TareaAccionRequest req) {
@@ -142,7 +164,7 @@ public class TareaService {
 		AvanzarFlujoResult r = workflowEngine.avanzarFlujo(t.getTramiteId(), id, usuarioId, eleccionRama(req));
 		Tarea guardada = tareaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
-		return enrichDtoConDecision(EntityMapper.toTareaDTO(guardada), r);
+		return enrichDtoConDecision(toTareaDtoConPoliticaDesdeTramite(guardada, new HashMap<>()), r);
 	}
 
 	public TramiteDetalleAdminResponse obtenerDetalleTramite(String tramiteId) {
@@ -305,7 +327,9 @@ public class TareaService {
 		workflowEngine.continuarDespuesDecision(t.getTramiteId(), id, usuarioId, rama);
 		Tarea guardada = tareaRepository.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Tarea no encontrada"));
-		return enrichDtoConDecision(EntityMapper.toTareaDTO(guardada), AvanzarFlujoResult.sinDecision());
+		return enrichDtoConDecision(
+				toTareaDtoConPoliticaDesdeTramite(guardada, new HashMap<>()),
+				AvanzarFlujoResult.sinDecision());
 	}
 
 	private static String eleccionRama(TareaAccionRequest req) {

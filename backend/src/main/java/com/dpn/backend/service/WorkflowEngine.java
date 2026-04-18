@@ -409,6 +409,7 @@ public class WorkflowEngine {
 				.aristaEtiquetaEntrada(trimToNull(aristaEtiquetaEntrada))
 				.actividadEtiqueta(nodo.getEtiqueta())
 				.departamentoTexto(deptoNombre)
+				.politicaId(politica.getId())
 				.politicaNombre(tramite.getPoliticaNombre())
 				.pasoActual(pasoMostrarEnTarea)
 				.totalPasos(totalMostrarEnTarea)

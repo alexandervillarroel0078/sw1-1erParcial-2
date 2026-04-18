@@ -21,6 +21,7 @@ public class TareaDTO {
 	private String nodoFlujoId;
 	private String actividadEtiqueta;
 	private String departamentoTexto;
+	private String politicaId;
 	private String politicaNombre;
 	private int pasoActual;
 	private int totalPasos;

@@ -9,6 +9,7 @@ export interface Tarea {
   nodoFlujoId: string;
   actividadEtiqueta: string;
   departamentoTexto: string;
+  politicaId?: string;
   politicaNombre: string;
   pasoActual: number;
   totalPasos: number;

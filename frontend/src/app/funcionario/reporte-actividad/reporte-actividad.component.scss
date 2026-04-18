@@ -75,6 +75,31 @@
   margin-bottom: 18px;
 }
 
+.campo-checkbox {
+  margin: 8px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.campo-estatico {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+
+  &__label {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: #b3261e;
+}
+
 .form {
   display: flex;
   flex-direction: column;

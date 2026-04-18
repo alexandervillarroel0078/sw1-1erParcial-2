@@ -31,6 +31,8 @@ public class Tarea {
 	private String actividadEtiqueta;
 	@Field("departamento_texto")
 	private String departamentoTexto;
+	@Field("politica_id")
+	private String politicaId;
 	@Field("politica_nombre")
 	private String politicaNombre;
 	@Field("paso_actual")

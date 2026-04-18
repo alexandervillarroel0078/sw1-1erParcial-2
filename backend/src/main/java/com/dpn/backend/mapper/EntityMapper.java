@@ -51,6 +51,7 @@ public class EntityMapper {
 				.nodoFlujoId(t.getNodoFlujoId())
 				.actividadEtiqueta(t.getActividadEtiqueta())
 				.departamentoTexto(t.getDepartamentoTexto())
+				.politicaId(t.getPoliticaId())
 				.politicaNombre(t.getPoliticaNombre())
 				.pasoActual(t.getPasoActual())
 				.totalPasos(t.getTotalPasos())
