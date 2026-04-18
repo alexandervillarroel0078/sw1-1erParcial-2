@@ -75,6 +75,42 @@
               >
                 Obligatorio
               </mat-checkbox>
+              @if (c.tipo === 'select') {
+                <div class="fd-campo__opciones">
+                  @for (opt of c.opcionesSelect ?? []; track $index) {
+                    <div class="fd-campo__opcion-row">
+                      <mat-form-field
+                        appearance="outline"
+                        class="fd-campo__opcion-input"
+                        subscriptSizing="dynamic"
+                      >
+                        <mat-label>Opción {{ $index + 1 }}</mat-label>
+                        <input
+                          matInput
+                          [ngModel]="opt"
+                          (ngModelChange)="onOpcionSelectModelChange(c.id, $index, $event)"
+                        />
+                      </mat-form-field>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="Eliminar opción"
+                        (click)="eliminarOpcionSelect(c.id, $index)"
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                  }
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Agregar opción"
+                    (click)="agregarOpcionSelect(c.id)"
+                  >
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
+              }
             </div>
             <div class="fd-campo__actions">
               <button

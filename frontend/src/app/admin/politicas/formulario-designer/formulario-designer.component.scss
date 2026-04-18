@@ -198,6 +198,27 @@
   min-width: 0;
 }
 
+.fd-campo__opciones {
+  flex: 1 1 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.fd-campo__opcion-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.fd-campo__opcion-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .fd-campo__actions {
   display: flex;
   flex-shrink: 0;

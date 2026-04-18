@@ -259,6 +259,39 @@ export class FormularioDesignerComponent {
     );
   }
 
+  patchCampoOpciones(id: string, opciones: string[]): void {
+    this.campos.update((list) =>
+      list.map((c) =>
+        c.id === id && c.tipo === 'select'
+          ? { ...c, opcionesSelect: [...opciones] }
+          : c,
+      ),
+    );
+  }
+
+  agregarOpcionSelect(id: string): void {
+    const c = this.campos().find((x) => x.id === id);
+    if (!c || c.tipo !== 'select') return;
+    this.patchCampoOpciones(id, [...(c.opcionesSelect ?? []), '']);
+  }
+
+  eliminarOpcionSelect(id: string, index: number): void {
+    const c = this.campos().find((x) => x.id === id);
+    if (!c || c.tipo !== 'select') return;
+    this.patchCampoOpciones(
+      id,
+      (c.opcionesSelect ?? []).filter((_, j) => j !== index),
+    );
+  }
+
+  onOpcionSelectModelChange(id: string, index: number, valor: string): void {
+    const c = this.campos().find((x) => x.id === id);
+    if (!c || c.tipo !== 'select') return;
+    const next = [...(c.opcionesSelect ?? [])];
+    next[index] = valor;
+    this.patchCampoOpciones(id, next);
+  }
+
   subirCampo(id: string): void {
     this.campos.update((list) => {
       const sorted = [...list].sort((a, b) => a.orden - b.orden);
