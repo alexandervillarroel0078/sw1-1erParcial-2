@@ -341,13 +341,23 @@
   border: 2px solid #f9a825;
   transform: rotate(45deg);
 }
-.pd-palette__preview[data-tipo='FORK_BAR']::after,
-.pd-palette__preview[data-tipo='JOIN_BAR']::after {
-  content: '';
-  width: 32px;
-  height: 8px;
-  border-radius: 2px;
-  background: #111;
+.pd-palette__preview--parallel {
+  display: grid;
+  place-items: center;
+}
+.pd-palette__parallel-svg {
+  display: block;
+}
+.pd-palette__parallel-diamond {
+  fill: #fff;
+  stroke: #111;
+  stroke-width: 2;
+}
+.pd-palette__parallel-plus {
+  fill: #111;
+  font-size: 28px;
+  font-weight: 700;
+  user-select: none;
 }
 .pd-palette__label {
   font-size: 12px;

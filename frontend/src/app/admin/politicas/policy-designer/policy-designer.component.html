@@ -110,7 +110,35 @@
           "
           (click)="agregarNodo(item.tipo)"
         >
-          <span class="pd-palette__preview" [attr.data-tipo]="item.tipo"></span>
+          @if (item.tipo === 'FORK_BAR' || item.tipo === 'JOIN_BAR') {
+            <span
+              class="pd-palette__preview pd-palette__preview--parallel"
+              aria-hidden="true"
+            >
+              <svg
+                class="pd-palette__parallel-svg"
+                viewBox="-44 -44 88 88"
+                width="26"
+                height="26"
+              >
+                <polygon
+                  points="0,-40 40,0 0,40 -40,0"
+                  class="pd-palette__parallel-diamond"
+                />
+                <text
+                  class="pd-palette__parallel-plus"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  x="0"
+                  y="0"
+                >
+                  +
+                </text>
+              </svg>
+            </span>
+          } @else {
+            <span class="pd-palette__preview" [attr.data-tipo]="item.tipo"></span>
+          }
           <span class="pd-palette__label">{{ item.label }}</span>
         </button>
       }

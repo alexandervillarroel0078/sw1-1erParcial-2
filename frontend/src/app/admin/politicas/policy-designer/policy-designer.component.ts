@@ -598,8 +598,8 @@ export class PolicyDesignerComponent implements OnInit {
     { tipo: 'END', label: 'END' },
     { tipo: 'ACTIVIDAD', label: 'Actividad' },
     { tipo: 'DECISION', label: 'Decisión' },
-    { tipo: 'FORK_BAR', label: 'Fork' },
-    { tipo: 'JOIN_BAR', label: 'Join' },
+    { tipo: 'FORK_BAR', label: 'Paralelo' },
+    { tipo: 'JOIN_BAR', label: 'Unir' },
   ];
 
   constructor() {
