@@ -42,6 +42,8 @@ export interface AristaCanvas {
   haciaNodoId: string;
   etiqueta?: string;
   haciaPuerto?: AristaHaciaPuerto;
+  /** Salida en punta E/N/S cuando el origen es FORK_BAR (lienzo). */
+  desdePuerto?: AristaHaciaPuerto;
 }
 
 export interface PolicyCanvasSnapshot {

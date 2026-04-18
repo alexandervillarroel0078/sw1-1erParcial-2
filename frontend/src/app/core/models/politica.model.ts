@@ -70,8 +70,10 @@ export interface Arista {
   desdeNodoId: string;
   haciaNodoId: string;
   etiqueta?: string;
-  /** Solo si el destino es DECISIÓN: vértice de entrada (N/S/E/O). */
+  /** Vértice de entrada en el destino (DECISIÓN o JOIN_BAR: N/S/E/O). */
   haciaPuerto?: AristaHaciaPuerto;
+  /** Vértice de salida en el origen cuando es FORK_BAR (E/N/S). */
+  desdePuerto?: AristaHaciaPuerto;
 }
 
 export interface Politica {

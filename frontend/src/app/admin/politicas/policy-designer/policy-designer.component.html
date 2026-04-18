@@ -598,7 +598,6 @@
                     </text>
                   }
                 </g>
-                @let pout = puertoLocal(n, 'out');
                 @if (n.tipo === 'DECISION') {
                   @for (lado of puertosEntradaDecision; track lado) {
                     @let pl = puertoEntradaLocalDecision(lado);
@@ -611,6 +610,57 @@
                       (click)="onPuertoClick(n, 'in', $event, lado)"
                     />
                   }
+                  @let pout = puertoLocal(n, 'out');
+                  <circle
+                    class="pd-port pd-port--out"
+                    [class.pd-port--link-origin]="puertoOrigenActivo(n)"
+                    [attr.cx]="pout.cx"
+                    [attr.cy]="pout.cy"
+                    r="6"
+                    (click)="onPuertoClick(n, 'out', $event)"
+                  />
+                } @else if (n.tipo === 'FORK_BAR') {
+                  @let plIn = puertoVerticesLocalParallel('O');
+                  <circle
+                    class="pd-port pd-port--in"
+                    [class.pd-port--link-target]="modoConexion()"
+                    [attr.cx]="plIn.cx"
+                    [attr.cy]="plIn.cy"
+                    r="6"
+                    (click)="onPuertoClick(n, 'in', $event, 'O')"
+                  />
+                  @for (lado of puertosSalidaFork; track lado) {
+                    @let pl = puertoVerticesLocalParallel(lado);
+                    <circle
+                      class="pd-port pd-port--out"
+                      [class.pd-port--link-origin]="puertoOrigenActivoFork(n, lado)"
+                      [attr.cx]="pl.cx"
+                      [attr.cy]="pl.cy"
+                      r="6"
+                      (click)="onPuertoClick(n, 'out', $event, undefined, lado)"
+                    />
+                  }
+                } @else if (n.tipo === 'JOIN_BAR') {
+                  @for (lado of puertosEntradaJoin; track lado) {
+                    @let pl = puertoVerticesLocalParallel(lado);
+                    <circle
+                      class="pd-port pd-port--in"
+                      [class.pd-port--link-target]="modoConexion()"
+                      [attr.cx]="pl.cx"
+                      [attr.cy]="pl.cy"
+                      r="6"
+                      (click)="onPuertoClick(n, 'in', $event, lado)"
+                    />
+                  }
+                  @let plOut = puertoVerticesLocalParallel('E');
+                  <circle
+                    class="pd-port pd-port--out"
+                    [class.pd-port--link-origin]="puertoOrigenActivo(n)"
+                    [attr.cx]="plOut.cx"
+                    [attr.cy]="plOut.cy"
+                    r="6"
+                    (click)="onPuertoClick(n, 'out', $event)"
+                  />
                 } @else {
                   @let pin = puertoLocal(n, 'in');
                   <circle
@@ -621,15 +671,16 @@
                     r="6"
                     (click)="onPuertoClick(n, 'in', $event)"
                   />
+                  @let pout = puertoLocal(n, 'out');
+                  <circle
+                    class="pd-port pd-port--out"
+                    [class.pd-port--link-origin]="puertoOrigenActivo(n)"
+                    [attr.cx]="pout.cx"
+                    [attr.cy]="pout.cy"
+                    r="6"
+                    (click)="onPuertoClick(n, 'out', $event)"
+                  />
                 }
-                <circle
-                  class="pd-port pd-port--out"
-                  [class.pd-port--link-origin]="puertoOrigenActivo(n)"
-                  [attr.cx]="pout.cx"
-                  [attr.cy]="pout.cy"
-                  r="6"
-                  (click)="onPuertoClick(n, 'out', $event)"
-                />
               </g>
             </g>
           }

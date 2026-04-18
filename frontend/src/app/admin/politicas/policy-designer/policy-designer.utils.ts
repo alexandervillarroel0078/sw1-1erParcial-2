@@ -9,6 +9,8 @@ import type {
 const PORT = 8;
 /** Mitad del ancho horizontal del rombo DECISIÓN (coincide con el polígono del SVG). */
 const DECISION_L = 44;
+/** Mitad del rombo FORK/JOIN (coincide con points ±40 del SVG). */
+const PARALLEL_L = 40;
 
 export function nodeHalfSize(tipo: NodoCanvasTipo): { hw: number; hh: number } {
   switch (tipo) {
@@ -22,7 +24,7 @@ export function nodeHalfSize(tipo: NodoCanvasTipo): { hw: number; hh: number } {
       return { hw: 44, hh: 44 };
     case 'FORK_BAR':
     case 'JOIN_BAR':
-      return { hw: 60, hh: 10 };
+      return { hw: PARALLEL_L, hh: PARALLEL_L };
     default:
       return { hw: 32, hh: 32 };
   }
@@ -64,6 +66,30 @@ export function puertoMundoEntradaDecision(
   return { x: n.x + loc.cx, y: n.y + loc.cy };
 }
 
+/** Puerto en punta del rombo paralelo (misma convención que DECISIÓN, L = 40). */
+export function puertoVerticesLocalParallel(
+  lado: AristaHaciaPuerto,
+): { cx: number; cy: number } {
+  switch (lado) {
+    case 'N':
+      return { cx: 0, cy: -PARALLEL_L - PORT };
+    case 'S':
+      return { cx: 0, cy: PARALLEL_L + PORT };
+    case 'E':
+      return { cx: PARALLEL_L + PORT, cy: 0 };
+    case 'O':
+      return { cx: -PARALLEL_L - PORT, cy: 0 };
+  }
+}
+
+export function puertoMundoVerticesParallel(
+  n: NodoCanvas,
+  lado: AristaHaciaPuerto,
+): { x: number; y: number } {
+  const loc = puertoVerticesLocalParallel(lado);
+  return { x: n.x + loc.cx, y: n.y + loc.cy };
+}
+
 export function puertoMundo(
   n: NodoCanvas,
   puerto: 'in' | 'out',
@@ -75,6 +101,23 @@ export function puertoMundo(
   return { x: n.x + hw + PORT, y: n.y };
 }
 
+export function puertoMundoDesde(
+  desde: NodoCanvas,
+  desdePuerto?: AristaHaciaPuerto | null,
+): { x: number; y: number } {
+  if (desde.tipo === 'FORK_BAR') {
+    let lado: AristaHaciaPuerto = desdePuerto ?? 'E';
+    if (lado === 'O') {
+      lado = 'E';
+    }
+    return puertoMundoVerticesParallel(desde, lado);
+  }
+  if (desde.tipo === 'JOIN_BAR') {
+    return puertoMundoVerticesParallel(desde, 'E');
+  }
+  return puertoMundo(desde, 'out');
+}
+
 function puntoEntradaHacia(
   hacia: NodoCanvas,
   haciaPuerto?: AristaHaciaPuerto | null,
@@ -83,6 +126,13 @@ function puntoEntradaHacia(
     const lado = haciaPuerto ?? 'O';
     return puertoMundoEntradaDecision(hacia, lado);
   }
+  if (hacia.tipo === 'JOIN_BAR') {
+    let lado: AristaHaciaPuerto = haciaPuerto ?? 'O';
+    if (lado === 'E') {
+      lado = 'O';
+    }
+    return puertoMundoVerticesParallel(hacia, lado);
+  }
   return puertoMundo(hacia, 'in');
 }
 
@@ -90,8 +140,9 @@ export function pathBezierEntreNodos(
   desde: NodoCanvas,
   hacia: NodoCanvas,
   haciaPuerto?: AristaHaciaPuerto | null,
+  desdePuerto?: AristaHaciaPuerto | null,
 ): string {
-  const a = puertoMundo(desde, 'out');
+  const a = puertoMundoDesde(desde, desdePuerto);
   const b = puntoEntradaHacia(hacia, haciaPuerto);
   const { x: x1, y: y1 } = a;
   const { x: x2, y: y2 } = b;
@@ -117,8 +168,9 @@ export function puntoMedioBezierArista(
   desde: NodoCanvas,
   hacia: NodoCanvas,
   haciaPuerto?: AristaHaciaPuerto | null,
+  desdePuerto?: AristaHaciaPuerto | null,
 ): { x: number; y: number } {
-  const a = puertoMundo(desde, 'out');
+  const a = puertoMundoDesde(desde, desdePuerto);
   const b = puntoEntradaHacia(hacia, haciaPuerto);
   const { x: x1, y: y1 } = a;
   const { x: x2, y: y2 } = b;

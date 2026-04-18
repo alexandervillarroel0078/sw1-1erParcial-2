@@ -19,4 +19,7 @@ public class AristaPolitica {
 	/** N/S/E/O cuando el destino es DECISIÓN (puerto de entrada en el lienzo). */
 	@Field("hacia_puerto")
 	private String haciaPuerto;
+	/** E/N/S cuando el origen es FORK_BAR (puerto de salida en el lienzo). */
+	@Field("desde_puerto")
+	private String desdePuerto;
 }

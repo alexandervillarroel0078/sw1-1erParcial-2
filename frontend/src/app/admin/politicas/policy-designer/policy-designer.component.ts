@@ -73,6 +73,7 @@ import {
   pathBezierEntreNodos,
   puertoEntradaLocalDecision,
   puertoLocal,
+  puertoVerticesLocalParallel,
   puntoMedioBezierArista,
   snapshotFrom,
 } from './policy-designer.utils';
@@ -231,6 +232,7 @@ function mapCanvasToArista(a: AristaCanvas): Arista {
     haciaNodoId: a.haciaNodoId,
     etiqueta: a.etiqueta,
     haciaPuerto: a.haciaPuerto,
+    desdePuerto: a.desdePuerto,
   };
 }
 
@@ -319,6 +321,10 @@ export class PolicyDesignerComponent implements OnInit {
     'O',
   ];
 
+  readonly puertosSalidaFork: readonly AristaHaciaPuerto[] = ['E', 'N', 'S'];
+
+  readonly puertosEntradaJoin: readonly AristaHaciaPuerto[] = ['O', 'N', 'S'];
+
   private swimResizeDrag: {
     calleId: string;
     axis: 'x' | 'y';
@@ -381,10 +387,11 @@ export class PolicyDesignerComponent implements OnInit {
   readonly seleccionId = signal<string | null>(null);
   /** Arista seleccionada (excluyente con nodo). */
   readonly aristaSeleccionId = signal<string | null>(null);
-  /** Origen de conexión: nodo + puerto 'out' */
+  /** Origen de conexión: nodo + puerto 'out' (FORK: punta E/N/S). */
   readonly conexionDesde = signal<{
     nodoId: string;
     puerto: 'out';
+    forkOutLado?: AristaHaciaPuerto;
   } | null>(null);
 
   private politicaId: string | null = null;
@@ -698,13 +705,14 @@ export class PolicyDesignerComponent implements OnInit {
 
   puertoLocal = puertoLocal;
   puertoEntradaLocalDecision = puertoEntradaLocalDecision;
+  puertoVerticesLocalParallel = puertoVerticesLocalParallel;
 
   pathArista(ar: AristaCanvas): string {
     const map = new Map(this.nodos().map((n) => [n.id, n]));
     const a = map.get(ar.desdeNodoId);
     const b = map.get(ar.haciaNodoId);
     if (!a || !b) return '';
-    return pathBezierEntreNodos(a, b, ar.haciaPuerto);
+    return pathBezierEntreNodos(a, b, ar.haciaPuerto, ar.desdePuerto);
   }
 
   markerEndArista(ar: AristaCanvas): string {
@@ -752,7 +760,7 @@ export class PolicyDesignerComponent implements OnInit {
     if (!a || !b) {
       return null;
     }
-    const { x, y } = puntoMedioBezierArista(a, b, ar.haciaPuerto);
+    const { x, y } = puntoMedioBezierArista(a, b, ar.haciaPuerto, ar.desdePuerto);
     const t = raw
       .toLowerCase()
       .normalize('NFD')
@@ -1096,6 +1104,7 @@ export class PolicyDesignerComponent implements OnInit {
     puerto: 'in' | 'out',
     ev: MouseEvent,
     inLado?: AristaHaciaPuerto,
+    outLado?: AristaHaciaPuerto,
   ): void {
     ev.stopPropagation();
     ev.preventDefault();
@@ -1110,6 +1119,18 @@ export class PolicyDesignerComponent implements OnInit {
           });
           return;
         }
+      }
+      if (n.tipo === 'FORK_BAR') {
+        let lado: AristaHaciaPuerto = outLado ?? 'E';
+        if (lado === 'O') {
+          lado = 'E';
+        }
+        this.conexionDesde.set({
+          nodoId: n.id,
+          puerto: 'out',
+          forkOutLado: lado,
+        });
+        return;
       }
       this.conexionDesde.set({ nodoId: n.id, puerto: 'out' });
       return;
@@ -1132,16 +1153,23 @@ export class PolicyDesignerComponent implements OnInit {
         return;
       }
       const ladoDestino =
-        n.tipo === 'DECISION' ? (inLado ?? 'O') : undefined;
+        n.tipo === 'DECISION' || n.tipo === 'JOIN_BAR'
+          ? (inLado ?? 'O')
+          : undefined;
       const existe = this.aristas().some((a) => {
         if (a.desdeNodoId !== origen.nodoId || a.haciaNodoId !== n.id) {
           return false;
         }
-        if (n.tipo !== 'DECISION') {
-          return true;
+        if (n.tipo === 'DECISION' || n.tipo === 'JOIN_BAR') {
+          const pa = a.haciaPuerto ?? 'O';
+          return pa === ladoDestino;
         }
-        const pa = a.haciaPuerto ?? 'O';
-        return pa === ladoDestino;
+        if (nodoOrigen?.tipo === 'FORK_BAR') {
+          const da = a.desdePuerto ?? 'E';
+          const db = origen.forkOutLado ?? 'E';
+          return da === db;
+        }
+        return true;
       });
       if (existe) {
         this.snack.open('Esa conexión ya existe', 'Cerrar', { duration: 2000 });
@@ -1153,6 +1181,7 @@ export class PolicyDesignerComponent implements OnInit {
         nodoOrigen?.tipo === 'DECISION' && salientesDesdeOrigen.length === 1
           ? etiquetaAutomaticaSegundaSalidaDecision(salientesDesdeOrigen)
           : undefined;
+      const desdeFork = nodoOrigen?.tipo === 'FORK_BAR';
       const nueva: AristaCanvas = {
         id: `ar-${uuid()}`,
         desdeNodoId: origen.nodoId,
@@ -1160,6 +1189,12 @@ export class PolicyDesignerComponent implements OnInit {
         ...(etiquetaDesdeDecision ? { etiqueta: etiquetaDesdeDecision } : {}),
         ...(n.tipo === 'DECISION'
           ? { haciaPuerto: ladoDestino as AristaHaciaPuerto }
+          : {}),
+        ...(n.tipo === 'JOIN_BAR'
+          ? { haciaPuerto: (ladoDestino ?? 'O') as AristaHaciaPuerto }
+          : {}),
+        ...(desdeFork
+          ? { desdePuerto: (origen.forkOutLado ?? 'E') as AristaHaciaPuerto }
           : {}),
       };
       this.aristas.update((as) => [...as, nueva]);
@@ -1499,7 +1534,15 @@ export class PolicyDesignerComponent implements OnInit {
 
   puertoOrigenActivo(n: NodoCanvas): boolean {
     const o = this.conexionDesde();
-    return o != null && o.nodoId === n.id;
+    return o != null && o.nodoId === n.id && n.tipo !== 'FORK_BAR';
+  }
+
+  puertoOrigenActivoFork(n: NodoCanvas, lado: AristaHaciaPuerto): boolean {
+    const o = this.conexionDesde();
+    if (o == null || o.nodoId !== n.id || n.tipo !== 'FORK_BAR') {
+      return false;
+    }
+    return (o.forkOutLado ?? 'E') === lado;
   }
 
   eliminarNodoSeleccionado(): void {
@@ -1743,18 +1786,25 @@ export class PolicyDesignerComponent implements OnInit {
       hacia: string,
       etiqueta?: string,
       haciaPuerto?: AristaHaciaPuerto,
+      desdePuerto?: AristaHaciaPuerto,
     ) => {
       const hNode = nodos.find((x) => x.id === hacia);
+      const desdeNode = nodos.find((x) => x.id === desde);
       const base: AristaCanvas = {
         id: `ar-${uuid()}`,
         desdeNodoId: desde,
         haciaNodoId: hacia,
         etiqueta,
       };
-      const completo: AristaCanvas =
-        hNode?.tipo === 'DECISION'
-          ? { ...base, haciaPuerto: haciaPuerto ?? 'O' }
-          : base;
+      let completo: AristaCanvas = base;
+      if (hNode?.tipo === 'DECISION') {
+        completo = { ...base, haciaPuerto: haciaPuerto ?? 'O' };
+      } else if (hNode?.tipo === 'JOIN_BAR') {
+        completo = { ...base, haciaPuerto: haciaPuerto ?? 'O' };
+      }
+      if (desdeNode?.tipo === 'FORK_BAR') {
+        completo = { ...completo, desdePuerto: desdePuerto ?? 'E' };
+      }
       aristas = [...aristas, completo];
     };
 
@@ -1823,6 +1873,7 @@ export class PolicyDesignerComponent implements OnInit {
     const items = this.wizardParaleloItems();
     const posActs = posicionParalelas(fork, items.length);
     const actIds: string[] = [];
+    const salidasFork: AristaHaciaPuerto[] = ['E', 'N', 'S'];
     for (let i = 0; i < items.length; i++) {
       const did = items[i].depto;
       const act = crearNodoVacio(
@@ -1835,7 +1886,7 @@ export class PolicyDesignerComponent implements OnInit {
         this.nombreDepartamento(did),
       );
       pushN(act);
-      pushA(fork.id, act.id);
+      pushA(fork.id, act.id, undefined, undefined, salidasFork[i % 3]);
       actIds.push(act.id);
     }
     const posJ = posicionJoinDesdeActividades(
@@ -1849,8 +1900,9 @@ export class PolicyDesignerComponent implements OnInit {
       `nd-${uuid()}`,
     );
     pushN(join);
-    for (const id of actIds) {
-      pushA(id, join.id);
+    const entradasJoin: AristaHaciaPuerto[] = ['O', 'N', 'S'];
+    for (let i = 0; i < actIds.length; i++) {
+      pushA(actIds[i], join.id, undefined, entradasJoin[i % 3]);
     }
     ultimoId = join.id;
     this.nodos.set(nodos);
@@ -1869,18 +1921,25 @@ export class PolicyDesignerComponent implements OnInit {
       hacia: string,
       etiqueta?: string,
       haciaPuerto?: AristaHaciaPuerto,
+      desdePuerto?: AristaHaciaPuerto,
     ) => {
       const hNode = nodos.find((x) => x.id === hacia);
+      const desdeNode = nodos.find((x) => x.id === desde);
       const base: AristaCanvas = {
         id: `ar-${uuid()}`,
         desdeNodoId: desde,
         haciaNodoId: hacia,
         etiqueta,
       };
-      const completo: AristaCanvas =
-        hNode?.tipo === 'DECISION'
-          ? { ...base, haciaPuerto: haciaPuerto ?? 'O' }
-          : base;
+      let completo: AristaCanvas = base;
+      if (hNode?.tipo === 'DECISION') {
+        completo = { ...base, haciaPuerto: haciaPuerto ?? 'O' };
+      } else if (hNode?.tipo === 'JOIN_BAR') {
+        completo = { ...base, haciaPuerto: haciaPuerto ?? 'O' };
+      }
+      if (desdeNode?.tipo === 'FORK_BAR') {
+        completo = { ...completo, desdePuerto: desdePuerto ?? 'E' };
+      }
       aristas = [...aristas, completo];
     };
 
