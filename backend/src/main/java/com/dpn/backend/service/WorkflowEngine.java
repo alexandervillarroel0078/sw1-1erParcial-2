@@ -50,6 +50,7 @@ public class WorkflowEngine {
 	private final DepartamentoRepository departamentoRepository;
 	private final UsuarioRepository usuarioRepository;
 	private final ObjectProvider<TareaService> tareaServiceProvider;
+	private final NotificacionService notificacionService;
 
 	/**
 	 * Tras completar una tarea: avanza el flujo según aristas de la política.
@@ -120,6 +121,7 @@ public class WorkflowEngine {
 			tramite.setActividadActual(decision.getEtiqueta());
 			tramite.setActualizadoEn(Instant.now());
 			tramiteRepository.save(tramite);
+			notificarClienteTrasCompletarTarea(tramiteId, tarea);
 			return construirResultadoEsperaDecision(politica, decision);
 		}
 
@@ -132,6 +134,7 @@ public class WorkflowEngine {
 			NodoPolitica decision = siguientes.get(0);
 			boolean hayMasTareas = expandirDesdeNodoDecisionConRama(tramite, politica, decision.getId(), rama);
 			actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
+			notificarClienteTrasCompletarTarea(tramiteId, tarea);
 			return AvanzarFlujoResult.sinDecision();
 		}
 
@@ -141,7 +144,35 @@ public class WorkflowEngine {
 		}
 
 		actualizarEstadoTramiteTrasAvance(tramiteId, hayMasTareas);
+		notificarClienteTrasCompletarTarea(tramiteId, tarea);
 		return AvanzarFlujoResult.sinDecision();
+	}
+
+	private void notificarClienteTrasCompletarTarea(String tramiteId, Tarea tareaCompletada) {
+		System.out.println("[notificarClienteTrasCompletarTarea] INICIO tramiteId=" + tramiteId
+				+ " tareaId=" + tareaCompletada.getId());
+		Tramite tr = tramiteRepository.findById(tramiteId).orElse(null);
+		System.out.println("[notificarClienteTrasCompletarTarea] despues findById: tr="
+				+ (tr == null ? "null" : "presente")
+				+ " clienteId=" + (tr != null ? String.valueOf(tr.getClienteId()) : "n/a"));
+		if (tr == null || tr.getClienteId() == null || tr.getClienteId().isBlank()) {
+			System.out.println("[notificarClienteTrasCompletarTarea] SALIDA sin enviar (tramite null o clienteId vacío)");
+			return;
+		}
+		String clienteId = tr.getClienteId();
+		if (tr.getEstado() == EstadoTramite.COMPLETADO) {
+			System.out.println("[notificarClienteTrasCompletarTarea] enviando Trámite completado clienteId=" + clienteId);
+			notificacionService.enviar(clienteId, tramiteId, "Trámite completado",
+					"Tu trámite ha sido completado exitosamente.");
+			return;
+		}
+		String etiqueta = tareaCompletada.getActividadEtiqueta() != null
+				? tareaCompletada.getActividadEtiqueta()
+				: "—";
+		System.out.println("[notificarClienteTrasCompletarTarea] enviando Actividad completada clienteId=" + clienteId
+				+ " etiqueta=" + etiqueta);
+		notificacionService.enviar(clienteId, tramiteId, "Actividad completada",
+				"La actividad '" + etiqueta + "' fue completada. Tu trámite continúa.");
 	}
 
 	/**

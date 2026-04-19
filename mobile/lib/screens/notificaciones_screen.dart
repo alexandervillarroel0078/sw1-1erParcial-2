@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/notificacion.dart';
+import '../services/local_notification_service.dart';
 import '../services/notificacion_service.dart';
 
 /// Listado de notificaciones del cliente.
@@ -14,17 +17,67 @@ class NotificacionesScreen extends StatefulWidget {
 
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
   late Future<List<Notificacion>> _future;
+  Timer? _pollTimer;
+  bool _baselineReady = false;
+  Set<String> _knownSnapshotIds = {};
 
   @override
   void initState() {
     super.initState();
-    _future = context.read<NotificacionService>().getNotificaciones();
+    final svc = context.read<NotificacionService>();
+    _future = _bootstrap(svc);
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tick(svc));
   }
 
-  void _reload() {
-    setState(() {
-      _future = context.read<NotificacionService>().getNotificaciones();
-    });
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<List<Notificacion>> _bootstrap(NotificacionService svc) async {
+    final list = await svc.getNotificaciones();
+    await _applyFetched(list);
+    return list;
+  }
+
+  Future<void> _tick(NotificacionService svc) async {
+    try {
+      final list = await svc.getNotificaciones();
+      await _applyFetched(list);
+      if (mounted) {
+        setState(() => _future = Future.value(list));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _applyFetched(List<Notificacion> list) async {
+    if (!_baselineReady) {
+      _knownSnapshotIds = list.map((e) => e.id).toSet();
+      _baselineReady = true;
+      return;
+    }
+    for (final n in list) {
+      if (!_knownSnapshotIds.contains(n.id) && !n.leida) {
+        await LocalNotificationService.show(n);
+      }
+    }
+    _knownSnapshotIds = list.map((e) => e.id).toSet();
+  }
+
+  Future<void> _reload() async {
+    final svc = context.read<NotificacionService>();
+    try {
+      final list = await svc.getNotificaciones();
+      await _applyFetched(list);
+      if (mounted) {
+        setState(() => _future = Future.value(list));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _future = Future.error(e));
+      }
+    }
   }
 
   String _fecha(Notificacion n) {
@@ -38,7 +91,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     if (n.leida) return;
     try {
       await context.read<NotificacionService>().marcarLeida(n.id);
-      _reload();
+      await _reload();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,7 +104,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: () async => _reload(),
+      onRefresh: _reload,
       child: FutureBuilder<List<Notificacion>>(
         future: _future,
         builder: (context, snap) {

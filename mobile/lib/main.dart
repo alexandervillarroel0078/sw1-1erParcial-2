@@ -10,11 +10,13 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/tramite_detalle_screen.dart';
 import 'services/auth_service.dart';
+import 'services/local_notification_service.dart';
 import 'services/notificacion_service.dart';
 import 'services/tramite_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LocalNotificationService.init();
   final prefs = await SharedPreferences.getInstance();
   final authService = AuthService(prefs);
   runApp(WorkflowApp(authService: authService));
