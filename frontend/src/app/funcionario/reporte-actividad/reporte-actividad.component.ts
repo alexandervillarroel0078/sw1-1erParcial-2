@@ -126,6 +126,11 @@ export class ReporteActividadComponent implements OnDestroy {
     return this.camposFormularioOrdenados().length > 0;
   });
 
+  /** Incluye tareas completadas con definición cargada (solo lectura dinámica). */
+  readonly vistaCamposDinamicos = computed(
+    () => this.camposFormularioOrdenados().length > 0,
+  );
+
   readonly modo = signal<ModoEntrada>('texto');
   readonly grabando = signal(false);
   readonly lineaVoz = signal('');
@@ -147,6 +152,7 @@ export class ReporteActividadComponent implements OnDestroy {
     { value: 'Aprobado', label: 'Aprobado' },
     { value: 'Rechazado', label: 'Rechazado' },
     { value: 'En revisión', label: 'En revisión' },
+    { value: 'Completado', label: 'Completado' },
   ];
 
   constructor() {
@@ -178,30 +184,33 @@ export class ReporteActividadComponent implements OnDestroy {
               }
               if (t.estado === 'completado') {
                 return this.informeService.getInformePorTarea(id).pipe(
-                  map((informe) => ({
-                    tarea: t,
-                    informe,
-                    definicion: null as FormularioActividad | null,
-                  })),
+                  switchMap((informe) => {
+                    const pid = (t.politicaId ?? '').trim();
+                    const nid = (t.nodoFlujoId ?? '').trim();
+                    if (!pid || !nid) {
+                      return of({
+                        tarea: t,
+                        informe,
+                        definicion: null as FormularioActividad | null,
+                      });
+                    }
+                    return this.formularioFuncionarioService.obtener(pid, nid).pipe(
+                      map((definicion) => ({
+                        tarea: t,
+                        informe,
+                        definicion,
+                      })),
+                    );
+                  }),
                 );
               }
               const pid = (t.politicaId ?? '').trim();
               const nid = (t.nodoFlujoId ?? '').trim();
 
-              console.log('[ReporteActividad][TEMP] antes llamada formulario', {
-                politicaId: pid,
-                nodoFlujoId: nid,
-                politicaIdCrudoEnTarea: t.politicaId,
-                nodoFlujoIdCrudoEnTarea: t.nodoFlujoId,
-              });
-
               if (!pid || !nid) {
                 return of({ tarea: t, informe: null, definicion: null });
               }
               return this.formularioFuncionarioService.obtener(pid, nid).pipe(
-                tap((definicion) => {
-                  console.log('[ReporteActividad][TEMP] respuesta endpoint (en pipe, antes subscribe)', definicion);
-                }),
                 map((definicion) => ({
                   tarea: t,
                   informe: null as Informe | null,
@@ -223,16 +232,7 @@ export class ReporteActividadComponent implements OnDestroy {
           this.tarea.set(tarea);
           this.informe.set(informe);
           this.definicionFormulario.set(definicion);
-          console.log('[ReporteActividad][TEMP] tras definicionFormulario.set (antes rebuildForm)', {
-            usarFormularioDinamico: this.usarFormularioDinamico(),
-            camposLength: definicion?.campos?.length,
-            keysRespuesta: definicion && typeof definicion === 'object' ? Object.keys(definicion) : [],
-          });
           this.rebuildForm(tarea, informe);
-          console.log('[ReporteActividad][TEMP] tras rebuildForm', {
-            usarFormularioDinamico: this.usarFormularioDinamico(),
-            controlNames: Object.keys(this.form.controls),
-          });
           this.cdr.markForCheck();
         },
         error: () => {
@@ -335,12 +335,81 @@ export class ReporteActividadComponent implements OnDestroy {
     this.cdr.markForCheck();
   }
 
+  private normalizarEtiquetaClave(s: string): string {
+    return s.trim().toLowerCase();
+  }
+
+  private parseLineasEtiquetaValor(descripcion: string): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const line of descripcion.split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      const idx = t.indexOf(':');
+      if (idx <= 0) continue;
+      const lab = t.slice(0, idx).trim();
+      const val = t.slice(idx + 1).trim();
+      map.set(this.normalizarEtiquetaClave(lab), val);
+    }
+    return map;
+  }
+
+  private parseCheckboxValorDesdeInforme(s: string): boolean {
+    const x = s.trim().toLowerCase();
+    if (!x) return false;
+    if (['no', 'false', '0', 'n'].includes(x)) return false;
+    return ['sí', 'si', 'true', '1', 'yes', 's', 'ok', 'verdadero'].includes(x);
+  }
+
+  private patchValoresDesdeInformeCompletado(
+    informe: Informe,
+    campos: CampoFormulario[],
+  ): Record<string, string | boolean> {
+    const out: Record<string, string | boolean> = {};
+    const lineMap = this.parseLineasEtiquetaValor(informe.descripcion ?? '');
+    for (const c of campos) {
+      const key = this.campoControlKey(c);
+      const tipo = this.normalizeTipoCampo(c.tipo);
+      const lab = (c.etiqueta ?? '').trim();
+      if (tipo === 'imagen' || tipo === 'archivo') {
+        continue;
+      }
+      if (lab.toLowerCase().includes('observacion') && informe.observaciones?.trim()) {
+        out[key] = informe.observaciones.trim();
+        continue;
+      }
+      const val = lineMap.get(this.normalizarEtiquetaClave(lab));
+      if (val !== undefined) {
+        out[key] = tipo === 'checkbox' ? this.parseCheckboxValorDesdeInforme(val) : val;
+      }
+    }
+    return out;
+  }
+
   private rebuildForm(t: Tarea, informe: Informe | null): void {
     for (const k of Object.keys(this.form.controls)) {
       this.form.removeControl(k, { emitEvent: false });
     }
 
     if (t.estado === 'completado') {
+      const camposOrdenados = [...(this.definicionFormulario()?.campos ?? [])].sort(
+        (a, b) => a.orden - b.orden,
+      );
+      if (camposOrdenados.length > 0) {
+        for (const c of camposOrdenados) {
+          this.form.addControl(this.campoControlKey(c), this.buildControlForCampo(c));
+        }
+        this.form.enable({ emitEvent: false });
+        if (informe) {
+          const patch = this.patchValoresDesdeInformeCompletado(informe, camposOrdenados);
+          this.form.patchValue(patch as Record<string, unknown>, { emitEvent: false });
+        }
+        queueMicrotask(() => {
+          this.form.disable({ emitEvent: false });
+          this.cdr.detectChanges();
+        });
+        return;
+      }
+
       this.form.addControl('descripcion', this.fb.control(''));
       this.form.addControl('resultado', this.fb.control(''));
       this.form.addControl('observaciones', this.fb.control(''));
@@ -477,7 +546,7 @@ export class ReporteActividadComponent implements OnDestroy {
         funcionarioId: uid,
         descripcion:
           esBorrador && !descripcion.trim() ? '(borrador)' : descripcion.trim() || '(sin datos)',
-        resultado: 'En revisión',
+        resultado: 'Completado',
         observaciones,
         archivos: this.adjuntosParaInforme(),
         esBorrador,

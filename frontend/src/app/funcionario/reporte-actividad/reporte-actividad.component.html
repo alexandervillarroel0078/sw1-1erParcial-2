@@ -31,24 +31,87 @@
             <p class="fecha-envio fecha-envio--muted">Fecha de envío no registrada</p>
           }
 
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Descripción de la actividad</mat-label>
-            <textarea matInput rows="6" formControlName="descripcion"></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Resultado</mat-label>
-            <mat-select formControlName="resultado">
-              @for (r of resultados; track r.value) {
-                <mat-option [value]="r.value">{{ r.label }}</mat-option>
+          @if (vistaCamposDinamicos()) {
+            @for (c of camposFormularioOrdenados(); track campoControlKey(c)) {
+              @switch (normalizeTipoCampo(c.tipo)) {
+                @case ('texto_corto') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <input matInput [formControlName]="campoControlKey(c)" />
+                  </mat-form-field>
+                }
+                @case ('texto_largo') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <textarea matInput rows="5" [formControlName]="campoControlKey(c)"></textarea>
+                  </mat-form-field>
+                }
+                @case ('select') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <mat-select [formControlName]="campoControlKey(c)">
+                      @for (op of opcionesCampoSelect(c); track op) {
+                        <mat-option [value]="op">{{ op }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                @case ('fecha') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <input matInput type="date" [formControlName]="campoControlKey(c)" />
+                  </mat-form-field>
+                }
+                @case ('checkbox') {
+                  <div class="campo-checkbox">
+                    <mat-checkbox [formControlName]="campoControlKey(c)">{{ c.etiqueta }}</mat-checkbox>
+                    @if (c.textoAyuda) {
+                      <p class="hint-voz">{{ c.textoAyuda }}</p>
+                    }
+                  </div>
+                }
+                @default {
+                  <div class="campo-estatico">
+                    <div class="campo-estatico__label">{{ c.etiqueta }}</div>
+                    <p class="hint-voz">
+                      {{ c.textoAyuda || 'Este tipo de campo no está disponible en el reporte.' }}
+                    </p>
+                  </div>
+                }
               }
-            </mat-select>
-          </mat-form-field>
+            }
+          } @else {
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Descripción de la actividad</mat-label>
+              <textarea matInput rows="6" formControlName="descripcion"></textarea>
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full">
-            <mat-label>Observaciones</mat-label>
-            <textarea matInput rows="3" formControlName="observaciones"></textarea>
-          </mat-form-field>
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Resultado</mat-label>
+              <mat-select formControlName="resultado">
+                @for (r of resultados; track r.value) {
+                  <mat-option [value]="r.value">{{ r.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Observaciones</mat-label>
+              <textarea matInput rows="3" formControlName="observaciones"></textarea>
+            </mat-form-field>
+          }
 
           @if (informe()?.archivos?.length) {
             <div class="adjuntos-readonly">

@@ -28,6 +28,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -142,7 +144,14 @@ public class TareaService {
 		if (t.getUsuarioAsignadoId() == null || !t.getUsuarioAsignadoId().equals(usuarioId)) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "No autorizado");
 		}
-		return toTareaDtoConPoliticaDesdeTramite(t, new HashMap<>());
+		TareaDTO dto = toTareaDtoConPoliticaDesdeTramite(t, new HashMap<>());
+		if (t.getCreadoEn() != null) {
+			ZoneId z = ZoneId.systemDefault();
+			LocalDate inicio = t.getCreadoEn().atZone(z).toLocalDate();
+			int dias = (int) ChronoUnit.DAYS.between(inicio, LocalDate.now(z));
+			dto.setDiasAbierto(Math.max(0, dias));
+		}
+		return dto;
 	}
 
 	public TareaDTO atender(String id, String usuarioId) {
