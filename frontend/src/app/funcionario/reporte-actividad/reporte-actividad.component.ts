@@ -32,13 +32,23 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { catchError, map, Observable, of, switchMap, take, tap } from 'rxjs';
+import {
+  catchError,
+  finalize,
+  map,
+  Observable,
+  of,
+  switchMap,
+  take,
+  tap,
+} from 'rxjs';
 
 import { ArchivoAdjunto, Informe } from '../../core/models/informe.model';
 import type { CampoFormulario, FormularioActividad } from '../../core/models/nodo.model';
 import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { FormularioFuncionarioService } from '../../core/services/formulario-funcionario.service';
+import { IaService } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
 import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
@@ -93,6 +103,7 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly router = inject(Router);
   private readonly tareaService = inject(TareaService);
   private readonly formularioFuncionarioService = inject(FormularioFuncionarioService);
+  private readonly iaService = inject(IaService);
   private readonly informeService = inject(InformeService);
   private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthService);
@@ -275,6 +286,53 @@ export class ReporteActividadComponent implements OnDestroy {
   opcionesCampoSelect(c: CampoFormulario): string[] {
     const raw = c.opciones ?? [];
     return raw.map((o) => (typeof o === 'string' ? o : String(o)));
+  }
+
+  private camposPayloadParaIa(): { id: string; etiqueta: string; tipo: string }[] {
+    if (this.usarFormularioDinamico()) {
+      return this.camposFormularioOrdenados().map((c) => ({
+        id: this.campoControlKey(c),
+        etiqueta: (c.etiqueta ?? '').trim(),
+        tipo: this.normalizeTipoCampo(c.tipo),
+      }));
+    }
+    return [
+      {
+        id: 'descripcion',
+        etiqueta: 'Descripción de la actividad',
+        tipo: 'texto_largo',
+      },
+      { id: 'observaciones', etiqueta: 'Observaciones', tipo: 'texto_largo' },
+    ];
+  }
+
+  private aplicarVerbatimPrimeraDescripcion(texto: string): void {
+    const key = this.primerCampoVozDescripcionKey();
+    if (key) {
+      this.form.patchValue({ [key]: texto } as Record<string, string>);
+    }
+  }
+
+  private aplicarValoresDesdeIa(valores: { id: string; valor: string }[]): void {
+    for (const { id, valor } of valores) {
+      const ctrl = this.form.get(id);
+      if (!ctrl || ctrl.disabled) {
+        continue;
+      }
+      const v = valor ?? '';
+      const cur = ctrl.value;
+      if (typeof cur === 'boolean') {
+        const s = v.trim().toLowerCase();
+        ctrl.setValue(
+          !s
+            ? false
+            : ['true', 'sí', 'si', '1', 'yes', 's', 'ok', 'verdadero'].includes(s),
+        );
+      } else {
+        ctrl.setValue(v);
+      }
+    }
+    this.cdr.markForCheck();
   }
 
   private rebuildForm(t: Tarea, informe: Informe | null): void {
@@ -609,13 +667,38 @@ export class ReporteActividadComponent implements OnDestroy {
     r.onend = () => {
       this.grabando.set(false);
       const texto = (this.acumuladoFinal || this.lineaVoz()).trim();
-      if (texto) {
-        const key = this.primerCampoVozDescripcionKey();
-        if (key) {
-          this.form.patchValue({ [key]: texto } as Record<string, string>);
-        }
+      if (!texto) {
+        this.recognition = null;
+        return;
       }
-      this.recognition = null;
+      const campos = this.camposPayloadParaIa();
+      if (campos.length === 0) {
+        this.aplicarVerbatimPrimeraDescripcion(texto);
+        this.recognition = null;
+        this.cdr.markForCheck();
+        return;
+      }
+      this.iaService
+        .rellenarFormulario({ textoVoz: texto, campos })
+        .pipe(
+          take(1),
+          finalize(() => {
+            this.recognition = null;
+          }),
+        )
+        .subscribe({
+          next: (res) => {
+            this.aplicarValoresDesdeIa(res.valores);
+          },
+          error: () => {
+            this.snack.open(
+              'No se pudo interpretar la voz con IA. Se dejó la transcripción en el primer campo.',
+              'Cerrar',
+              { duration: 4800 },
+            );
+            this.aplicarVerbatimPrimeraDescripcion(texto);
+          },
+        });
     };
 
     try {

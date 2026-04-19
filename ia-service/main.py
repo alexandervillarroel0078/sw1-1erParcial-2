@@ -96,6 +96,41 @@ MODO EDICIÓN (cuando el mensaje del usuario incluye "Diagrama actual:"):
 - "elimina X": quitar ese nodo y todas sus aristas incidentes"""
 
 
+SYSTEM_PROMPT_FORMULARIO = """Eres un asistente que ayuda a completar formularios
+de reporte institucional a partir de lo que dictó el funcionario.
+
+Entrada que recibirás en el mensaje del usuario:
+1) Texto transcrito desde voz del funcionario (puede ser imperfecto).
+2) Lista JSON de campos del formulario. Cada campo tiene:
+   - id: identificador técnico que debes repetir igual en la salida
+   - etiqueta: nombre visible del campo (sirve para interpretar la intención)
+   - tipo: texto_corto | texto_largo | select | fecha | checkbox |
+           imagen | archivo
+
+Tu tarea:
+- Analizar el texto dictado y extraer la información útil para cada campo.
+- Mapear cada dato al campo cuya etiqueta y tipo encajen mejor con ese dato.
+- Para checkbox: interpreta como verdadero símbolos como "sí", "correcto",
+  "confirmo", "de acuerdo"; como falso "no", "incorrecto".
+- Para fecha: responder en formato ISO yyyy-mm-dd cuando sea posible; si solo hay
+  día/mes mencionados en el año actual, inferir fecha razonable.
+- Para select: usa exactamente uno de los valores esperados si el texto lo permite;
+  si no hay opciones en el campo, usa el texto corto más probable.
+- Si para un campo no hay información suficiente en la transcripción,
+  pon valor vacío "" para ese campo (checkbox: "" se interpretará como false en el cliente).
+- imagen/archivo deja valor "" salvo que el texto implique texto descriptivo (opcional).
+
+FORMATO DE RESPUESTA (solo esto, sin texto adicional ni markdown salvo fences opcionales):
+Un único objeto JSON:
+{
+  "valores": [
+    { "id": "<mismo id del campo>", "valor": "<string>" }
+  ]
+
+Debes incluir una entrada por cada campo recibido en la lista (mismo orden no es obligatorio).
+Responde SOLO con el JSON."""
+
+
 class GenerarDiagramaBody(BaseModel):
     instruccion: str = Field(..., min_length=1)
 
@@ -109,6 +144,26 @@ class EditarDiagramaBody(BaseModel):
 class DiagramaResponse(BaseModel):
     nodos: list[dict[str, Any]]
     aristas: list[dict[str, Any]]
+
+
+class CampoFormularioItem(BaseModel):
+    id: str
+    etiqueta: str
+    tipo: str
+
+
+class RellenarFormularioBody(BaseModel):
+    textoVoz: str = Field(..., min_length=1)
+    campos: list[CampoFormularioItem] = Field(default_factory=list)
+
+
+class ValorCampoSalida(BaseModel):
+    id: str
+    valor: str = ""
+
+
+class RellenarFormularioResponse(BaseModel):
+    valores: list[ValorCampoSalida]
 
 
 def _client() -> OpenAI:
@@ -169,6 +224,48 @@ def _llamada_openai(system: str, user: str) -> DiagramaResponse:
     return _validar_diagrama(data)
 
 
+def _validar_valores_formulario(data: dict[str, Any]) -> RellenarFormularioResponse:
+    valores = data.get("valores")
+    if not isinstance(valores, list):
+        raise HTTPException(
+            status_code=502,
+            detail='La respuesta debe tener clave "valores" (lista)',
+        )
+    result: list[ValorCampoSalida] = []
+    for item in valores:
+        if not isinstance(item, dict):
+            continue
+        cid = item.get("id")
+        if cid is None:
+            continue
+        val = item.get("valor")
+        result.append(
+            ValorCampoSalida(id=str(cid), valor="" if val is None else str(val)),
+        )
+    return RellenarFormularioResponse(valores=result)
+
+
+def _llamada_openai_formulario(user: str) -> RellenarFormularioResponse:
+    client = _client()
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT_FORMULARIO},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.2,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error OpenAI: {e!s}") from e
+
+    choice = completion.choices[0].message.content
+    if not choice:
+        raise HTTPException(status_code=502, detail="Respuesta vacía del modelo")
+    data = _extraer_json(choice)
+    return _validar_valores_formulario(data)
+
+
 app = FastAPI(title="IA Diagramas", version="1.0.0")
 
 app.add_middleware(
@@ -203,6 +300,22 @@ def editar_diagrama(body: EditarDiagramaBody):
         f"Instrucción: {body.instruccion.strip()}"
     )
     return _llamada_openai(SYSTEM_PROMPT, user_msg)
+
+
+@app.post("/api/ia/rellenar-formulario", response_model=RellenarFormularioResponse)
+def rellenar_formulario(body: RellenarFormularioBody):
+    if not body.campos:
+        return RellenarFormularioResponse(valores=[])
+    campos_json = json.dumps(
+        [{"id": c.id, "etiqueta": c.etiqueta, "tipo": c.tipo} for c in body.campos],
+        ensure_ascii=False,
+        indent=2,
+    )
+    user_msg = (
+        f"Texto dictado por el funcionario:\n{body.textoVoz.strip()}\n\n"
+        f"Campos del formulario:\n{campos_json}"
+    )
+    return _llamada_openai_formulario(user_msg)
 
 
 if __name__ == "__main__":

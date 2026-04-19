@@ -7,6 +7,21 @@ export interface DiagramaIaResponse {
   aristas: Record<string, unknown>[];
 }
 
+export interface CampoFormularioIa {
+  id: string;
+  etiqueta: string;
+  tipo: string;
+}
+
+export interface ValorCampoIa {
+  id: string;
+  valor: string;
+}
+
+export interface RellenarFormularioIaResponse {
+  valores: ValorCampoIa[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
@@ -31,6 +46,16 @@ export class IaService {
         nodosActuales: nodos,
         aristasActuales: aristas,
       },
+    );
+  }
+
+  rellenarFormulario(body: {
+    textoVoz: string;
+    campos: CampoFormularioIa[];
+  }): Observable<RellenarFormularioIaResponse> {
+    return this.http.post<RellenarFormularioIaResponse>(
+      `${this.iaUrl}/api/ia/rellenar-formulario`,
+      body,
     );
   }
 }
