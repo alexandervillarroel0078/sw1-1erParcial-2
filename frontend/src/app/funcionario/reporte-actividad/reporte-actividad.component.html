@@ -99,15 +99,6 @@
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full">
-              <mat-label>Resultado</mat-label>
-              <mat-select formControlName="resultado">
-                @for (r of resultados; track r.value) {
-                  <mat-option [value]="r.value">{{ r.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="full">
               <mat-label>Observaciones</mat-label>
               <textarea matInput rows="3" formControlName="observaciones"></textarea>
             </mat-form-field>

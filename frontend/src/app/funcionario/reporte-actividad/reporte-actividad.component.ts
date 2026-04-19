@@ -148,13 +148,6 @@ export class ReporteActividadComponent implements OnDestroy {
   /** Controles variables: fallback fijo o campos `f_*` del formulario dinámico. */
   readonly form = this.fb.group({});
 
-  readonly resultados = [
-    { value: 'Aprobado', label: 'Aprobado' },
-    { value: 'Rechazado', label: 'Rechazado' },
-    { value: 'En revisión', label: 'En revisión' },
-    { value: 'Completado', label: 'Completado' },
-  ];
-
   constructor() {
     type Carga = {
       tarea: Tarea | null;
@@ -411,14 +404,12 @@ export class ReporteActividadComponent implements OnDestroy {
       }
 
       this.form.addControl('descripcion', this.fb.control(''));
-      this.form.addControl('resultado', this.fb.control(''));
       this.form.addControl('observaciones', this.fb.control(''));
       this.form.enable({ emitEvent: false });
       if (informe) {
         this.form.patchValue(
           {
             descripcion: informe.descripcion ?? '',
-            resultado: informe.resultado ?? '',
             observaciones: informe.observaciones ?? '',
           },
           { emitEvent: false },
@@ -452,10 +443,6 @@ export class ReporteActividadComponent implements OnDestroy {
     this.form.addControl(
       'descripcion',
       this.fb.nonNullable.control('', [Validators.required, Validators.minLength(3)]),
-    );
-    this.form.addControl(
-      'resultado',
-      this.fb.nonNullable.control('En revisión', [Validators.required]),
     );
     this.form.addControl('observaciones', this.fb.nonNullable.control(''));
     this.form.enable({ emitEvent: false });
@@ -556,7 +543,6 @@ export class ReporteActividadComponent implements OnDestroy {
     }
     const raw = this.form.getRawValue() as {
       descripcion: string;
-      resultado: string;
       observaciones?: string;
     };
     return {
@@ -565,7 +551,7 @@ export class ReporteActividadComponent implements OnDestroy {
       funcionarioId: uid,
       descripcion:
         (raw.descripcion?.trim() || (esBorrador ? '(borrador)' : '')) ?? '',
-      resultado: (raw.resultado?.trim() || 'En revisión') ?? 'En revisión',
+      resultado: 'Completado',
       observaciones: raw.observaciones?.trim() || undefined,
       archivos: this.adjuntosParaInforme(),
       esBorrador,
