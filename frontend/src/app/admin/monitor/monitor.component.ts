@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { combineLatest, interval, merge, of } from 'rxjs';
 import { map, startWith, switchMap } from 'rxjs/operators';
 
+import { formatoTiempoAbierto } from '../../core/utils/tiempo-abierto.util';
 import { Tramite } from '../../core/models/tramite.model';
 import { TramiteService } from '../../core/services/tramite.service';
 
@@ -56,6 +57,8 @@ export type PoliticaOption = { id: string; nombre: string };
 export class MonitorComponent {
   private readonly fb = inject(FormBuilder);
   private readonly tramiteService = inject(TramiteService);
+
+  readonly formatoTiempoAbierto = formatoTiempoAbierto;
 
   private readonly clientesMock: Record<string, string> = {
     'cli-1': 'María López',

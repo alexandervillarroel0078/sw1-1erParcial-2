@@ -51,6 +51,7 @@ import { FormularioFuncionarioService } from '../../core/services/formulario-fun
 import { IaService } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
+import { formatoTiempoAbierto } from '../../core/utils/tiempo-abierto.util';
 import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
 
 export type ModoEntrada = 'texto' | 'voz';
@@ -98,6 +99,8 @@ export type AdjuntoPendiente = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReporteActividadComponent implements OnDestroy {
+  readonly formatoTiempoAbierto = formatoTiempoAbierto;
+
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

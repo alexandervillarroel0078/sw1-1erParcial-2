@@ -63,8 +63,7 @@
             <div class="meta">
               <span class="meta__label">Tiempo</span>
               <span class="meta__value">
-                {{ row.diasTranscurridos }}
-                {{ row.diasTranscurridos === 1 ? 'día' : 'días' }}
+                {{ formatoTiempoAbierto(row.diasTranscurridos) }}
               </span>
             </div>
           </div>
