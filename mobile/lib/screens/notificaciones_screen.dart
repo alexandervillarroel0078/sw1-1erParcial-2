@@ -16,7 +16,10 @@ class NotificacionesScreen extends StatefulWidget {
 }
 
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
-  late Future<List<Notificacion>> _future;
+  bool _loading = true;
+  Object? _error;
+  List<Notificacion> _notificaciones = [];
+
   Timer? _pollTimer;
   bool _baselineReady = false;
   Set<String> _knownSnapshotIds = {};
@@ -25,7 +28,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   void initState() {
     super.initState();
     final svc = context.read<NotificacionService>();
-    _future = _bootstrap(svc);
+    _loadInitial(svc);
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tick(svc));
   }
 
@@ -35,19 +38,34 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     super.dispose();
   }
 
-  Future<List<Notificacion>> _bootstrap(NotificacionService svc) async {
-    final list = await svc.getNotificaciones();
-    await _applyFetched(list);
-    return list;
+  Future<void> _loadInitial(NotificacionService svc) async {
+    try {
+      final data = await svc.getNotificaciones();
+      await _applyFetched(data);
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = null;
+        _notificaciones = data;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e;
+        _notificaciones = [];
+      });
+    }
   }
 
   Future<void> _tick(NotificacionService svc) async {
     try {
-      final list = await svc.getNotificaciones();
-      await _applyFetched(list);
-      if (mounted) {
-        setState(() => _future = Future.value(list));
-      }
+      final data = await svc.getNotificaciones();
+      await _applyFetched(data);
+      if (!mounted) return;
+      setState(() {
+        _notificaciones = data;
+      });
     } catch (_) {}
   }
 
@@ -68,15 +86,18 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   Future<void> _reload() async {
     final svc = context.read<NotificacionService>();
     try {
-      final list = await svc.getNotificaciones();
-      await _applyFetched(list);
-      if (mounted) {
-        setState(() => _future = Future.value(list));
-      }
+      final data = await svc.getNotificaciones();
+      await _applyFetched(data);
+      if (!mounted) return;
+      setState(() {
+        _error = null;
+        _notificaciones = data;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => _future = Future.error(e));
-      }
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+      });
     }
   }
 
@@ -105,120 +126,122 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _reload,
-      child: FutureBuilder<List<Notificacion>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return ListView(
-              children: const [
-                SizedBox(height: 120),
-                Center(child: CircularProgressIndicator()),
-              ],
-            );
-          }
-          if (snap.hasError) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(
-                  'No se pudieron cargar las notificaciones.\n${snap.error}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.tonal(
-                  onPressed: _reload,
-                  child: const Text('Reintentar'),
-                ),
-              ],
-            );
-          }
-          final list = snap.data ?? [];
-          if (list.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 80),
-                Center(child: Text('No hay notificaciones.')),
-              ],
-            );
-          }
-          return ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final n = list[i];
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _onTap(n),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                n.titulo,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            if (!n.leida)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Nueva',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          n.mensaje,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _fecha(n),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
+      child: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_loading) {
+      return ListView(
+        children: const [
+          SizedBox(height: 120),
+          Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+    if (_error != null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'No se pudieron cargar las notificaciones.\n$_error',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.tonal(
+            onPressed: () {
+              setState(() {
+                _loading = true;
+                _error = null;
+              });
+              _loadInitial(context.read<NotificacionService>());
             },
-          );
-        },
-      ),
+            child: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+    if (_notificaciones.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 80),
+          Center(child: Text('No hay notificaciones.')),
+        ],
+      );
+    }
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: _notificaciones.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, i) {
+        final n = _notificaciones[i];
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _onTap(n),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          n.titulo,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      if (!n.leida)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Nueva',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    n.mensaje,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _fecha(n),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
