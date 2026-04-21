@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/notificacion.dart';
-import '../services/local_notification_service.dart';
 import '../services/notificacion_service.dart';
 
 /// Listado de notificaciones del cliente.
@@ -20,28 +17,16 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   Object? _error;
   List<Notificacion> _notificaciones = [];
 
-  Timer? _pollTimer;
-  bool _baselineReady = false;
-  Set<String> _knownSnapshotIds = {};
-
   @override
   void initState() {
     super.initState();
     final svc = context.read<NotificacionService>();
     _loadInitial(svc);
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tick(svc));
-  }
-
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadInitial(NotificacionService svc) async {
     try {
       final data = await svc.getNotificaciones();
-      await _applyFetched(data);
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -58,36 +43,10 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     }
   }
 
-  Future<void> _tick(NotificacionService svc) async {
-    try {
-      final data = await svc.getNotificaciones();
-      await _applyFetched(data);
-      if (!mounted) return;
-      setState(() {
-        _notificaciones = data;
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _applyFetched(List<Notificacion> list) async {
-    if (!_baselineReady) {
-      _knownSnapshotIds = list.map((e) => e.id).toSet();
-      _baselineReady = true;
-      return;
-    }
-    for (final n in list) {
-      if (!_knownSnapshotIds.contains(n.id) && !n.leida) {
-        await LocalNotificationService.show(n);
-      }
-    }
-    _knownSnapshotIds = list.map((e) => e.id).toSet();
-  }
-
   Future<void> _reload() async {
     final svc = context.read<NotificacionService>();
     try {
       final data = await svc.getNotificaciones();
-      await _applyFetched(data);
       if (!mounted) return;
       setState(() {
         _error = null;

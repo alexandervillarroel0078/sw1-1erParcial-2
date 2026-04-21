@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "formulario administrador y funcionario"
+git commit -m "movil"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"
