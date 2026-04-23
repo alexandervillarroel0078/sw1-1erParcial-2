@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "movil"
+git commit -m "implementacion del colaborativa"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"

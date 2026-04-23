@@ -47,6 +47,10 @@ import type { Departamento } from '../../../core/models/departamento.model';
 import { DepartamentoService } from '../../../core/services/departamento.service';
 import { PoliticaService } from '../../../core/services/politica.service';
 import { IaService } from '../../../core/services/ia.service';
+import {
+  CambioCanvas,
+  ColaborativoService,
+} from '../../../core/services/colaborativo.service';
 import type {
   AristaCanvas,
   CalleCanvas,
@@ -287,6 +291,7 @@ export class PolicyDesignerComponent implements OnInit {
   private readonly politicaService = inject(PoliticaService);
   private readonly departamentoService = inject(DepartamentoService);
   private readonly iaService = inject(IaService);
+  private readonly colaborativoService = inject(ColaborativoService);
   private readonly snack = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -411,6 +416,7 @@ export class PolicyDesignerComponent implements OnInit {
   } | null = null;
 
   private panPrevia: { x: number; y: number } | null = null;
+  private aplicandoCambioRemoto = false;
 
 
   readonly nodoSeleccionado = computed(() => {
@@ -638,8 +644,32 @@ export class PolicyDesignerComponent implements OnInit {
       );
     });
 
+    this.colaborativoService.cambios$
+      .pipe(takeUntilDestroyed())
+      .subscribe((cambio) => {
+        console.log('[PolicyDesigner] Cambio remoto recibido en cambios$', cambio);
+        this.aplicarCambioRemoto(cambio);
+      });
+
+    effect(() => {
+      const politicaId = this.politicaRutaId();
+      const nodos = this.nodos();
+      const aristas = this.aristas();
+      const calles = this.calles();
+      if (!politicaId || this.aplicandoCambioRemoto) return;
+      untracked(() =>
+        this.colaborativoService.enviarCambio({
+          tipo: 'CANVAS_UPDATED',
+          nodos,
+          aristas,
+          calles,
+        }),
+      );
+    });
+
     this.destroyRef.onDestroy(() => {
       this.detenerIaReconocimiento();
+      this.colaborativoService.desconectar();
       if (this.resaltarTimer) {
         clearTimeout(this.resaltarTimer);
         this.resaltarTimer = null;
@@ -2394,6 +2424,11 @@ export class PolicyDesignerComponent implements OnInit {
     this.historialFuturo = [];
     this.politicaId = p?.id ? p.id : idRuta || null;
     this.politicaRutaId.set(this.politicaId);
+    if (this.politicaId) {
+      this.colaborativoService.conectar(this.politicaId);
+    } else {
+      this.colaborativoService.desconectar();
+    }
     this.politicaBase = p?.id ? p : null;
     this.nombrePolitica.set(p?.nombre?.trim() ? p.nombre : 'Nueva política');
     const callesDiseno = (p?.callesDiseno ?? []).map((c) => ({ ...c }));
@@ -2431,6 +2466,23 @@ export class PolicyDesignerComponent implements OnInit {
     this.panY.set(0);
     this.seleccionId.set(null);
     this.conexionDesde.set(null);
+    this.syncHistorialFlags();
+  }
+
+  private aplicarCambioRemoto(cambio: CambioCanvas): void {
+    const nodos = Array.isArray(cambio.nodos) ? (cambio.nodos as NodoCanvas[]) : [];
+    const aristas = Array.isArray(cambio.aristas)
+      ? (cambio.aristas as AristaCanvas[])
+      : [];
+    const calles = Array.isArray(cambio.calles) ? (cambio.calles as CalleCanvas[]) : [];
+    this.aplicandoCambioRemoto = true;
+    try {
+      this.nodos.set(structuredClone(nodos));
+      this.aristas.set(structuredClone(aristas));
+      this.calles.set(structuredClone(calles));
+    } finally {
+      this.aplicandoCambioRemoto = false;
+    }
     this.syncHistorialFlags();
   }
 
