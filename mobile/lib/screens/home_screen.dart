@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_config.dart';
 import '../models/notificacion.dart';
 import '../providers/auth_provider.dart';
-import '../services/local_notification_service.dart';
-import '../services/notificacion_service.dart';
+import '../services/auth_service.dart';
+import '../services/stomp_notification_service.dart';
 import 'notificaciones_screen.dart';
 import 'tramites_screen.dart';
 
@@ -23,42 +24,50 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Timer? _pollTimer;
-  bool _pollBaselineReady = false;
-  Set<String> _knownSnapshotIds = {};
+  StreamSubscription<Notificacion>? _stompNotifSub;
 
   @override
   void initState() {
     super.initState();
-    final svc = context.read<NotificacionService>();
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _pollTick(svc));
+    _stompNotifSub =
+        StompNotificationService.notificaciones.listen(_onStompNotificacion);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      final token = context.read<AuthService>().getToken();
+      final id = auth.cliente?.id;
+      if (id != null && id.isNotEmpty) {
+        StompNotificationService.conectar(id, token);
+      }
+    });
+  }
+
+  void _onStompNotificacion(Notificacion n) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        backgroundColor: const Color(AppConfig.primaryColorValue),
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_outlined, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '${n.titulo} - ${n.mensaje}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _stompNotifSub?.cancel();
+    StompNotificationService.desconectar();
     super.dispose();
-  }
-
-  Future<void> _pollTick(NotificacionService svc) async {
-    try {
-      final list = await svc.getNotificaciones();
-      await _maybeShowNewUnreadLocals(list);
-    } catch (_) {}
-  }
-
-  Future<void> _maybeShowNewUnreadLocals(List<Notificacion> list) async {
-    if (!_pollBaselineReady) {
-      _knownSnapshotIds = list.map((e) => e.id).toSet();
-      _pollBaselineReady = true;
-      return;
-    }
-    for (final n in list) {
-      if (!_knownSnapshotIds.contains(n.id) && !n.leida) {
-        await LocalNotificationService.show(n);
-      }
-    }
-    _knownSnapshotIds = list.map((e) => e.id).toSet();
   }
 
   int _tabIndex(GoRouterState state) {

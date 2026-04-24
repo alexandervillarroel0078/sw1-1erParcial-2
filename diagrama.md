@@ -9,14 +9,14 @@ ng serve
 
 cd mobile
 flutter devices
-flutter run -d R9TN8090ABJ
+flutter run -d R9JN7145S9J
 
 cd ia-service
 venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "implementacion del colaborativa"
+git commit -m "notificacion movil"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"

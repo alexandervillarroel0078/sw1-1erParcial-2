@@ -5,6 +5,7 @@ import com.dpn.backend.model.Notificacion;
 import com.dpn.backend.repository.NotificacionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class NotificacionService {
 
 	private final NotificacionRepository notificacionRepository;
+	private final SimpMessagingTemplate messagingTemplate;
 
 	/**
 	 * Persiste notificación y dispara envío push.
@@ -32,6 +34,7 @@ public class NotificacionService {
 				.enviadoEn(Instant.now())
 				.build();
 		n = notificacionRepository.save(n);
+		messagingTemplate.convertAndSend("/topic/cliente/" + clienteId + "/notificaciones", n);
 		// TODO: Firebase — enviar mensaje al dispositivo del cliente (token FCM).
 		return n;
 	}
