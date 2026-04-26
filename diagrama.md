@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "datos iniciales"
+git commit -m "pruebas ia + flujo bien"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"

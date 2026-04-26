@@ -76,8 +76,16 @@ FORMATO DE RESPUESTA (JSON exacto):
 
 REGLAS IMPORTANTES:
 - Siempre START al inicio y END al final
-- Si hay varias ramas que terminan el flujo, cada rama debe tener su propio
-  nodo END separado con IDs diferentes (n_end1, n_end2, etc.)
+- REGLA CRÍTICA DE NODOS END:
+  - NUNCA conectar dos aristas diferentes al mismo nodo END
+  - Cada rama que termina el flujo DEBE tener su PROPIO
+    nodo END con ID único
+  - Ejemplo CORRECTO:
+    Sí → n_end1 (END)
+    No → n_end2 (END)
+  - Ejemplo INCORRECTO:
+    Sí → n_end1 (END)
+    No → n_end1 (END) ← PROHIBIDO, mismo ID
 - DECISION solo tiene aristas Sí y No — nada más
 - FORK_BAR siempre seguido de JOIN_BAR
 - Posiciones X de izquierda a derecha (flujo horizontal)
@@ -93,7 +101,20 @@ MODO EDICIÓN (cuando el mensaje del usuario incluye "Diagrama actual:"):
 - Mantener posiciones existentes; nuevos nodos cerca del lugar lógico
 - "agrega X después de Y": insertar entre Y y su siguiente
 - "conecta A con B": agregar arista entre esos nodos
-- "elimina X": quitar ese nodo y todas sus aristas incidentes"""
+- "elimina X": quitar ese nodo y todas sus aristas incidentes
+- REGLA END MÚLTIPLES en modo edición:
+  Si el diagrama ya tiene un nodo END y la instrucción
+  agrega una nueva rama que también termina, crear un
+  NUEVO nodo END con ID diferente (ejemplo: si existe
+  'n_end', crear 'n_end2'). NUNCA usar el mismo END
+  para dos ramas diferentes.
+- REGLA NODOS HUÉRFANOS:
+  En modo edición, TODOS los nodos del diagrama actual
+  deben estar conectados en el diagrama resultado.
+  Ningún nodo puede quedar sin aristas de entrada
+  (excepto START) ni sin aristas de salida (excepto END).
+  Si un nodo queda desconectado, reconéctalo al lugar
+  lógico más cercano en el flujo."""
 
 
 SYSTEM_PROMPT_FORMULARIO = """Eres un asistente que ayuda a completar formularios
@@ -176,21 +197,37 @@ def _client() -> OpenAI:
 
 
 def _extraer_json(texto: str) -> dict[str, Any]:
-    """Quita fences ```json y devuelve el objeto parseado."""
     t = texto.strip()
-    fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", t, re.IGNORECASE)
+    # Quitar fences ```json
+    fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```", t, re.IGNORECASE)
     if fence:
         t = fence.group(1).strip()
-    try:
-        data = json.loads(t)
-    except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"La respuesta del modelo no es JSON válido: {e}",
-        ) from e
-    if not isinstance(data, dict):
-        raise HTTPException(status_code=502, detail="El JSON raíz debe ser un objeto")
-    return data
+
+    # Buscar el primer objeto JSON completo
+    # Encontrar donde empieza el { y balancear las llaves
+    start = t.find("{")
+    if start == -1:
+        raise HTTPException(status_code=502, detail="No se encontró JSON en la respuesta")
+
+    depth = 0
+    for i, ch in enumerate(t[start:], start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    data = json.loads(t[start : i + 1])
+                except json.JSONDecodeError as e:
+                    raise HTTPException(status_code=502, detail=f"JSON inválido: {e}")
+                if not isinstance(data, dict):
+                    raise HTTPException(
+                        status_code=502,
+                        detail="El JSON raíz debe ser un objeto",
+                    )
+                return data
+
+    raise HTTPException(status_code=502, detail="JSON incompleto en la respuesta")
 
 
 def _validar_diagrama(data: dict[str, Any]) -> DiagramaResponse:
@@ -212,7 +249,7 @@ def _llamada_openai(system: str, user: str) -> DiagramaResponse:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=0.4,
+            temperature=0.2,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error OpenAI: {e!s}") from e
@@ -220,6 +257,7 @@ def _llamada_openai(system: str, user: str) -> DiagramaResponse:
     choice = completion.choices[0].message.content
     if not choice:
         raise HTTPException(status_code=502, detail="Respuesta vacía del modelo")
+    print(f"RESPUESTA OPENAI RAW:\n{choice}")
     data = _extraer_json(choice)
     return _validar_diagrama(data)
 
@@ -299,7 +337,27 @@ def editar_diagrama(body: EditarDiagramaBody):
         f"Diagrama actual: {diagrama_json}\n"
         f"Instrucción: {body.instruccion.strip()}"
     )
-    return _llamada_openai(SYSTEM_PROMPT, user_msg)
+    result = _llamada_openai(SYSTEM_PROMPT, user_msg)
+
+    originales_por_id = {
+        str(n.get("id")): n
+        for n in body.nodosActuales
+        if isinstance(n, dict) and n.get("id") is not None
+    }
+    for nodo in result.nodos:
+        if not isinstance(nodo, dict):
+            continue
+        nid = nodo.get("id")
+        if nid is None:
+            continue
+        original = originales_por_id.get(str(nid))
+        if not original:
+            continue
+        for k in ("departamentoId", "departamentoTexto", "calleId"):
+            if (k not in nodo or nodo.get(k) is None) and k in original:
+                nodo[k] = original.get(k)
+
+    return result
 
 
 @app.post("/api/ia/rellenar-formulario", response_model=RellenarFormularioResponse)

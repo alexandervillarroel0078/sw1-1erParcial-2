@@ -2127,6 +2127,22 @@ export class PolicyDesignerComponent implements OnInit {
             this.mapearAristaIaDesdeApi(raw as Record<string, unknown>),
           );
           mappedNodos = this.reposicionarNodosIaEnCalles(mappedNodos, mappedAristas);
+          const nodosActualesMap = new Map(this.nodos().map((n) => [n.id, n]));
+          mappedNodos = mappedNodos.map((nodoIa) => {
+            const nodoOriginal = nodosActualesMap.get(nodoIa.id);
+            if (!nodoOriginal) return nodoIa;
+            const merged: NodoCanvas = {
+              ...nodoIa,
+              departamento: nodoOriginal.departamento,
+              departamentoTexto: nodoOriginal.departamentoTexto,
+              calleId: nodoOriginal.calleId,
+            };
+            const originalAny = nodoOriginal as unknown as { ancho?: number; alto?: number };
+            const mergedAny = merged as unknown as { ancho?: number; alto?: number };
+            if (originalAny.ancho !== undefined) mergedAny.ancho = originalAny.ancho;
+            if (originalAny.alto !== undefined) mergedAny.alto = originalAny.alto;
+            return merged;
+          });
           this.pushSnapshot();
           this.nodos.set(mappedNodos);
           this.aristas.set(mappedAristas);
