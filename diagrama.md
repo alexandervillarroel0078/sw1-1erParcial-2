@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "notificacion movil"
+git commit -m "datos iniciales"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"
