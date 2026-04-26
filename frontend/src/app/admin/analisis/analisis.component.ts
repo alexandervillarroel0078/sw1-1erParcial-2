@@ -288,7 +288,7 @@ export class AnalisisComponent {
     };
   }
 
-  formatoDias(d: number): string {
-    return d < 1 ? d.toFixed(2) : d.toFixed(1);
+  formatoMinutos(m: number): string {
+    return m < 1 ? m.toFixed(2) : m.toFixed(1);
   }
 }

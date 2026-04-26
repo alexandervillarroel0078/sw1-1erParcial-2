@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalisisService {
 
-	private static final double MS_POR_DIA = 86_400_000.0;
+	private static final double MS_POR_MINUTO = 60_000.0;
 
 	private final PoliticaRepository politicaRepository;
 	private final TramiteRepository tramiteRepository;
@@ -67,12 +67,12 @@ public class AnalisisService {
 			if (t.getCompletadoEn().isBefore(t.getCreadoEn())) {
 				continue;
 			}
-			double dias = Duration.between(t.getCreadoEn(), t.getCompletadoEn()).toMillis() / MS_POR_DIA;
-			duracionesPorNodo.computeIfAbsent(t.getNodoFlujoId(), k -> new ArrayList<>()).add(dias);
+			double minutos = Duration.between(t.getCreadoEn(), t.getCompletadoEn()).toMillis() / MS_POR_MINUTO;
+			duracionesPorNodo.computeIfAbsent(t.getNodoFlujoId(), k -> new ArrayList<>()).add(minutos);
 			if (t.getTramiteId() != null) {
 				tramitesConTareaValida.add(t.getTramiteId());
 			}
-			todasLasDuraciones.add(dias);
+			todasLasDuraciones.add(minutos);
 		}
 
 		if (duracionesPorNodo.isEmpty()) {
@@ -104,7 +104,7 @@ public class AnalisisService {
 					.tiempoPromedio(promedio)
 					.cantidadTareas(vals.size())
 					.cantidadDemorados(cantidadDemorados)
-					.estado(estadoDesdeDiasPromedio(promedio))
+					.estado(estadoDesdeMinutosPromedio(promedio))
 					.build());
 		}
 
@@ -170,17 +170,14 @@ public class AnalisisService {
 				.orElse("—");
 	}
 
-	/**
-	 * &lt; 1 día RAPIDO; 1–3 MEDIO; 3–5 ALTO; ≥5 CRITICO.
-	 */
-	static EstadoAnalisisNodo estadoDesdeDiasPromedio(double dias) {
-		if (dias < 1.0) {
+	static EstadoAnalisisNodo estadoDesdeMinutosPromedio(double minutos) {
+		if (minutos < 5.0) {
 			return EstadoAnalisisNodo.RAPIDO;
 		}
-		if (dias < 3.0) {
+		if (minutos < 15.0) {
 			return EstadoAnalisisNodo.MEDIO;
 		}
-		if (dias < 5.0) {
+		if (minutos < 30.0) {
 			return EstadoAnalisisNodo.ALTO;
 		}
 		return EstadoAnalisisNodo.CRITICO;

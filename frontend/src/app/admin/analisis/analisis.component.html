@@ -26,8 +26,8 @@
       <mat-card class="metric metric--yellow" appearance="outlined">
         <div class="metric__label">Tiempo promedio total</div>
         <div class="metric__value">
-          {{ formatoDias(vm.tiempoPromedioTotal) }}
-          <span class="metric__unit">días</span>
+          {{ formatoMinutos(vm.tiempoPromedioTotal) }}
+          <span class="metric__unit">min</span>
         </div>
       </mat-card>
       <mat-card class="metric metric--delayed" appearance="outlined">
@@ -46,7 +46,7 @@
       <div class="alerta" role="alert">
         <mat-icon class="alerta__icon">warning</mat-icon>
         <div class="alerta__text">
-          {{ vm.alertaNodo }} ({{ formatoDias(vm.alertaTiempo) }} días) — considere
+          {{ vm.alertaNodo }} ({{ formatoMinutos(vm.alertaTiempo) }} min) — considere
           redistribuir responsables
         </div>
       </div>
@@ -65,7 +65,7 @@
                 [style.width.%]="b.pct"
               ></div>
             </div>
-            <div class="bar-value">{{ formatoDias(b.tiempoPromedioDias) }} días</div>
+            <div class="bar-value">{{ formatoMinutos(b.tiempoPromedioDias) }} min</div>
           </div>
         }
       </div>
@@ -102,7 +102,7 @@
           <ng-container matColumnDef="tiempo">
             <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
             <td mat-cell *matCellDef="let row">
-              {{ formatoDias(row.tiempoPromedioDias) }} días
+              {{ formatoMinutos(row.tiempoPromedioDias) }} min
             </td>
           </ng-container>
 
