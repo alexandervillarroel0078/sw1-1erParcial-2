@@ -16,7 +16,7 @@ venv\Scripts\activate
 python main.py
 
 git add .
-git commit -m "analisis de cuello de botella"
+git commit -m "ultimos requerimientso"
 git push origin main
 
 🏦 Política: "Solicitud de Crédito Empresarial"
