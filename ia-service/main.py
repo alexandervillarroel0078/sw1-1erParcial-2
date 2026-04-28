@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200").split(",")
 MODEL = "gpt-4o-mini"
 
 SYSTEM_PROMPT = """Eres un experto en diseño de workflows de políticas
@@ -308,7 +309,7 @@ app = FastAPI(title="IA Diagramas", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

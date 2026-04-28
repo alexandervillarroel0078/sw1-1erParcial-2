@@ -3,8 +3,8 @@ spring:
     name: backend
   data:
     mongodb:
-      uri: mongodb://localhost:27017
-      database: dpn_workflow
+      uri: ${MONGODB_URI:mongodb://localhost:27017}
+      database: ${MONGODB_DATABASE:dpn_workflow}
   servlet:
     # Límites para POST multipart (p. ej. /api/archivos/upload)
     multipart:

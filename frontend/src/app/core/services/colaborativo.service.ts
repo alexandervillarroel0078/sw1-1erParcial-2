@@ -3,6 +3,7 @@ import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Observable, Subject } from 'rxjs';
 
+import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
 export interface CambioCanvas {
@@ -41,7 +42,7 @@ export class ColaborativoService {
     const token = this.auth.getToken();
 
     this.stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS(environment.wsUrl),
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 3000,
       debug: () => {

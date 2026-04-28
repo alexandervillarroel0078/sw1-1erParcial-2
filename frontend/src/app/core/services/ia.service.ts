@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
+import { environment } from '../../../environments/environment';
+
 export interface DiagramaIaResponse {
   nodos: Record<string, unknown>[];
   aristas: Record<string, unknown>[];
@@ -25,7 +27,7 @@ export interface RellenarFormularioIaResponse {
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
-  private readonly iaUrl = 'http://localhost:8000';
+  private readonly iaUrl = environment.iaUrl;
 
   generarDiagrama(instruccion: string): Observable<DiagramaIaResponse> {
     return this.http.post<DiagramaIaResponse>(

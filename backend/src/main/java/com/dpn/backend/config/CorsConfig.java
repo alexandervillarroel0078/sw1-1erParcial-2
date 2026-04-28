@@ -6,6 +6,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -13,10 +14,14 @@ public class CorsConfig {
 
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
+		String allowedOrigins = System.getenv("ALLOWED_ORIGINS");
+		if (allowedOrigins == null || allowedOrigins.isBlank()) {
+			allowedOrigins = "http://localhost:4200,http://192.168.0.11:4200,https://frontend-734852757342.us-central1.run.app";
+		}
+		String[] origins = allowedOrigins.split(",");
+
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(List.of(
-				"http://localhost:4200",
-				"http://192.168.0.11:4200"));
+		config.setAllowedOrigins(Arrays.asList(origins));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

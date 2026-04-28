@@ -21,8 +21,8 @@ class StompNotificationService {
   static Stream<Notificacion> get notificaciones =>
       _notificacionesController.stream;
 
-  static const String _wsUrl = 'http://192.168.0.11:8080/ws';
-
+  //static const String _wsUrl = 'http://192.168.0.11:8080/ws';
+  static const String _wsUrl = 'https://backend-734852757342.us-central1.run.app/ws';
   static void conectar(String clienteId, String? token) {
     desconectar();
     if (clienteId.isEmpty) return;

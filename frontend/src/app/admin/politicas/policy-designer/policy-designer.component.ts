@@ -417,6 +417,7 @@ export class PolicyDesignerComponent implements OnInit {
 
   private panPrevia: { x: number; y: number } | null = null;
   private aplicandoCambioRemoto = false;
+  private ultimoHashRemoto: string = '';
 
 
   readonly nodoSeleccionado = computed(() => {
@@ -652,11 +653,17 @@ export class PolicyDesignerComponent implements OnInit {
       });
 
     effect(() => {
+      console.log('[EFFECT] disparado, aplicandoCambioRemoto:', this.aplicandoCambioRemoto);
       const politicaId = this.politicaRutaId();
       const nodos = this.nodos();
       const aristas = this.aristas();
       const calles = this.calles();
+      const hashActual = JSON.stringify({ nodos, aristas, calles });
       if (!politicaId || this.aplicandoCambioRemoto) return;
+      if (hashActual === this.ultimoHashRemoto) return;
+      untracked(() =>
+        console.log('[EFFECT] enviando cambio al servidor'),
+      );
       untracked(() =>
         this.colaborativoService.enviarCambio({
           tipo: 'CANVAS_UPDATED',
@@ -2486,19 +2493,24 @@ export class PolicyDesignerComponent implements OnInit {
   }
 
   private aplicarCambioRemoto(cambio: CambioCanvas): void {
+    console.log('[REMOTO] aplicando cambio remoto de:', cambio.usuarioId);
+    this.ultimoHashRemoto = JSON.stringify({
+      nodos: cambio.nodos,
+      aristas: cambio.aristas,
+      calles: cambio.calles,
+    });
     const nodos = Array.isArray(cambio.nodos) ? (cambio.nodos as NodoCanvas[]) : [];
     const aristas = Array.isArray(cambio.aristas)
       ? (cambio.aristas as AristaCanvas[])
       : [];
     const calles = Array.isArray(cambio.calles) ? (cambio.calles as CalleCanvas[]) : [];
-    this.aplicandoCambioRemoto = true;
-    try {
+
+    untracked(() => {
       this.nodos.set(structuredClone(nodos));
       this.aristas.set(structuredClone(aristas));
       this.calles.set(structuredClone(calles));
-    } finally {
-      this.aplicandoCambioRemoto = false;
-    }
+    });
+
     this.syncHistorialFlags();
   }
 
