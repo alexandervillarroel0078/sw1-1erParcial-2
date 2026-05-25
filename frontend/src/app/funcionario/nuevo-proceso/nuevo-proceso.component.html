@@ -78,6 +78,30 @@
           }
         </mat-form-field>
 
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <button
+            mat-stroked-button
+            type="button"
+            [color]="escuchando() ? 'warn' : 'primary'"
+            (click)="iniciarVoz()"
+          >
+            <mat-icon>{{ escuchando() ? 'mic' : 'mic_none' }}</mat-icon>
+            {{ escuchando() ? 'Detener' : 'Describir situación por voz' }}
+          </button>
+
+          @if (transcript()) {
+            <p style="font-style: italic; color: #555; font-size: 13px; margin-top: 6px; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+              🎙️ {{ transcript() }}
+            </p>
+          }
+
+          @if (justificacion()) {
+            <p style="color: #666; font-size: 12px; margin-top: 4px;">
+              💡 {{ justificacion() }}
+            </p>
+          }
+        </div>
+
         @if (politicaSeleccionada$ | async; as pol) {
           <section class="nuevo-tramite__detalle" aria-live="polite">
             <h2 class="nuevo-tramite__pol-nombre">{{ pol.nombre }}</h2>

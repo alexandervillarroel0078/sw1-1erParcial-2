@@ -24,6 +24,17 @@ export interface RellenarFormularioIaResponse {
   valores: ValorCampoIa[];
 }
 
+export interface PoliticaIaItem {
+  id: string;
+  nombre: string;
+  descripcion: string;
+}
+
+export interface SugerirPoliticaResponse {
+  politicaId: string;
+  justificacion: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
@@ -57,6 +68,16 @@ export class IaService {
   }): Observable<RellenarFormularioIaResponse> {
     return this.http.post<RellenarFormularioIaResponse>(
       `${this.iaUrl}/api/ia/rellenar-formulario`,
+      body,
+    );
+  }
+
+  sugerirPolitica(body: {
+    textoVoz: string;
+    politicas: PoliticaIaItem[];
+  }): Observable<SugerirPoliticaResponse> {
+    return this.http.post<SugerirPoliticaResponse>(
+      `${this.iaUrl}/api/ia/sugerir-politica`,
       body,
     );
   }
