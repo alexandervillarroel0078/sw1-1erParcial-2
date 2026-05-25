@@ -1,0 +1,45 @@
+package com.dpn.backend.tramite.controller;
+
+import com.dpn.backend.tramite.dto.TramiteCreateDTO;
+import com.dpn.backend.tramite.dto.TramiteDetalleAdminResponse;
+import com.dpn.backend.tramite.model.Tramite;
+import com.dpn.backend.tarea.service.TareaService;
+import com.dpn.backend.tramite.service.TramiteService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+public class TramiteController {
+
+	private final TramiteService tramiteService;
+	private final TareaService tareaService;
+
+	/**
+	 * Listado admin: cada ítem incluye {@code porcentajeAvance} (100 si está completado;
+	 * si no, actividades ACTIVIDAD completadas / {@code totalPasos}).
+	 */
+	@GetMapping("/api/admin/tramites")
+	public List<Tramite> listarAdmin() {
+		return tramiteService.listar();
+	}
+
+	@GetMapping("/api/admin/tramites/{id}/detalle")
+	public TramiteDetalleAdminResponse detalleTramite(@PathVariable String id) {
+		return tareaService.obtenerDetalleTramite(id);
+	}
+
+	@PostMapping("/api/funcionario/tramites")
+	public Tramite crear(@Valid @RequestBody TramiteCreateDTO dto, Authentication authentication) {
+		String userId = authentication != null ? authentication.getName() : null;
+		return tramiteService.crear(dto, userId);
+	}
+}

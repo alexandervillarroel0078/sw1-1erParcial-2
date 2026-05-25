@@ -1,0 +1,26 @@
+package com.dpn.backend.auth.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RegistroClienteRequest {
+
+	@NotBlank
+	private String nombreCompleto;
+	@NotBlank
+	private String telefono;
+	@Email
+	@NotBlank
+	private String email;
+	@NotBlank
+	private String password;
+	private String tokenFcm;
+}

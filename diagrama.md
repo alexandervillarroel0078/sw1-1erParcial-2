@@ -1,8 +1,14 @@
 
 mobile/build/app/outputs/flutter-apk/app-release.apk
-
+C:\xampp\htdocs\sw1-1erParcial-2
 cd backend
 mvn spring-boot:run
+
+Rápido: menos de 5.0 minutos
+Medio: desde 5.0 hasta menos de 15.0 minutos
+Alto: desde 15.0 hasta menos de 30.0 minutos
+Crítico: 30.0 minutos o más
+
 
 cd frontend
 ng serve

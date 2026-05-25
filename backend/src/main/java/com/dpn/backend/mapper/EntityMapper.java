@@ -1,11 +1,11 @@
 package com.dpn.backend.mapper;
 
-import com.dpn.backend.dto.ClientePublicDTO;
-import com.dpn.backend.dto.TareaDTO;
-import com.dpn.backend.dto.UsuarioDTO;
-import com.dpn.backend.model.Cliente;
-import com.dpn.backend.model.Tarea;
-import com.dpn.backend.model.Usuario;
+import com.dpn.backend.cliente.dto.ClientePublicDTO;
+import com.dpn.backend.tarea.dto.TareaDTO;
+import com.dpn.backend.usuario.dto.UsuarioDTO;
+import com.dpn.backend.cliente.model.Cliente;
+import com.dpn.backend.tarea.model.Tarea;
+import com.dpn.backend.usuario.model.Usuario;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
