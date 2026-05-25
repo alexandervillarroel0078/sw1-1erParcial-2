@@ -49,6 +49,7 @@ export class AdminLayoutComponent {
     { label: 'Clientes', icon: 'people', link: '/admin/clientes' },
     { label: 'Monitor', icon: 'monitor_heart', link: '/admin/monitor' },
     { label: 'Análisis', icon: 'query_stats', link: '/admin/analisis' },
+    { label: 'Reportes', icon: 'summarize', link: '/admin/reportes' },
   ];
 
   readonly isHandset$ = this.bo.observe([Breakpoints.Handset, Breakpoints.TabletPortrait]).pipe(
@@ -94,6 +95,7 @@ export class AdminLayoutComponent {
     if (url.includes('/admin/clientes')) return 'Clientes';
     if (url.includes('/admin/monitor')) return 'Monitor';
     if (url.includes('/admin/analisis')) return 'Análisis';
+    if (url.includes('/admin/reportes')) return 'Reportes';
     return 'Dashboard';
   }
 }

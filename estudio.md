@@ -51,7 +51,7 @@ Funcionario confirma o cambia manualmente
 Spring Boot valida que la política 
 existe y está activa antes de crear el trámite
 
-Caso 1 — Debe sugerir política:
+Caso 1 — Debe sugerir política: (HECHO)
 Decí: "Necesito solicitar un cambio de medidor porque el mío está dañado"
 Esperás: que preseleccione una política y muestre justificación abajo
 

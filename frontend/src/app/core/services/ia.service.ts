@@ -35,6 +35,15 @@ export interface SugerirPoliticaResponse {
   justificacion: string;
 }
 
+export interface ConsultaReporteResponse {
+  descripcion: string;
+  columnas: string[];
+  filas: Record<string, unknown>[];
+  total: number;
+  tipoGrafico?: 'pie' | 'bar' | 'line' | null;
+  campoGrafico?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
@@ -79,6 +88,13 @@ export class IaService {
     return this.http.post<SugerirPoliticaResponse>(
       `${this.iaUrl}/api/ia/sugerir-politica`,
       body,
+    );
+  }
+
+  consultaReporte(texto: string): Observable<ConsultaReporteResponse> {
+    return this.http.post<ConsultaReporteResponse>(
+      `${this.iaUrl}/api/ia/consulta-reporte`,
+      { texto },
     );
   }
 }

@@ -92,7 +92,7 @@ Asignación manual de política al crear trámite
 
 
 ❌ Falta hacer (parcial 2)
-1. Asignación automática de política por voz
+1. Asignación automática de política por voz (HECHO)
 
 Endpoint nuevo en ia-service
 Flujo de voz en nuevo-proceso.component.ts
