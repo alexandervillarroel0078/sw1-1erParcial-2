@@ -44,6 +44,20 @@ export interface ConsultaReporteResponse {
   campoGrafico?: string | null;
 }
 
+export interface PeriodoResult {
+  label: string;
+  columnas: string[];
+  filas: Record<string, unknown>[];
+  total: number;
+}
+
+export interface ComparacionPeriodosResponse {
+  descripcion: string;
+  periodo1: PeriodoResult;
+  periodo2: PeriodoResult;
+  campoComparacion: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
@@ -94,6 +108,13 @@ export class IaService {
   consultaReporte(texto: string): Observable<ConsultaReporteResponse> {
     return this.http.post<ConsultaReporteResponse>(
       `${this.iaUrl}/api/ia/consulta-reporte`,
+      { texto },
+    );
+  }
+
+  compararPeriodos(texto: string): Observable<ComparacionPeriodosResponse> {
+    return this.http.post<ComparacionPeriodosResponse>(
+      `${this.iaUrl}/api/ia/comparar-periodos`,
       { texto },
     );
   }

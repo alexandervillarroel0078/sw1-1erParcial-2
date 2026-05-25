@@ -1,7 +1,7 @@
 import { NgClass } from '@angular/common';
 import {
-  AfterViewChecked,
   Component,
+  effect,
   ElementRef,
   inject,
   signal,
@@ -47,7 +47,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { IaService, ConsultaReporteResponse } from '../../core/services/ia.service';
+import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from '../../core/services/ia.service';
 
 @Component({
   selector: 'app-reportes',
@@ -173,6 +173,54 @@ import { IaService, ConsultaReporteResponse } from '../../core/services/ia.servi
           </p>
         }
       }
+
+      @if (comparacion()) {
+        <div style="margin-bottom: 16px;">
+          <strong style="font-size: 16px;">{{ comparacion()!.descripcion }}</strong>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <canvas #graficoComparacion style="width:100%; max-height:250px; display:block;"></canvas>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; overflow-x: auto;">
+          @for (periodo of [comparacion()!.periodo1, comparacion()!.periodo2]; track periodo.label) {
+            <div>
+              <h3 style="margin-bottom: 8px; color: #2563eb;">
+                {{ periodo.label }}
+                <span style="font-size: 13px; color: #666; font-weight: normal;">
+                  ({{ periodo.total }} resultados)
+                </span>
+              </h3>
+              @if (periodo.filas.length > 0) {
+                <div style="overflow-x: auto;">
+                  <table mat-table [dataSource]="periodo.filas" style="width: 100%;">
+                    @for (col of periodo.columnas; track col) {
+                      <ng-container [matColumnDef]="col">
+                        <th mat-header-cell *matHeaderCellDef style="font-weight: 600; font-size: 12px;">
+                          {{ formatearColumna(col) }}
+                        </th>
+                        <td mat-cell *matCellDef="let row" style="font-size: 12px;">
+                          <span [ngClass]="{
+                            'estado-completado': col === 'estado' && row[col] === 'COMPLETADO',
+                            'estado-demorado': col === 'estado' && row[col] === 'DEMORADO',
+                            'estado-iniciado': col === 'estado' && row[col] === 'INICIADO',
+                            'estado-en-proceso': col === 'estado' && row[col] === 'EN_PROCESO'
+                          }">{{ formatearValor(col, row[col]) }}</span>
+                        </td>
+                      </ng-container>
+                    }
+                    <tr mat-header-row *matHeaderRowDef="periodo.columnas"></tr>
+                    <tr mat-row *matRowDef="let row; columns: periodo.columnas;"></tr>
+                  </table>
+                </div>
+              } @else {
+                <p style="color: #666; font-size: 13px;">Sin datos para este período.</p>
+              }
+            </div>
+          }
+        </div>
+      }
     </div>
     <style>
       .estado-completado { color: #16a34a; font-weight: 600; }
@@ -182,19 +230,32 @@ import { IaService, ConsultaReporteResponse } from '../../core/services/ia.servi
     </style>
   `,
 })
-export class ReportesComponent implements AfterViewChecked {
+export class ReportesComponent {
   private readonly iaService = inject(IaService);
   private readonly snack = inject(MatSnackBar);
+
+  constructor() {
+    effect(() => {
+      const res = this.resultado();
+      const comp = this.comparacion();
+      if (res || comp) {
+        setTimeout(() => this.actualizarGrafico(), 200);
+      }
+    });
+  }
 
   consulta = '';
   readonly cargando = signal(false);
   readonly resultado = signal<ConsultaReporteResponse | null>(null);
+  readonly comparacion = signal<ComparacionPeriodosResponse | null>(null);
+  readonly cargandoComparacion = signal(false);
   readonly escuchandoReporte = signal(false);
   private recognitionReporte: any = null;
   readonly COLORES = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2'];
   private chartInstance: Chart | null = null;
   private lastChartKey = '';
   readonly graficoCanvas = viewChild<ElementRef<HTMLCanvasElement>>('graficoCanvas');
+  readonly graficoComparacionRef = viewChild<ElementRef>('graficoComparacion');
 
   formatearColumna(col: string): string {
     const mapa: Record<string, string> = {
@@ -228,61 +289,85 @@ export class ReportesComponent implements AfterViewChecked {
     return Object.entries(conteo).map(([nombre, valor]) => ({ nombre, valor }));
   }
 
-  ngAfterViewChecked(): void {
-    this.actualizarGrafico();
-  }
-
   private actualizarGrafico(): void {
+    // Gráfico de reporte normal
     const res = this.resultado();
     const canvas = this.graficoCanvas()?.nativeElement;
-    if (!res?.tipoGrafico || !res.campoGrafico || !canvas) {
-      this.chartInstance?.destroy();
-      this.chartInstance = null;
-      this.lastChartKey = '';
+    if (res?.tipoGrafico && res.campoGrafico && canvas) {
+      const datos = this.datosGrafico();
+      if (datos.length > 0) {
+        const key = `${res.tipoGrafico}|${JSON.stringify(datos)}`;
+        if (key !== this.lastChartKey || !this.chartInstance) {
+          this.lastChartKey = key;
+          this.chartInstance?.destroy();
+          const labels = datos.map((d) => d.nombre);
+          const values = datos.map((d) => d.valor);
+          const colors = datos.map((_, i) => this.COLORES[i % this.COLORES.length]);
+          this.chartInstance = new Chart(canvas, {
+            type: res.tipoGrafico as any,
+            data: {
+              labels,
+              datasets: [{
+                data: values,
+                backgroundColor: res.tipoGrafico === 'pie' ? colors : '#2563eb',
+                borderColor: res.tipoGrafico === 'line' ? '#2563eb' : undefined,
+              }],
+            },
+            options: { responsive: true, maintainAspectRatio: false },
+          });
+        }
+      }
+    }
+
+    // Gráfico comparativo
+    const comp = this.comparacion();
+    if (!comp) return;
+    const canvasComp = this.graficoComparacionRef()?.nativeElement as HTMLCanvasElement;
+    if (!canvasComp) {
+      setTimeout(() => this.actualizarGrafico(), 100);
       return;
     }
-    const datos = this.datosGrafico();
-    if (datos.length === 0) {
-      this.chartInstance?.destroy();
-      this.chartInstance = null;
-      return;
+    const campo = comp.campoComparacion;
+    const conteo1 = this.conteosPorCampo(comp.periodo1.filas, campo);
+    const conteo2 = this.conteosPorCampo(comp.periodo2.filas, campo);
+    const labels = [...new Set([...Object.keys(conteo1), ...Object.keys(conteo2)])];
+    if ((canvasComp as any).__chartInstance) {
+      (canvasComp as any).__chartInstance.destroy();
+      delete (canvasComp as any).__chartInstance;
     }
-    const key = `${res.tipoGrafico}|${JSON.stringify(datos)}`;
-    if (key === this.lastChartKey && this.chartInstance) return;
-    this.lastChartKey = key;
-    this.chartInstance?.destroy();
-    const labels = datos.map((d) => d.nombre);
-    const values = datos.map((d) => d.valor);
-    const colors = datos.map((_, i) => this.COLORES[i % this.COLORES.length]);
-    const tipo = res.tipoGrafico;
-    if (tipo === 'pie') {
-      this.chartInstance = new Chart(canvas, {
-        type: 'pie',
-        data: {
-          labels,
-          datasets: [{ data: values, backgroundColor: colors }],
-        },
-        options: { responsive: true, maintainAspectRatio: false },
-      });
-    } else if (tipo === 'bar') {
-      this.chartInstance = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{ data: values, backgroundColor: '#2563eb' }],
-        },
-        options: { responsive: true, maintainAspectRatio: false },
-      });
-    } else if (tipo === 'line') {
-      this.chartInstance = new Chart(canvas, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{ data: values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)' }],
-        },
-        options: { responsive: true, maintainAspectRatio: false },
-      });
+    (canvasComp as any).__chartInstance = new Chart(canvasComp, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: comp.periodo1.label,
+            data: labels.map(l => conteo1[l] ?? 0),
+            backgroundColor: '#2563eb',
+          },
+          {
+            label: comp.periodo2.label,
+            data: labels.map(l => conteo2[l] ?? 0),
+            backgroundColor: '#16a34a',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      },
+    });
+  }
+
+  conteosPorCampo(filas: Record<string, unknown>[], campo: string): Record<string, number> {
+    const conteo: Record<string, number> = {};
+    for (const fila of filas) {
+      const clave = String(fila[campo] ?? 'Sin dato');
+      conteo[clave] = (conteo[clave] ?? 0) + 1;
     }
+    return conteo;
   }
 
   formatearValor(col: string, valor: unknown): string {
@@ -382,10 +467,32 @@ export class ReportesComponent implements AfterViewChecked {
     rec.start();
   }
 
+  esComparacion(texto: string): boolean {
+    const keywords = ['vs', 'versus', 'compara', 'comparar', 'diferencia entre', 'contra'];
+    return keywords.some(k => texto.toLowerCase().includes(k));
+  }
+
   generarReporte(): void {
     if (this.consulta.trim().length < 3) return;
-    this.cargando.set(true);
     this.resultado.set(null);
+    this.comparacion.set(null);
+
+    if (this.esComparacion(this.consulta)) {
+      this.cargandoComparacion.set(true);
+      this.iaService.compararPeriodos(this.consulta.trim()).subscribe({
+        next: (res) => {
+          this.comparacion.set(res);
+          this.cargandoComparacion.set(false);
+        },
+        error: () => {
+          this.cargandoComparacion.set(false);
+          this.snack.open('No se pudo comparar. Intente de nuevo.', 'Cerrar', { duration: 4000 });
+        },
+      });
+      return;
+    }
+
+    this.cargando.set(true);
     this.iaService.consultaReporte(this.consulta.trim()).subscribe({
       next: (res) => {
         this.resultado.set(res);
