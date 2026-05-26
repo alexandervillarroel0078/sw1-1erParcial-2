@@ -606,6 +606,12 @@
           }
         </form>
       }
+      @if (tarea()?.tramiteId && tarea()?.nodoFlujoId) {
+        <app-documentos
+          [tramiteId]="tarea()!.tramiteId"
+          [nodoId]="tarea()!.nodoFlujoId">
+        </app-documentos>
+      }
     </mat-card>
 
     <mat-card class="panel panel--detalle" appearance="outlined">

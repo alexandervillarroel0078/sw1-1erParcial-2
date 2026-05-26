@@ -52,6 +52,7 @@ import { IaService } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
 import { formatoTiempoAbierto } from '../../core/utils/tiempo-abierto.util';
+import { DocumentosComponent } from '../../shared/documentos/documentos.component';
 import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
 
 export type ModoEntrada = 'texto' | 'voz';
@@ -93,6 +94,7 @@ export type AdjuntoPendiente = {
     MatChipsModule,
     MatProgressSpinnerModule,
     MatCheckboxModule,
+    DocumentosComponent,
   ],
   templateUrl: './reporte-actividad.component.html',
   styleUrl: './reporte-actividad.component.scss',
