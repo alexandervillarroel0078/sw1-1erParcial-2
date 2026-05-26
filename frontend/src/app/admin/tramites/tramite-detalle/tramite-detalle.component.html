@@ -205,6 +205,18 @@
         </ul>
       </mat-card-content>
     </mat-card>
+
+    <section class="docs-section">
+      <h2 style="font-size:16px; font-weight:600; margin: 24px 0 8px; display:flex; align-items:center; gap:8px;">
+        <mat-icon>folder_open</mat-icon>
+        Repositorio de documentos del trámite
+      </h2>
+      <app-documentos
+        [tramiteId]="d.tramite.id"
+        [nodoId]="'repositorio-completo'"
+        [permiso]="'ACCESO_COMPLETO'">
+      </app-documentos>
+    </section>
   </div>
 } @else {
   <div class="loading-wrap">

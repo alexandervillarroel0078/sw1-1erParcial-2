@@ -20,6 +20,7 @@ import {
 } from '../../../core/models/tramite-detalle.model';
 import { InformeService } from '../../../core/services/informe.service';
 import { TramiteService } from '../../../core/services/tramite.service';
+import { DocumentosComponent } from '../../../shared/documentos/documentos.component';
 
 @Component({
   selector: 'app-tramite-detalle',
@@ -35,6 +36,7 @@ import { TramiteService } from '../../../core/services/tramite.service';
     MatChipsModule,
     MatProgressSpinnerModule,
     MatExpansionModule,
+    DocumentosComponent,
   ],
   templateUrl: './tramite-detalle.component.html',
   styleUrl: './tramite-detalle.component.scss',
