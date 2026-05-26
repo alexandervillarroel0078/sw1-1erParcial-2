@@ -183,7 +183,7 @@ import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from 
           <canvas #graficoComparacion style="width:100%; max-height:250px; display:block;"></canvas>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; overflow-x: auto;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; overflow-x: auto; min-width: 0;">
           @for (periodo of [comparacion()!.periodo1, comparacion()!.periodo2]; track periodo.label) {
             <div>
               <h3 style="margin-bottom: 8px; color: #2563eb;">
@@ -193,7 +193,7 @@ import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from 
                 </span>
               </h3>
               @if (periodo.filas.length > 0) {
-                <div style="overflow-x: auto;">
+                <div style="overflow-x: auto; max-width: 100%;">
                   <table mat-table [dataSource]="periodo.filas" style="width: 100%;">
                     @for (col of periodo.columnas; track col) {
                       <ng-container [matColumnDef]="col">

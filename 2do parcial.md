@@ -98,7 +98,7 @@ Endpoint nuevo en ia-service
 Flujo de voz en nuevo-proceso.component.ts
 Validación en TramiteService
 
-2. Reportes por lenguaje natural
+2. Reportes por lenguaje natural (HECHO)
 
 Nuevo router en ia-service
 Text-to-query sobre datos existentes
