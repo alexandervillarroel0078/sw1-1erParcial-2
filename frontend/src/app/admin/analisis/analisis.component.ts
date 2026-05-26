@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
@@ -23,6 +24,7 @@ import { AnalisisPoliticaMetricas } from '../../core/models/analisis-metricas.mo
 import { Politica } from '../../core/models/politica.model';
 import { AnalisisService } from '../../core/services/analisis.service';
 import { PoliticaService } from '../../core/services/politica.service';
+import { PrediccionesIaComponent } from './predicciones-ia.component';
 
 export type SeveridadFiltro = 'todos' | 'critico' | 'alto' | 'medio' | 'rapido';
 
@@ -96,6 +98,8 @@ export type AnalisisVm = {
     MatButtonToggleModule,
     MatTableModule,
     MatChipsModule,
+    MatDividerModule,
+    PrediccionesIaComponent,
   ],
   templateUrl: './analisis.component.html',
   styleUrl: './analisis.component.scss',
