@@ -62,6 +62,7 @@ public class EntityMapper {
 				.estado(t.getEstado())
 				.creadoEn(t.getCreadoEn())
 				.completadoEn(t.getCompletadoEn())
+				.permisoDocumentos(t.getPermisoDocumentos())
 				.build();
 	}
 }

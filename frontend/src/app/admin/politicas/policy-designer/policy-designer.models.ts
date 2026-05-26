@@ -34,6 +34,7 @@ export interface NodoCanvas {
   calleId?: string;
   /** Solo aplica visual/lógica a ACTIVIDAD */
   slaMinutos?: number;
+  permisoDocumentos?: 'SIN_ACCESO' | 'SOLO_VER' | 'VER_MODIFICAR' | 'ACCESO_COMPLETO';
 }
 
 export interface AristaCanvas {

@@ -21,6 +21,7 @@ export interface Tarea {
   creadoEn?: string;
   /** SLA del nodo en minutos (listado «mis tareas» enriquecido). */
   slaMinutos?: number;
+  permisoDocumentos?: string;
   /** Estado del trámite (p. ej. DEMORADO) en listados enriquecidos. */
   tramiteEstado?: string;
   transcurrido?: string;

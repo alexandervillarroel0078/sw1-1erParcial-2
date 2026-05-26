@@ -30,6 +30,7 @@ public class TareaDTO {
 	private Integer diasAbierto;
 	/** SLA del nodo ACTIVIDAD (minutos); solo en listados enriquecidos (p. ej. mis tareas). */
 	private Integer slaMinutos;
+	private String permisoDocumentos;
 	/** Estado actual del trámite (p. ej. DEMORADO); solo en listados enriquecidos. */
 	private EstadoTramite tramiteEstado;
 	private String usuarioAsignadoId;

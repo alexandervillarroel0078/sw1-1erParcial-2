@@ -451,6 +451,7 @@ public class WorkflowEngine {
 				.estado(EstadoTarea.PENDIENTE)
 				.usuarioAsignadoId(asignado)
 				.creadoEn(Instant.now())
+				.permisoDocumentos(nodo.getPermisoDocumentos())
 				.build();
 		tareaRepository.save(t);
 

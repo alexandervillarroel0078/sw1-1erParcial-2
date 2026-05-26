@@ -54,4 +54,6 @@ public class Tarea {
 	private Instant creadoEn;
 	@Field("completado_en")
 	private Instant completadoEn;
+	@Field("permiso_documentos")
+	private String permisoDocumentos;
 }

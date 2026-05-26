@@ -25,4 +25,6 @@ public class NodoPolitica {
 	private Double alto;
 	@Field("sla_minutos")
 	private Integer slaMinutos;
+	@Field("permiso_documentos")
+	private String permisoDocumentos; // SIN_ACCESO, SOLO_VER, VER_MODIFICAR, ACCESO_COMPLETO
 }

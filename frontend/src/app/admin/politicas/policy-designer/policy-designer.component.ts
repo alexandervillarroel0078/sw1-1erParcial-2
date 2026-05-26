@@ -212,6 +212,7 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
     slaMinutos: n.slaMinutos,
+    permisoDocumentos: n.permisoDocumentos as NodoCanvas['permisoDocumentos'],
   };
 }
 
@@ -226,6 +227,7 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     departamentoTexto: n.departamentoTexto,
     calleId: n.calleId,
     slaMinutos: n.slaMinutos,
+    permisoDocumentos: n.permisoDocumentos,
   };
 }
 
@@ -1562,6 +1564,14 @@ export class PolicyDesignerComponent implements OnInit {
       Number.isFinite(num) && num > 0 ? Math.round(num) : undefined;
     this.nodos.update((arr) =>
       arr.map((n) => (n.id === id ? { ...n, slaMinutos: sla } : n)),
+    );
+  }
+
+  actualizarPermisoDocumentos(valor: string): void {
+    const nodoId = this.nodoSeleccionado()?.id;
+    if (!nodoId) return;
+    this.nodos.update(nodos =>
+      nodos.map(n => n.id === nodoId ? { ...n, permisoDocumentos: valor as any } : n)
     );
   }
 

@@ -609,7 +609,8 @@
       @if (tarea()?.tramiteId && tarea()?.nodoFlujoId) {
         <app-documentos
           [tramiteId]="tarea()!.tramiteId"
-          [nodoId]="tarea()!.nodoFlujoId">
+          [nodoId]="tarea()!.nodoFlujoId"
+          [permiso]="tarea()!.permisoDocumentos ?? 'ACCESO_COMPLETO'">
         </app-documentos>
       }
     </mat-card>

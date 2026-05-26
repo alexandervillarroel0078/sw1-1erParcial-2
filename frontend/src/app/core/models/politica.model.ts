@@ -46,6 +46,7 @@ export interface Nodo {
   alto?: number;
   /** SLA en minutos (solo ACTIVIDAD); JSON camelCase `slaMinutos`. */
   slaMinutos?: number;
+  permisoDocumentos?: string;
 }
 
 /**

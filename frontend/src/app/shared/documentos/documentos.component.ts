@@ -20,64 +20,71 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
     MatTooltipModule,
   ],
   template: `
-    <div style="margin-top: 24px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #374151;">
-          <mat-icon style="vertical-align: middle; margin-right: 6px; font-size: 18px;">folder_open</mat-icon>
-          Documentos del trámite
-        </h3>
-        <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="subiendo()">
-          @if (subiendo()) {
-            <mat-spinner diameter="16" style="display:inline-block; margin-right:6px;"></mat-spinner>
-            Subiendo...
-          } @else {
-            <mat-icon>upload</mat-icon>
-            Subir documento
+    @if (puedeVer()) {
+      <div style="margin-top: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #374151;">
+            <mat-icon style="vertical-align: middle; margin-right: 6px; font-size: 18px;">folder_open</mat-icon>
+            Documentos del trámite
+          </h3>
+          @if (puedeSubir()) {
+            <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="subiendo()">
+              @if (subiendo()) {
+                <mat-spinner diameter="16" style="display:inline-block; margin-right:6px;"></mat-spinner>
+                Subiendo...
+              } @else {
+                <mat-icon>upload</mat-icon>
+                Subir documento
+              }
+            </button>
+            <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="*/*">
           }
-        </button>
-        <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="*/*">
-      </div>
+        </div>
 
-      @if (cargando()) {
-        <div style="text-align: center; padding: 20px;">
-          <mat-spinner diameter="30"></mat-spinner>
-        </div>
-      } @else if (documentos().length === 0) {
-        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 13px; border: 1px dashed #e5e7eb; border-radius: 8px;">
-          <mat-icon style="font-size: 32px; display: block; margin: 0 auto 8px;">description</mat-icon>
-          No hay documentos subidos aún
-        </div>
-      } @else {
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          @for (doc of documentos(); track doc.id) {
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
-              <mat-icon style="color: #6b7280; flex-shrink: 0;">
-                {{ iconoPorTipo(doc.tipo) }}
-              </mat-icon>
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  {{ doc.nombre }}
+        @if (cargando()) {
+          <div style="text-align: center; padding: 20px;">
+            <mat-spinner diameter="30"></mat-spinner>
+          </div>
+        } @else if (documentos().length === 0) {
+          <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 13px; border: 1px dashed #e5e7eb; border-radius: 8px;">
+            <mat-icon style="font-size: 32px; display: block; margin: 0 auto 8px;">description</mat-icon>
+            No hay documentos subidos aún
+          </div>
+        } @else {
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            @for (doc of documentos(); track doc.id) {
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <mat-icon style="color: #6b7280; flex-shrink: 0;">
+                  {{ iconoPorTipo(doc.tipo) }}
+                </mat-icon>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ doc.nombre }}
+                  </div>
+                  <div style="font-size: 11px; color: #9ca3af;">
+                    {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
+                  </div>
                 </div>
-                <div style="font-size: 11px; color: #9ca3af;">
-                  {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
-                </div>
+                <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
+                  <mat-icon>open_in_new</mat-icon>
+                </button>
+                @if (puedeEliminar()) {
+                  <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                }
               </div>
-              <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
-                <mat-icon>open_in_new</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </div>
-          }
-        </div>
-      }
-    </div>
+            }
+          </div>
+        }
+      </div>
+    }
   `,
 })
 export class DocumentosComponent implements OnInit {
   @Input() tramiteId!: string;
   @Input() nodoId!: string;
+  @Input() permiso: string = 'ACCESO_COMPLETO';
 
   private readonly documentoService = inject(DocumentoService);
   private readonly snack = inject(MatSnackBar);
@@ -85,6 +92,16 @@ export class DocumentosComponent implements OnInit {
   readonly documentos = signal<DocumentoDTO[]>([]);
   readonly cargando = signal(false);
   readonly subiendo = signal(false);
+
+  puedeVer(): boolean {
+    return this.permiso !== 'SIN_ACCESO';
+  }
+  puedeSubir(): boolean {
+    return this.permiso === 'VER_MODIFICAR' || this.permiso === 'ACCESO_COMPLETO';
+  }
+  puedeEliminar(): boolean {
+    return this.permiso === 'ACCESO_COMPLETO';
+  }
 
   ngOnInit(): void {
     this.cargarDocumentos();

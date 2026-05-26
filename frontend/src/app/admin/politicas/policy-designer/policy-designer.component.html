@@ -797,6 +797,17 @@
                   />
                   <mat-hint>Ej: 30 = 30 min, 60 = 1 hora, 1440 = 1 día</mat-hint>
                 </mat-form-field>
+                <mat-form-field appearance="outline" style="width:100%">
+                  <mat-label>Permisos de documentos</mat-label>
+                  <mat-select
+                    [value]="nodoSeleccionado()?.permisoDocumentos ?? 'ACCESO_COMPLETO'"
+                    (selectionChange)="actualizarPermisoDocumentos($event.value)">
+                    <mat-option value="SIN_ACCESO">Sin acceso</mat-option>
+                    <mat-option value="SOLO_VER">Solo ver</mat-option>
+                    <mat-option value="VER_MODIFICAR">Ver y modificar</mat-option>
+                    <mat-option value="ACCESO_COMPLETO">Acceso completo</mat-option>
+                  </mat-select>
+                </mat-form-field>
                 <button
                   mat-stroked-button
                   type="button"
