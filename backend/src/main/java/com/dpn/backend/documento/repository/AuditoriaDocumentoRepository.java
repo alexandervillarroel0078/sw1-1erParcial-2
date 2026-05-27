@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 
 public interface AuditoriaDocumentoRepository extends MongoRepository<AuditoriaDocumento, String> {
+    List<AuditoriaDocumento> findByDocumentoId(String documentoId);
     List<AuditoriaDocumento> findByDocumentoIdOrderByTimestampDesc(String documentoId);
     List<AuditoriaDocumento> findByTramiteIdOrderByTimestampDesc(String tramiteId);
 }

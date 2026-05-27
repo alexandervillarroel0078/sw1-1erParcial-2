@@ -18,6 +18,8 @@ public class AuditoriaDocumento {
     private String documentoId;
     @Field("tramite_id")
     private String tramiteId;
+    @Field("nodo_id")
+    private String nodoId;
     @Field("usuario_id")
     private String usuarioId;
     @Field("usuario_nombre")

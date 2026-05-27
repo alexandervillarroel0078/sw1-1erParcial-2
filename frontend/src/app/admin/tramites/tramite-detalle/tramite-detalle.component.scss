@@ -354,6 +354,39 @@
   white-space: nowrap;
 }
 
+.detalle-tabs {
+  margin-top: 4px;
+}
+
+.tab-content {
+  padding: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+.audit-table {
+  width: 100%;
+}
+
+.audit-empty {
+  margin: 8px 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.audit-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
 .loading-wrap {
   display: flex;
   flex-direction: column;

@@ -15,6 +15,17 @@ export interface DocumentoDTO {
   urlDescarga?: string;
 }
 
+export interface AuditoriaDocumento {
+  id?: string;
+  documentoId: string;
+  tramiteId: string;
+  nodoId?: string;
+  usuarioId?: string;
+  usuarioNombre: string;
+  accion: string;
+  timestamp: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DocumentoService {
   private readonly http = inject(HttpClient);
@@ -38,5 +49,15 @@ export class DocumentoService {
 
   eliminar(documentoId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${documentoId}`);
+  }
+
+  listarAuditoriaDocumento(documentoId: string): Observable<AuditoriaDocumento[]> {
+    return this.http.get<AuditoriaDocumento[]>(`${this.base}/${documentoId}/auditoria`);
+  }
+
+  listarAuditoriaTramite(tramiteId: string): Observable<AuditoriaDocumento[]> {
+    return this.http.get<AuditoriaDocumento[]>(
+      `${this.base}/tramite/${tramiteId}/auditoria`,
+    );
   }
 }

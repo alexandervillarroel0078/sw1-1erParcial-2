@@ -39,6 +39,9 @@
       </div>
     </header>
 
+    <mat-tab-group class="detalle-tabs" animationDuration="200ms">
+      <mat-tab label="Historial de actividades">
+        <div class="tab-content">
     <mat-card class="card" appearance="outlined">
       <mat-card-header>
         <mat-card-title>Posición en el flujo</mat-card-title>
@@ -205,18 +208,75 @@
         </ul>
       </mat-card-content>
     </mat-card>
+        </div>
+      </mat-tab>
 
-    <section class="docs-section">
-      <h2 style="font-size:16px; font-weight:600; margin: 24px 0 8px; display:flex; align-items:center; gap:8px;">
-        <mat-icon>folder_open</mat-icon>
-        Repositorio de documentos del trámite
-      </h2>
-      <app-documentos
-        [tramiteId]="d.tramite.id"
-        [nodoId]="'repositorio-completo'"
-        [permiso]="'ACCESO_COMPLETO'">
-      </app-documentos>
-    </section>
+      <mat-tab label="Repositorio de documentos">
+        <div class="tab-content">
+          <app-documentos
+            [tramiteId]="d.tramite.id"
+            [nodoId]="'repositorio-completo'"
+            [permiso]="'ACCESO_COMPLETO'"
+            [auditoriaExpandible]="true"
+          />
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Auditoría global">
+        <div class="tab-content">
+          @if (auditoriaGlobal$ | async; as ag) {
+            @if (ag.auditoria.length === 0) {
+              <p class="audit-empty">No hay registros de auditoría para este trámite.</p>
+            } @else {
+              <div class="audit-table-wrap">
+                <table
+                  mat-table
+                  [dataSource]="ag.auditoria"
+                  class="audit-table"
+                >
+                  <ng-container matColumnDef="documento">
+                    <th mat-header-cell *matHeaderCellDef>Documento</th>
+                    <td mat-cell *matCellDef="let row">
+                      {{ nombreDocumentoAuditoria(row.documentoId, ag.documentos) }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="nodo">
+                    <th mat-header-cell *matHeaderCellDef>Nodo</th>
+                    <td mat-cell *matCellDef="let row">
+                      {{ row.nodoId || '—' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="accion">
+                    <th mat-header-cell *matHeaderCellDef>Acción</th>
+                    <td mat-cell *matCellDef="let row">
+                      {{ accionAuditoriaLabel(row.accion) }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="usuario">
+                    <th mat-header-cell *matHeaderCellDef>Usuario</th>
+                    <td mat-cell *matCellDef="let row">
+                      {{ row.usuarioNombre || row.usuarioId || '—' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="fecha">
+                    <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                    <td mat-cell *matCellDef="let row">
+                      {{ row.timestamp | date: 'dd/MM/yyyy HH:mm' }}
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="auditoriaColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: auditoriaColumns"></tr>
+                </table>
+              </div>
+            }
+          } @else {
+            <div class="audit-loading">
+              <mat-progress-spinner diameter="36" mode="indeterminate" />
+            </div>
+          }
+        </div>
+      </mat-tab>
+    </mat-tab-group>
   </div>
 } @else {
   <div class="loading-wrap">

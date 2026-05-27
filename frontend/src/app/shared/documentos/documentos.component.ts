@@ -1,17 +1,22 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, Input, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DocumentoDTO, DocumentoService } from '../../core/services/documento.service';
+import {
+  AuditoriaDocumento,
+  DocumentoDTO,
+  DocumentoService,
+} from '../../core/services/documento.service';
 
 @Component({
   selector: 'app-documentos',
   standalone: true,
   imports: [
     DatePipe,
+    NgTemplateOutlet,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -51,21 +56,37 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                       @for (doc of g.docs; track doc.id) {
-                        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
-                          <mat-icon style="color: #6b7280; flex-shrink: 0;">
-                            {{ iconoPorTipo(doc.tipo) }}
-                          </mat-icon>
-                          <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                              {{ doc.nombre }}
+                        <div style="display: flex; flex-direction: column; gap: 0;">
+                          <div
+                            style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;"
+                            [style.cursor]="auditoriaExpandible ? 'pointer' : 'default'"
+                            [style.border-bottom-left-radius]="auditoriaExpandible && docExpandido(doc) ? '0' : '8px'"
+                            [style.border-bottom-right-radius]="auditoriaExpandible && docExpandido(doc) ? '0' : '8px'"
+                            (click)="onFilaDocumentoClick(doc, $event)"
+                          >
+                            <mat-icon style="color: #6b7280; flex-shrink: 0;">
+                              {{ iconoPorTipo(doc.tipo) }}
+                            </mat-icon>
+                            <div style="flex: 1; min-width: 0;">
+                              <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ doc.nombre }}
+                              </div>
+                              <div style="font-size: 11px; color: #9ca3af;">
+                                {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
+                              </div>
                             </div>
-                            <div style="font-size: 11px; color: #9ca3af;">
-                              {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
-                            </div>
+                            @if (auditoriaExpandible) {
+                              <mat-icon style="color: #9ca3af; flex-shrink: 0;">
+                                {{ docExpandido(doc) ? 'expand_less' : 'expand_more' }}
+                              </mat-icon>
+                            }
+                            <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
+                              <mat-icon>open_in_new</mat-icon>
+                            </button>
                           </div>
-                          <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
-                            <mat-icon>open_in_new</mat-icon>
-                          </button>
+                          @if (auditoriaExpandible && docExpandido(doc)) {
+                            <ng-container *ngTemplateOutlet="panelAuditoria; context: { doc: doc }" />
+                          }
                         </div>
                       }
                     </div>
@@ -102,25 +123,41 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
           } @else {
             <div style="display: flex; flex-direction: column; gap: 8px;">
               @for (doc of misDocumentos(); track doc.id) {
-                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
-                  <mat-icon style="color: #6b7280; flex-shrink: 0;">
-                    {{ iconoPorTipo(doc.tipo) }}
-                  </mat-icon>
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                      {{ doc.nombre }}
+                <div style="display: flex; flex-direction: column; gap: 0;">
+                  <div
+                    style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;"
+                    [style.cursor]="auditoriaExpandible ? 'pointer' : 'default'"
+                    [style.border-bottom-left-radius]="auditoriaExpandible && docExpandido(doc) ? '0' : '8px'"
+                    [style.border-bottom-right-radius]="auditoriaExpandible && docExpandido(doc) ? '0' : '8px'"
+                    (click)="onFilaDocumentoClick(doc, $event)"
+                  >
+                    <mat-icon style="color: #6b7280; flex-shrink: 0;">
+                      {{ iconoPorTipo(doc.tipo) }}
+                    </mat-icon>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ doc.nombre }}
+                      </div>
+                      <div style="font-size: 11px; color: #9ca3af;">
+                        {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
+                      </div>
                     </div>
-                    <div style="font-size: 11px; color: #9ca3af;">
-                      {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
-                    </div>
-                  </div>
-                  <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
-                    <mat-icon>open_in_new</mat-icon>
-                  </button>
-                  @if (puedeEliminar()) {
-                    <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
-                      <mat-icon>delete</mat-icon>
+                    @if (auditoriaExpandible) {
+                      <mat-icon style="color: #9ca3af; flex-shrink: 0;">
+                        {{ docExpandido(doc) ? 'expand_less' : 'expand_more' }}
+                      </mat-icon>
+                    }
+                    <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
+                      <mat-icon>open_in_new</mat-icon>
                     </button>
+                    @if (puedeEliminar()) {
+                      <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  </div>
+                  @if (auditoriaExpandible && docExpandido(doc)) {
+                    <ng-container *ngTemplateOutlet="panelAuditoria; context: { doc: doc }" />
                   }
                 </div>
               }
@@ -128,6 +165,29 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
           }
         }
       </div>
+
+      <ng-template #panelAuditoria let-doc="doc">
+        <div style="padding: 10px 14px 12px; background: #f3f4f6; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; font-size: 12px;">
+          <div style="font-weight: 700; color: #374151; margin-bottom: 8px;">Historial de auditoría</div>
+          @if (cargandoAuditoriaId() === doc.id) {
+            <div style="text-align: center; padding: 8px;">
+              <mat-spinner diameter="24"></mat-spinner>
+            </div>
+          } @else if (auditoriaDe(doc).length === 0) {
+            <div style="color: #9ca3af;">Sin registros de auditoría</div>
+          } @else {
+            <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+              @for (a of auditoriaDe(doc); track a.id ?? a.timestamp + a.accion) {
+                <li style="display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;">
+                  <span style="font-weight: 600; color: #1f2937;">{{ accionAuditoriaLabel(a.accion) }}</span>
+                  <span style="color: #6b7280;">{{ a.usuarioNombre || a.usuarioId || '—' }}</span>
+                  <span style="color: #9ca3af;">{{ a.timestamp | date:'dd/MM/yyyy HH:mm' }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </ng-template>
     }
   `,
 })
@@ -135,6 +195,7 @@ export class DocumentosComponent implements OnInit {
   @Input() tramiteId!: string;
   @Input() nodoId!: string;
   @Input() permiso: string = 'ACCESO_COMPLETO';
+  @Input() auditoriaExpandible = false;
 
   private readonly documentoService = inject(DocumentoService);
   private readonly snack = inject(MatSnackBar);
@@ -142,6 +203,9 @@ export class DocumentosComponent implements OnInit {
   readonly documentos = signal<DocumentoDTO[]>([]);
   readonly cargando = signal(false);
   readonly subiendo = signal(false);
+  readonly expandedDocId = signal<string | null>(null);
+  readonly auditoriaCache = signal<Record<string, AuditoriaDocumento[]>>({});
+  readonly cargandoAuditoriaId = signal<string | null>(null);
 
   readonly documentosAnterioresAgrupados = computed(() => {
     const grupos = new Map<
@@ -229,6 +293,65 @@ export class DocumentosComponent implements OnInit {
         this.snack.open('Error al subir documento', 'Cerrar', { duration: 4000 });
       },
     });
+  }
+
+  docExpandido(doc: DocumentoDTO): boolean {
+    return this.expandedDocId() === doc.id;
+  }
+
+  auditoriaDe(doc: DocumentoDTO): AuditoriaDocumento[] {
+    return this.auditoriaCache()[doc.id] ?? [];
+  }
+
+  onFilaDocumentoClick(doc: DocumentoDTO, ev: Event): void {
+    if (!this.auditoriaExpandible) {
+      return;
+    }
+    const target = ev.target as HTMLElement;
+    if (target.closest('button')) {
+      return;
+    }
+    this.toggleAuditoria(doc);
+  }
+
+  toggleAuditoria(doc: DocumentoDTO): void {
+    if (this.expandedDocId() === doc.id) {
+      this.expandedDocId.set(null);
+      return;
+    }
+    this.expandedDocId.set(doc.id);
+    if (this.auditoriaCache()[doc.id]) {
+      return;
+    }
+    this.cargandoAuditoriaId.set(doc.id);
+    this.documentoService.listarAuditoriaDocumento(doc.id).subscribe({
+      next: (rows) => {
+        const ordenadas = [...rows].sort((a, b) =>
+          (b.timestamp ?? '').localeCompare(a.timestamp ?? ''),
+        );
+        this.auditoriaCache.update((c) => ({ ...c, [doc.id]: ordenadas }));
+        this.cargandoAuditoriaId.set(null);
+      },
+      error: () => {
+        this.cargandoAuditoriaId.set(null);
+        this.snack.open('No se pudo cargar la auditoría', 'Cerrar', { duration: 3000 });
+      },
+    });
+  }
+
+  accionAuditoriaLabel(accion: string): string {
+    switch ((accion ?? '').toUpperCase()) {
+      case 'SUBIDA':
+        return 'Subió';
+      case 'ACCESO':
+        return 'Vió';
+      case 'DESCARGA':
+        return 'Descargó';
+      case 'ELIMINACION':
+        return 'Eliminó';
+      default:
+        return accion || '—';
+    }
   }
 
   verDocumento(doc: DocumentoDTO): void {

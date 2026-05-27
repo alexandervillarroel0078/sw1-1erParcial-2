@@ -11,13 +11,20 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { forkJoin } from 'rxjs';
 import { filter, map, switchMap } from 'rxjs/operators';
 
 import {
   TramiteDetalleResponse,
   TramiteDetalleTarea,
 } from '../../../core/models/tramite-detalle.model';
+import {
+  DocumentoDTO,
+  DocumentoService,
+} from '../../../core/services/documento.service';
 import { InformeService } from '../../../core/services/informe.service';
 import { TramiteService } from '../../../core/services/tramite.service';
 import { DocumentosComponent } from '../../../shared/documentos/documentos.component';
@@ -36,6 +43,8 @@ import { DocumentosComponent } from '../../../shared/documentos/documentos.compo
     MatChipsModule,
     MatProgressSpinnerModule,
     MatExpansionModule,
+    MatTabsModule,
+    MatTableModule,
     DocumentosComponent,
   ],
   templateUrl: './tramite-detalle.component.html',
@@ -47,11 +56,25 @@ export class TramiteDetalleComponent {
   private readonly router = inject(Router);
   private readonly tramiteService = inject(TramiteService);
   private readonly informeService = inject(InformeService);
+  private readonly documentoService = inject(DocumentoService);
+
+  readonly auditoriaColumns = ['documento', 'nodo', 'accion', 'usuario', 'fecha'];
 
   readonly detalle$ = this.route.paramMap.pipe(
     map((p) => p.get('id')),
     filter((id): id is string => !!id),
     switchMap((id) => this.tramiteService.getDetalleTramite(id)),
+  );
+
+  readonly auditoriaGlobal$ = this.route.paramMap.pipe(
+    map((p) => p.get('id')),
+    filter((id): id is string => !!id),
+    switchMap((tramiteId) =>
+      forkJoin({
+        auditoria: this.documentoService.listarAuditoriaTramite(tramiteId),
+        documentos: this.documentoService.listarPorTramite(tramiteId),
+      }),
+    ),
   );
 
   volver(): void {
@@ -307,5 +330,27 @@ export class TramiteDetalleComponent {
 
   iconoAdjunto(tipo?: string | null): string {
     return this.esPdfAdjunto(tipo) ? 'picture_as_pdf' : 'image';
+  }
+
+  nombreDocumentoAuditoria(
+    documentoId: string,
+    documentos: DocumentoDTO[],
+  ): string {
+    return documentos.find((d) => d.id === documentoId)?.nombre ?? documentoId;
+  }
+
+  accionAuditoriaLabel(accion: string): string {
+    switch ((accion ?? '').toUpperCase()) {
+      case 'SUBIDA':
+        return 'Subió';
+      case 'ACCESO':
+        return 'Vió';
+      case 'DESCARGA':
+        return 'Descargó';
+      case 'ELIMINACION':
+        return 'Eliminó';
+      default:
+        return accion || '—';
+    }
   }
 }

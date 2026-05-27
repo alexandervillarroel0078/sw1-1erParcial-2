@@ -55,7 +55,7 @@ public class DocumentoService {
                     .build();
             documentoRepository.save(doc);
 
-            registrarAuditoria(doc.getId(), tramiteId, usuarioId, usuarioNombre, "SUBIDA");
+            registrarAuditoria(doc.getId(), tramiteId, nodoId, usuarioId, usuarioNombre, "SUBIDA");
             return toDTO(doc);
         } catch (Exception e) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Error al subir archivo: " + e.getMessage());
@@ -64,7 +64,7 @@ public class DocumentoService {
 
     public List<DocumentoDTO> listarPorTramite(String tramiteId, String usuarioId, String usuarioNombre) {
         List<Documento> docs = documentoRepository.findByTramiteId(tramiteId);
-        docs.forEach(d -> registrarAuditoria(d.getId(), tramiteId, usuarioId, usuarioNombre, "ACCESO"));
+        docs.forEach(d -> registrarAuditoria(d.getId(), tramiteId, d.getNodoId(), usuarioId, usuarioNombre, "ACCESO"));
         return docs.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -77,7 +77,7 @@ public class DocumentoService {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Documento no encontrado"));
         try {
-            registrarAuditoria(documentoId, doc.getTramiteId(), usuarioId, usuarioNombre, "DESCARGA");
+            registrarAuditoria(documentoId, doc.getTramiteId(), doc.getNodoId(), usuarioId, usuarioNombre, "DESCARGA");
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .bucket(bucket)
                     .object(doc.getStorageKey())
@@ -89,6 +89,14 @@ public class DocumentoService {
         }
     }
 
+    public List<AuditoriaDocumento> listarAuditoriaPorDocumento(String documentoId) {
+        return auditoriaRepository.findByDocumentoId(documentoId);
+    }
+
+    public List<AuditoriaDocumento> listarAuditoriaPorTramite(String tramiteId) {
+        return auditoriaRepository.findByTramiteIdOrderByTimestampDesc(tramiteId);
+    }
+
     public void eliminar(String documentoId, String usuarioId, String usuarioNombre) {
         Documento doc = documentoRepository.findById(documentoId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Documento no encontrado"));
@@ -97,19 +105,20 @@ public class DocumentoService {
                     .bucket(bucket)
                     .object(doc.getStorageKey())
                     .build());
-            registrarAuditoria(documentoId, doc.getTramiteId(), usuarioId, usuarioNombre, "ELIMINACION");
+            registrarAuditoria(documentoId, doc.getTramiteId(), doc.getNodoId(), usuarioId, usuarioNombre, "ELIMINACION");
             documentoRepository.deleteById(documentoId);
         } catch (Exception e) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Error al eliminar: " + e.getMessage());
         }
     }
 
-    private void registrarAuditoria(String documentoId, String tramiteId, 
+    private void registrarAuditoria(String documentoId, String tramiteId, String nodoId,
                                      String usuarioId, String usuarioNombre, String accion) {
         auditoriaRepository.save(AuditoriaDocumento.builder()
                 .id(UUID.randomUUID().toString())
                 .documentoId(documentoId)
                 .tramiteId(tramiteId)
+                .nodoId(nodoId)
                 .usuarioId(usuarioId)
                 .usuarioNombre(usuarioNombre)
                 .accion(accion)
