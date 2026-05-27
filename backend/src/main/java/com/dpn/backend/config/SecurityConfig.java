@@ -41,6 +41,7 @@ public class SecurityConfig {
 							.hasAnyRole("FUNCIONARIO", "ADMINISTRADOR")
 						.requestMatchers("/api/archivos/**").authenticated()
 						.requestMatchers("/api/documentos/**").authenticated()
+						.requestMatchers("/api/doc-colaborativo/**").authenticated()
 						.requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
 						.requestMatchers("/api/funcionario/**").hasRole("FUNCIONARIO")
 						// JWT con rol CLIENTE (mismo esquema Bearer que el resto de la API)

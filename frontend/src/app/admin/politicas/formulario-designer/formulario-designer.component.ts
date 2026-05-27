@@ -18,8 +18,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTabsModule } from '@angular/material/tabs';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { map, switchMap, take } from 'rxjs';
+import type {
+  SeccionPlantillaDocumentoColaborativo,
+  SeccionPlantillaTipo,
+} from '../../../core/models/doc-colaborativo.model';
 import type {
   CampoFormulario,
   FormularioActividad,
@@ -47,6 +53,60 @@ function nombreDefaultPorTipo(t: CampoFormularioTipo): string {
     fecha: 'Fecha',
   };
   return mapa[t];
+}
+
+function nombreDefaultPorTipoSeccion(t: SeccionPlantillaTipo): string {
+  const mapa: Record<SeccionPlantillaTipo, string> = {
+    texto_corto: 'Texto corto',
+    texto_largo: 'Texto largo',
+    select: 'Selección',
+    checkbox: 'Casilla',
+    fecha: 'Fecha',
+    tabla: 'Tabla',
+  };
+  return mapa[t];
+}
+
+const TIPOS_SECCION_VALIDOS = new Set<SeccionPlantillaTipo>([
+  'texto_corto',
+  'texto_largo',
+  'fecha',
+  'checkbox',
+  'select',
+  'tabla',
+]);
+
+const TIPO_API_A_SECCION: Record<string, SeccionPlantillaTipo> = {
+  TEXTO_CORTO: 'texto_corto',
+  TEXTO_LARGO: 'texto_largo',
+  SELECT: 'select',
+  CHECKBOX: 'checkbox',
+  FECHA: 'fecha',
+  TABLA: 'tabla',
+};
+
+function normalizeSeccionPlantilla(
+  s: SeccionPlantillaDocumentoColaborativo,
+): SeccionPlantillaDocumentoColaborativo {
+  const raw = String(s.tipo ?? 'texto_largo');
+  const normalizado =
+    TIPO_API_A_SECCION[raw] ??
+    (raw.toLowerCase() as SeccionPlantillaTipo);
+  const tipo: SeccionPlantillaTipo = TIPOS_SECCION_VALIDOS.has(normalizado)
+    ? normalizado
+    : 'texto_largo';
+  return {
+    id: s.id?.trim() ? s.id : `sec-${uuid()}`,
+    titulo: s.titulo?.trim() ? s.titulo : nombreDefaultPorTipoSeccion(tipo),
+    tipo,
+    obligatorio: !!s.obligatorio,
+    opciones:
+      tipo === 'select' && Array.isArray(s.opciones)
+        ? s.opciones.map((x) => String(x))
+        : tipo === 'select'
+          ? ['Opción 1', 'Opción 2', 'Opción 3']
+          : undefined,
+  };
 }
 
 /** Nombres de enum `TipoCampo` del API Java en JSON. */
@@ -135,6 +195,8 @@ function camposInicialesPor404(): CampoFormularioItem[] {
     MatInputModule,
     MatSelectModule,
     MatSnackBarModule,
+    MatSlideToggleModule,
+    MatTabsModule,
   ],
   templateUrl: './formulario-designer.component.html',
   styleUrl: './formulario-designer.component.scss',
@@ -157,17 +219,31 @@ export class FormularioDesignerComponent {
     { tipo: 'fecha', label: 'Fecha', icon: 'event' },
   ];
 
+  readonly tiposPaletaDocColab: { tipo: SeccionPlantillaTipo; label: string; icon: string }[] =
+    [
+      { tipo: 'texto_corto', label: 'Texto corto', icon: 'short_text' },
+      { tipo: 'texto_largo', label: 'Texto largo', icon: 'subject' },
+      { tipo: 'select', label: 'Selección (select)', icon: 'list' },
+      { tipo: 'checkbox', label: 'Checkbox', icon: 'check_box' },
+      { tipo: 'fecha', label: 'Fecha', icon: 'event' },
+    ];
+
   readonly politicaId = signal<string | null>(null);
   readonly nodoId = signal<string | null>(null);
   readonly actividadEtiqueta = signal('Actividad');
   readonly departamentoNombre = signal('—');
   readonly campos = signal<CampoFormularioItem[]>([]);
+  readonly documentoColaborativoHabilitado = signal(false);
+  readonly tituloDocColab = signal('');
+  readonly seccionesDocColab = signal<SeccionPlantillaDocumentoColaborativo[]>([]);
   /** Demo compartida para la vista previa de campos tipo fecha */
   readonly demoFecha = signal<Date | null>(null);
 
   readonly camposOrdenados = computed(() =>
     [...this.campos()].sort((a, b) => a.orden - b.orden),
   );
+
+  readonly seccionesDocColabOrdenadas = computed(() => [...this.seccionesDocColab()]);
 
   constructor() {
     this.route.paramMap
@@ -212,6 +288,17 @@ export class FormularioDesignerComponent {
                   .map((c) => campoApiToItem(c))
               : [];
         this.campos.set(items);
+        this.documentoColaborativoHabilitado.set(
+          !!form?.habilitadoDocumentoColaborativo,
+        );
+        this.tituloDocColab.set(form?.tituloDocumentoColaborativo ?? '');
+        this.seccionesDocColab.set(
+          form?.seccionesDocumentoColaborativo?.length
+            ? form.seccionesDocumentoColaborativo.map((s) =>
+                normalizeSeccionPlantilla(s),
+              )
+            : [],
+        );
       });
   }
 
@@ -220,6 +307,17 @@ export class FormularioDesignerComponent {
   }
 
   claseBadgeTipo(t: CampoFormularioTipo): string {
+    return `fd-badge fd-badge--${t}`;
+  }
+
+  etiquetaTipoSeccion(t: SeccionPlantillaTipo): string {
+    if (t === 'tabla') {
+      return 'Tabla';
+    }
+    return this.tiposPaletaDocColab.find((x) => x.tipo === t)?.label ?? t;
+  }
+
+  claseBadgeTipoSeccion(t: SeccionPlantillaTipo): string {
     return `fd-badge fd-badge--${t}`;
   }
 
@@ -319,6 +417,102 @@ export class FormularioDesignerComponent {
     });
   }
 
+  agregarSeccion(tipo: SeccionPlantillaTipo): void {
+    this.seccionesDocColab.update((list) => [
+      ...list,
+      {
+        id: `sec-${uuid()}`,
+        titulo: nombreDefaultPorTipoSeccion(tipo),
+        tipo,
+        obligatorio: false,
+        opciones:
+          tipo === 'select' ? ['Opción 1', 'Opción 2', 'Opción 3'] : undefined,
+      },
+    ]);
+  }
+
+  eliminarSeccion(id: string): void {
+    this.seccionesDocColab.update((list) => list.filter((s) => s.id !== id));
+  }
+
+  patchSeccionObligatorio(id: string, v: boolean): void {
+    this.seccionesDocColab.update((list) =>
+      list.map((s) => (s.id === id ? { ...s, obligatorio: v } : s)),
+    );
+  }
+
+  patchSeccionOpciones(id: string, opciones: string[]): void {
+    this.seccionesDocColab.update((list) =>
+      list.map((s) =>
+        s.id === id && s.tipo === 'select' ? { ...s, opciones: [...opciones] } : s,
+      ),
+    );
+  }
+
+  agregarOpcionSelectSeccion(id: string): void {
+    const s = this.seccionesDocColab().find((x) => x.id === id);
+    if (!s || s.tipo !== 'select') return;
+    this.patchSeccionOpciones(id, [...(s.opciones ?? []), '']);
+  }
+
+  eliminarOpcionSelectSeccion(id: string, index: number): void {
+    const s = this.seccionesDocColab().find((x) => x.id === id);
+    if (!s || s.tipo !== 'select') return;
+    this.patchSeccionOpciones(
+      id,
+      (s.opciones ?? []).filter((_, j) => j !== index),
+    );
+  }
+
+  onOpcionSelectSeccionModelChange(id: string, index: number, valor: string): void {
+    const s = this.seccionesDocColab().find((x) => x.id === id);
+    if (!s || s.tipo !== 'select') return;
+    const next = [...(s.opciones ?? [])];
+    next[index] = valor;
+    this.patchSeccionOpciones(id, next);
+  }
+
+  subirSeccion(id: string): void {
+    this.seccionesDocColab.update((list) => {
+      const i = list.findIndex((s) => s.id === id);
+      if (i <= 0) return list;
+      const next = [...list];
+      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+      return next;
+    });
+  }
+
+  bajarSeccion(id: string): void {
+    this.seccionesDocColab.update((list) => {
+      const i = list.findIndex((s) => s.id === id);
+      if (i < 0 || i >= list.length - 1) return list;
+      const next = [...list];
+      [next[i], next[i + 1]] = [next[i + 1], next[i]];
+      return next;
+    });
+  }
+
+  moverSeccion(from: number, to: number): void {
+    if (from === to) return;
+    this.seccionesDocColab.update((list) => {
+      const next = [...list];
+      moveItemInArray(next, from, to);
+      return next;
+    });
+  }
+
+  onDropSeccionDocColab(
+    event: CdkDragDrop<SeccionPlantillaDocumentoColaborativo[]>,
+  ): void {
+    this.moverSeccion(event.previousIndex, event.currentIndex);
+  }
+
+  patchSeccionTitulo(id: string, titulo: string): void {
+    this.seccionesDocColab.update((list) =>
+      list.map((s) => (s.id === id ? { ...s, titulo } : s)),
+    );
+  }
+
   volverAlEditor(): void {
     const pid = this.politicaId();
     if (pid) {
@@ -338,6 +532,9 @@ export class FormularioDesignerComponent {
       politicaId: pid,
       nodoActividadId: nid,
       campos: this.camposOrdenados().map((c) => itemToCampoFormulario(c)),
+      tituloDocumentoColaborativo: this.tituloDocColab().trim(),
+      seccionesDocumentoColaborativo: this.seccionesDocColabOrdenadas(),
+      habilitadoDocumentoColaborativo: this.documentoColaborativoHabilitado(),
     };
     this.politicaService
       .putFormularioActividad(pid, nid, body)
