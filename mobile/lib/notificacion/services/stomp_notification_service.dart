@@ -5,6 +5,7 @@ import 'package:stomp_dart_client/stomp.dart';
 import 'package:stomp_dart_client/stomp_config.dart';
 import 'package:stomp_dart_client/stomp_frame.dart';
 
+import '../../config/app_config.dart';
 import '../models/notificacion.dart';
 import 'local_notification_service.dart';
 
@@ -21,8 +22,11 @@ class StompNotificationService {
   static Stream<Notificacion> get notificaciones =>
       _notificacionesController.stream;
 
-  //static const String _wsUrl = 'http://192.168.0.11:8080/ws';
-  static const String _wsUrl = 'https://backend-734852757342.us-central1.run.app/ws';
+  static String get _wsUrl {
+    final base = AppConfig.baseUrl;
+    return base.replaceAll('/api', '') + '/ws';
+  }
+
   static void conectar(String clienteId, String? token) {
     desconectar();
     if (clienteId.isEmpty) return;
