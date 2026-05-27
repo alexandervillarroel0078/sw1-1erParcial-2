@@ -31,6 +31,12 @@ export function normalizeNodoTipo(t: string | undefined | null): NodoTipo {
   return (NODO_TIPOS_VALIDOS.has(s) ? s : 'ACTIVIDAD') as NodoTipo;
 }
 
+export interface RequisitoInicial {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+}
+
 export interface Nodo {
   id: string;
   tipo: NodoTipo;
@@ -47,6 +53,7 @@ export interface Nodo {
   /** SLA en minutos (solo ACTIVIDAD); JSON camelCase `slaMinutos`. */
   slaMinutos?: number;
   permisoDocumentos?: string;
+  requisitosIniciales?: RequisitoInicial[];
 }
 
 /**

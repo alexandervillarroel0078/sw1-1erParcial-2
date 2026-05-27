@@ -20,6 +20,8 @@ dependencies:
   stomp_dart_client: ^1.0.0
   speech_to_text: ^7.0.0
   flutter_dotenv: ^5.1.0
+  image_picker: ^1.0.7
+  flutter_image_compress: ^2.1.0
 
 dev_dependencies:
   flutter_test:

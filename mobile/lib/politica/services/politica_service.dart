@@ -27,7 +27,11 @@ class PoliticaService {
     _throwIfError(res);
     final list = jsonDecode(res.body) as List<dynamic>;
     return list
-        .map((e) => Politica.fromJson(e as Map<String, dynamic>))
+        .map((e) {
+          final map = e as Map<String, dynamic>;
+          // Incluye requisitosIniciales del nodo START en `Politica.fromJson`.
+          return Politica.fromJson(map);
+        })
         .where((p) => p.id.isNotEmpty && p.activa)
         .toList();
   }

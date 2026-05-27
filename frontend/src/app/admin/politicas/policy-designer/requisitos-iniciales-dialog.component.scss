@@ -1,0 +1,72 @@
+.rid-content {
+  min-width: min(480px, 90vw);
+  max-height: 60vh;
+  padding-top: 0.25rem;
+}
+
+.rid-empty {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.rid-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.rid-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.65rem;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.rid-item__drag {
+  cursor: grab;
+  color: rgba(0, 0, 0, 0.38);
+  padding: 0.25rem 0;
+  display: flex;
+  align-items: center;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.rid-item__fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rid-item__nombre,
+.rid-item__desc {
+  width: 100%;
+}
+
+.rid-add {
+  width: 100%;
+}
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(46, 125, 50, 0.25);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+  border: 2px dashed rgba(46, 125, 50, 0.45);
+  border-radius: 8px;
+  min-height: 72px;
+}

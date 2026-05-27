@@ -2,6 +2,7 @@ import type {
   AristaHaciaPuerto,
   Nodo,
   OrientacionCalles,
+  RequisitoInicial,
 } from '../../../core/models/politica.model';
 
 export type NodoCanvasTipo = Nodo['tipo'];
@@ -35,6 +36,8 @@ export interface NodoCanvas {
   /** Solo aplica visual/lógica a ACTIVIDAD */
   slaMinutos?: number;
   permisoDocumentos?: 'SIN_ACCESO' | 'SOLO_VER' | 'VER_MODIFICAR' | 'ACCESO_COMPLETO';
+  /** Solo nodo START */
+  requisitosIniciales?: RequisitoInicial[];
 }
 
 export interface AristaCanvas {

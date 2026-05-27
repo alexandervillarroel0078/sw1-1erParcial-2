@@ -871,6 +871,19 @@
               }
               @case ('START') {
                 <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="pd-props__requisitos-btn"
+                  (click)="abrirRequisitosIniciales()"
+                >
+                  📋 Requisitos iniciales
+                  @if ((sn.requisitosIniciales?.length ?? 0) > 0) {
+                    <span class="pd-props__requisitos-count">
+                      ({{ sn.requisitosIniciales!.length }})
+                    </span>
+                  }
+                </button>
               }
               @case ('END') {
                 <span class="pd-props__badge">{{ tipoLabel(sn.tipo) }}</span>

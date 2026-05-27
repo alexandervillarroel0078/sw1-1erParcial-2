@@ -9,7 +9,7 @@ import '../../config/app_config.dart';
 import '../../ia/services/ia_service.dart';
 import '../../politica/models/politica.dart';
 import '../../politica/services/politica_service.dart';
-import '../services/tramite_service.dart';
+import 'requisitos_tramite_screen.dart';
 
 /// Iniciar trámite: voz → sugerencia IA → confirmación.
 class NuevoTramiteScreen extends StatefulWidget {
@@ -39,8 +39,6 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
   String? _justificacion;
   String? _politicaIdSeleccionada;
   bool _mostrarSelectorManual = false;
-
-  bool _enviando = false;
 
   @override
   void initState() {
@@ -209,27 +207,22 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
 
   Future<void> _confirmar() async {
     if (!_formKey.currentState!.validate()) return;
-    final politicaId = _politicaIdSeleccionada;
-    if (politicaId == null || politicaId.isEmpty) {
+    final pol = _politicaSeleccionada;
+    if (pol == null) {
       _snack('Debe seleccionar una política.');
       return;
     }
-    setState(() => _enviando = true);
-    try {
-      await context.read<TramiteService>().crearTramite(
-            politicaId: politicaId,
-            nombreCompleto: _nombreCtrl.text,
-            telefono: _telefonoCtrl.text,
-            email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text,
-          );
-      if (!mounted) return;
-      _snack('Trámite creado correctamente');
-      context.go('/home?tab=0');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _enviando = false);
-      _snack('No se pudo crear el trámite. Intente de nuevo.');
-    }
+    final emailTrim = _emailCtrl.text.trim();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => RequisitosTramiteScreen(
+          politica: pol,
+          nombreCompleto: _nombreCtrl.text.trim(),
+          telefono: _telefonoCtrl.text.trim(),
+          email: emailTrim.isEmpty ? null : emailTrim,
+        ),
+      ),
+    );
   }
 
   @override
@@ -253,7 +246,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
         title: const Text('Nuevo trámite'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: _enviando ? null : () => context.pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       body: _cargandoPoliticas
@@ -301,9 +294,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                                 elevation: _escuchando ? 6 : 2,
                                 child: InkWell(
                                   customBorder: const CircleBorder(),
-                                  onTap: (_sugiriendo || _enviando)
-                                      ? null
-                                      : _toggleVoz,
+                                  onTap: _sugiriendo ? null : _toggleVoz,
                                   child: SizedBox(
                                     width: 96,
                                     height: 96,
@@ -390,7 +381,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                                   ),
                                 )
                                 .toList(),
-                            onChanged: (_sugiriendo || _enviando)
+                            onChanged: _sugiriendo
                                 ? null
                                 : (v) => setState(
                                       () => _politicaIdSeleccionada = v,
@@ -415,7 +406,6 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                             labelText: 'Nombre completo',
                           ),
                           textInputAction: TextInputAction.next,
-                          enabled: !_enviando,
                           validator: (v) {
                             if (v == null || v.trim().length < 2) {
                               return 'El nombre completo es obligatorio';
@@ -431,7 +421,6 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                           ),
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
-                          enabled: !_enviando,
                           validator: (v) {
                             if (v == null || v.trim().length < 6) {
                               return 'El teléfono es obligatorio';
@@ -446,7 +435,6 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                             labelText: 'Email (opcional)',
                           ),
                           keyboardType: TextInputType.emailAddress,
-                          enabled: !_enviando,
                           validator: (v) {
                             final t = v?.trim() ?? '';
                             if (t.isEmpty) return null;
@@ -458,24 +446,9 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                         ),
                         const SizedBox(height: 28),
                         FilledButton.icon(
-                          onPressed: (_enviando || _sugiriendo)
-                              ? null
-                              : _confirmar,
-                          icon: _enviando
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.check_circle_outline),
-                          label: Text(
-                            _enviando
-                                ? 'Creando trámite…'
-                                : 'Confirmar y crear trámite',
-                          ),
+                          onPressed: _sugiriendo ? null : _confirmar,
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: const Text('Confirmar y crear trámite'),
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(52),
                             backgroundColor:

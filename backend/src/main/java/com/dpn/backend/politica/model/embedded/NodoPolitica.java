@@ -7,6 +7,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -27,4 +30,7 @@ public class NodoPolitica {
 	private Integer slaMinutos;
 	@Field("permiso_documentos")
 	private String permisoDocumentos; // SIN_ACCESO, SOLO_VER, VER_MODIFICAR, ACCESO_COMPLETO
+	@Field("requisitos_iniciales")
+	@Builder.Default
+	private List<RequisitoInicial> requisitosIniciales = new ArrayList<>();
 }

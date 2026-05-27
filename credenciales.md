@@ -9,6 +9,7 @@ cd frontend
 ng serve
 
 cd mobile
+flutter pub get
 flutter devices
 flutter run -d R9JN7145S9J
 

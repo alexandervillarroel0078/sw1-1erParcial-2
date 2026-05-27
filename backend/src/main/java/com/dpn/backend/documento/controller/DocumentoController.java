@@ -6,12 +6,14 @@ import com.dpn.backend.documento.service.DocumentoService;
 import com.dpn.backend.usuario.model.Usuario;
 import com.dpn.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/documentos")
 @RequiredArgsConstructor
@@ -25,9 +27,18 @@ public class DocumentoController {
             @PathVariable String nodoId,
             @RequestParam("file") MultipartFile file,
             Authentication auth) {
-        String usuarioId = auth.getName();
-        String usuarioNombre = resolverUsuarioNombre(usuarioId);
-        return documentoService.subir(file, tramiteId, nodoId, usuarioId, usuarioNombre);
+        try {
+            log.info("Upload request - tramiteId: {}, nodoId: {}, file: {}, user: {}",
+                    tramiteId, nodoId, file.getOriginalFilename(), auth.getName());
+            String usuarioId = auth.getName();
+            String usuarioNombre = usuarioRepository.findById(usuarioId)
+                    .map(u -> u.getNombre()).orElse(usuarioId);
+            return documentoService.subir(file, tramiteId, nodoId, usuarioId, usuarioNombre);
+        } catch (Exception e) {
+            log.error("Error en upload - tramiteId: {}, nodoId: {}, error: {}",
+                    tramiteId, nodoId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @GetMapping("/tramite/{tramiteId}")

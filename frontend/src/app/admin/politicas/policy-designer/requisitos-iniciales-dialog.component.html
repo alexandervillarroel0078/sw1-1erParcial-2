@@ -1,0 +1,58 @@
+<h2 mat-dialog-title>Requisitos iniciales</h2>
+
+<mat-dialog-content class="rid-content">
+  @if (requisitos().length === 0) {
+    <p class="rid-empty">No hay requisitos. Agregá uno con el botón de abajo.</p>
+  } @else {
+    <div
+      class="rid-list"
+      cdkDropList
+      [cdkDropListData]="requisitos()"
+      (cdkDropListDropped)="onDrop($event)"
+    >
+      @for (r of requisitos(); track r.id) {
+        <div class="rid-item" cdkDrag>
+          <div class="rid-item__drag" cdkDragHandle aria-label="Arrastrar para reordenar">
+            <mat-icon>drag_indicator</mat-icon>
+          </div>
+          <div class="rid-item__fields">
+            <mat-form-field appearance="outline" class="rid-item__nombre" subscriptSizing="dynamic">
+              <mat-label>Nombre</mat-label>
+              <input
+                matInput
+                [ngModel]="r.nombre"
+                (ngModelChange)="patchNombre(r.id, $event)"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="rid-item__desc" subscriptSizing="dynamic">
+              <mat-label>Descripción (opcional)</mat-label>
+              <input
+                matInput
+                [ngModel]="r.descripcion ?? ''"
+                (ngModelChange)="patchDescripcion(r.id, $event)"
+              />
+            </mat-form-field>
+          </div>
+          <button
+            mat-icon-button
+            type="button"
+            color="warn"
+            aria-label="Eliminar requisito"
+            (click)="eliminar(r.id)"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  <button mat-stroked-button type="button" class="rid-add" (click)="agregarRequisito()">
+    + Agregar requisito
+  </button>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cerrar()">Cancelar</button>
+  <button mat-flat-button type="button" color="primary" (click)="guardar()">Guardar</button>
+</mat-dialog-actions>

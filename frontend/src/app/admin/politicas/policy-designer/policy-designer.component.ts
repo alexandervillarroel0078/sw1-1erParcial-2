@@ -94,6 +94,8 @@ import {
   type ValidacionFlujoResultado,
 } from './policy-designer-validation';
 import { ValidationResultDialogComponent } from './validation-result-dialog.component';
+import { RequisitosInicialesDialogComponent } from './requisitos-iniciales-dialog.component';
+import type { RequisitoInicial } from '../../../core/models/politica.model';
 
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
@@ -213,6 +215,9 @@ function mapNodoToCanvas(n: Nodo): NodoCanvas {
     calleId: n.calleId,
     slaMinutos: n.slaMinutos,
     permisoDocumentos: n.permisoDocumentos as NodoCanvas['permisoDocumentos'],
+    requisitosIniciales: n.requisitosIniciales
+      ? structuredClone(n.requisitosIniciales)
+      : undefined,
   };
 }
 
@@ -228,6 +233,9 @@ function mapCanvasToNodo(n: NodoCanvas): Nodo {
     calleId: n.calleId,
     slaMinutos: n.slaMinutos,
     permisoDocumentos: n.permisoDocumentos,
+    requisitosIniciales: n.requisitosIniciales?.length
+      ? structuredClone(n.requisitosIniciales)
+      : undefined,
   };
 }
 
@@ -1649,6 +1657,32 @@ export class PolicyDesignerComponent implements OnInit {
 
   tipoLabel(t: NodoCanvasTipo): string {
     return t;
+  }
+
+  abrirRequisitosIniciales(): void {
+    const n = this.nodoSeleccionado();
+    if (!n || n.tipo !== 'START') return;
+    this.dialog
+      .open(RequisitosInicialesDialogComponent, {
+        width: '560px',
+        maxWidth: '95vw',
+        data: {
+          requisitos: structuredClone(n.requisitosIniciales ?? []),
+        },
+      })
+      .afterClosed()
+      .pipe(take(1))
+      .subscribe((lista: RequisitoInicial[] | undefined) => {
+        if (lista == null) return;
+        const nodoId = n.id;
+        this.nodos.update((nodos) =>
+          nodos.map((x) =>
+            x.id === nodoId ? { ...x, requisitosIniciales: lista } : x,
+          ),
+        );
+        this.pushSnapshot();
+        this.syncHistorialFlags();
+      });
   }
 
   reiniciarWizardFormulario(): void {
