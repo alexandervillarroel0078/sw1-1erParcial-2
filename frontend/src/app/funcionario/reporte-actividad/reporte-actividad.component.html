@@ -610,7 +610,7 @@
         <app-documentos
           [tramiteId]="tarea()!.tramiteId"
           [nodoId]="tarea()!.nodoFlujoId"
-          [permiso]="tarea()!.permisoDocumentos ?? 'ACCESO_COMPLETO'">
+          [permiso]="permisoNodoActual()">
         </app-documentos>
       }
     </mat-card>

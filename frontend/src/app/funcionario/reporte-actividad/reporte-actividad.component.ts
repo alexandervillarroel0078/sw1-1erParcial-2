@@ -136,6 +136,22 @@ export class ReporteActividadComponent implements OnDestroy {
     () => this.camposFormularioOrdenados().length > 0,
   );
 
+  readonly permisoNodoActual = computed(() => {
+    const t = this.tarea();
+    if (!t) return 'ACCESO_COMPLETO';
+
+    const anyT = t as unknown as Record<string, unknown>;
+    const nodo =
+      (anyT['nodoActual'] as Record<string, unknown> | undefined) ??
+      (anyT['nodo'] as Record<string, unknown> | undefined);
+
+    const permiso =
+      (nodo?.['permisoDocumentos'] as string | undefined) ??
+      (anyT['permisoDocumentos'] as string | undefined);
+
+    return (permiso ?? '').trim() || 'ACCESO_COMPLETO';
+  });
+
   readonly modo = signal<ModoEntrada>('texto');
   readonly grabando = signal(false);
   readonly lineaVoz = signal('');
@@ -535,6 +551,7 @@ export class ReporteActividadComponent implements OnDestroy {
       return {
         tramiteId: t.tramiteId,
         tareaId: esBorrador ? undefined : t.id,
+        nodoActividadId: t.nodoFlujoId ?? undefined,
         funcionarioId: uid,
         descripcion:
           esBorrador && !descripcion.trim() ? '(borrador)' : descripcion.trim() || '(sin datos)',
@@ -553,6 +570,7 @@ export class ReporteActividadComponent implements OnDestroy {
     return {
       tramiteId: t.tramiteId,
       tareaId: esBorrador ? undefined : t.id,
+      nodoActividadId: t.nodoFlujoId ?? undefined,
       funcionarioId: uid,
       descripcion:
         (raw.descripcion?.trim() || (esBorrador ? '(borrador)' : '')) ?? '',

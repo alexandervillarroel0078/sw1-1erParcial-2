@@ -135,6 +135,9 @@ export class InformeService {
       resultado: informe.resultado,
       esBorrador: informe.esBorrador,
     };
+    if (informe.nodoActividadId) {
+      body['nodoActividadId'] = informe.nodoActividadId;
+    }
     if (informe.tareaId) {
       body['tareaId'] = informe.tareaId;
     }

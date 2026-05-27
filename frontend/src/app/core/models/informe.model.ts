@@ -13,6 +13,7 @@ export interface Informe {
   tramiteId: string;
   /** Solo informes finales; usado para GET por tarea en el backend. */
   tareaId?: string;
+  nodoActividadId?: string;
   funcionarioId?: string;
   descripcion: string;
   resultado: string;

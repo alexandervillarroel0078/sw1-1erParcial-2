@@ -1,5 +1,5 @@
-import { DatePipe, NgClass } from '@angular/common';
-import { Component, inject, Input, OnInit, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, computed, inject, Input, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -12,7 +12,6 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
   standalone: true,
   imports: [
     DatePipe,
-    NgClass,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -27,18 +26,6 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
             <mat-icon style="vertical-align: middle; margin-right: 6px; font-size: 18px;">folder_open</mat-icon>
             Documentos del trámite
           </h3>
-          @if (puedeSubir()) {
-            <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="subiendo()">
-              @if (subiendo()) {
-                <mat-spinner diameter="16" style="display:inline-block; margin-right:6px;"></mat-spinner>
-                Subiendo...
-              } @else {
-                <mat-icon>upload</mat-icon>
-                Subir documento
-              }
-            </button>
-            <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="*/*">
-          }
         </div>
 
         @if (cargando()) {
@@ -51,31 +38,94 @@ import { DocumentoDTO, DocumentoService } from '../../core/services/documento.se
             No hay documentos subidos aún
           </div>
         } @else {
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            @for (doc of documentos(); track doc.id) {
-              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
-                <mat-icon style="color: #6b7280; flex-shrink: 0;">
-                  {{ iconoPorTipo(doc.tipo) }}
-                </mat-icon>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    {{ doc.nombre }}
+          @if (documentosAnterioresAgrupados().length) {
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 12px; font-weight: 700; color: #374151; margin: 0 0 10px;">
+                Documentos de nodos anteriores
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                @for (g of documentosAnterioresAgrupados(); track g.nodoId) {
+                  <div>
+                    <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 8px;">
+                      {{ g.nodoNombre }}
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                      @for (doc of g.docs; track doc.id) {
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                          <mat-icon style="color: #6b7280; flex-shrink: 0;">
+                            {{ iconoPorTipo(doc.tipo) }}
+                          </mat-icon>
+                          <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                              {{ doc.nombre }}
+                            </div>
+                            <div style="font-size: 11px; color: #9ca3af;">
+                              {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
+                            </div>
+                          </div>
+                          <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
+                            <mat-icon>open_in_new</mat-icon>
+                          </button>
+                        </div>
+                      }
+                    </div>
                   </div>
-                  <div style="font-size: 11px; color: #9ca3af;">
-                    {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
-                  </div>
-                </div>
-                <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
-                  <mat-icon>open_in_new</mat-icon>
-                </button>
-                @if (puedeEliminar()) {
-                  <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
-                    <mat-icon>delete</mat-icon>
-                  </button>
                 }
               </div>
+            </div>
+          }
+
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+            <div style="font-size: 12px; font-weight: 700; color: #374151; margin: 0;">
+              {{ nombreNodoActual() }}
+            </div>
+            @if (puedeSubir()) {
+              <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="subiendo()">
+                @if (subiendo()) {
+                  <mat-spinner diameter="16" style="display:inline-block; margin-right:6px;"></mat-spinner>
+                  Subiendo...
+                } @else {
+                  <ng-container>
+                    <mat-icon>upload</mat-icon>
+                    Subir documento
+                  </ng-container>
+                }
+              </button>
+              <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="*/*">
             }
           </div>
+
+          @if (misDocumentos().length === 0) {
+            <div style="text-align: center; padding: 14px; color: #9ca3af; font-size: 13px; border: 1px dashed #e5e7eb; border-radius: 8px;">
+              No hay documentos en este nodo
+            </div>
+          } @else {
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              @for (doc of misDocumentos(); track doc.id) {
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                  <mat-icon style="color: #6b7280; flex-shrink: 0;">
+                    {{ iconoPorTipo(doc.tipo) }}
+                  </mat-icon>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {{ doc.nombre }}
+                    </div>
+                    <div style="font-size: 11px; color: #9ca3af;">
+                      {{ doc.subidoPorNombre }} · {{ doc.subidoEn | date:'dd/MM/yyyy HH:mm' }} · {{ formatearTamano(doc.tamanoBytes) }}
+                    </div>
+                  </div>
+                  <button mat-icon-button matTooltip="Ver / Descargar" (click)="verDocumento(doc)">
+                    <mat-icon>open_in_new</mat-icon>
+                  </button>
+                  @if (puedeEliminar()) {
+                    <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="eliminarDocumento(doc)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
         }
       </div>
     }
@@ -92,6 +142,49 @@ export class DocumentosComponent implements OnInit {
   readonly documentos = signal<DocumentoDTO[]>([]);
   readonly cargando = signal(false);
   readonly subiendo = signal(false);
+
+  readonly documentosAnterioresAgrupados = computed(() => {
+    const grupos = new Map<
+      string,
+      { nodoId: string; nodoNombre: string; docs: DocumentoDTO[] }
+    >();
+    for (const doc of this.documentos()) {
+      if ((doc.nodoId ?? '') === this.nodoId) continue;
+
+      const nodoId = (doc.nodoId ?? '').trim() || '—';
+      const nodoNombreRaw =
+        // API puede incluir campos extra no tipados en `DocumentoDTO`
+        ((doc as unknown as Record<string, unknown>)['nodoNombre'] as string | undefined) ??
+        ((doc as unknown as Record<string, unknown>)['nodoEtiqueta'] as string | undefined) ??
+        '';
+      const nodoNombre = (nodoNombreRaw ?? '').trim() || nodoId;
+
+      const g = grupos.get(nodoId) ?? { nodoId, nodoNombre, docs: [] };
+      g.docs.push(doc);
+      grupos.set(nodoId, g);
+    }
+    return [...grupos.values()].map((g) => ({
+      ...g,
+      docs: [...g.docs].sort((a, b) => (b.subidoEn ?? '').localeCompare(a.subidoEn ?? '')),
+    }));
+  });
+
+  readonly misDocumentos = computed(() =>
+    this.documentos()
+      .filter((d) => (d.nodoId ?? '') === this.nodoId)
+      .slice()
+      .sort((a, b) => (b.subidoEn ?? '').localeCompare(a.subidoEn ?? '')),
+  );
+
+  readonly nombreNodoActual = computed(() => {
+    const doc = this.misDocumentos()[0];
+    if (!doc) return 'Mis documentos';
+    const raw =
+      ((doc as unknown as Record<string, unknown>)['nodoNombre'] as string | undefined) ??
+      ((doc as unknown as Record<string, unknown>)['nodoEtiqueta'] as string | undefined) ??
+      '';
+    return (raw ?? '').trim() || 'Mis documentos';
+  });
 
   puedeVer(): boolean {
     return this.permiso !== 'SIN_ACCESO';

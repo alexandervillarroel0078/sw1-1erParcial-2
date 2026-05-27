@@ -25,7 +25,8 @@ public class InformeController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public Informe crear(@Valid @RequestBody InformeCreateDTO dto, Authentication authentication) {
-		return informeService.crear(dto, authentication.getName());
+		String funcionarioId = authentication.getName();
+		return informeService.crear(dto, funcionarioId, funcionarioId);
 	}
 
 	@GetMapping("/tarea/{tareaId}")
