@@ -8,6 +8,10 @@ mvn spring-boot:run
 cd frontend
 ng serve
 
+cd mobile
+flutter devices
+flutter run -d R9JN7145S9J
+
 ng serve --configuration=local --host 0.0.0.0
 
 cd ml-service

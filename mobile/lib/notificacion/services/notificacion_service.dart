@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config/app_config.dart';
+import '../../auth/services/auth_service.dart';
+import '../../config/app_config.dart';
 import '../models/notificacion.dart';
-import 'auth_service.dart';
 
 /// Notificaciones del cliente.
 class NotificacionService {

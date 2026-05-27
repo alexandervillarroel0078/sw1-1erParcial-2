@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config/app_config.dart';
+import '../../config/app_config.dart';
 import '../models/cliente.dart';
 
 /// Autenticación JWT contra `/api/auth/login`.

@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../config/app_config.dart';
-import '../models/notificacion.dart';
+import '../../config/app_config.dart';
+import '../../notificacion/models/notificacion.dart';
+import '../../notificacion/screens/notificaciones_screen.dart';
+import '../../notificacion/services/stomp_notification_service.dart';
+import '../../tramite/screens/tramites_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
-import '../services/stomp_notification_service.dart';
-import 'notificaciones_screen.dart';
-import 'tramites_screen.dart';
 
 /// Contenedor principal: AppBar, [NavigationBar] y pestañas.
 ///
@@ -85,6 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(auth.nombreMostrado),
         actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/nuevo-tramite'),
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text('Nuevo Trámite'),
+          ),
           IconButton(
             tooltip: 'Cerrar sesión',
             onPressed: () async {

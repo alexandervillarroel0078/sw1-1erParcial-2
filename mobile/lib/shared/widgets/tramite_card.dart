@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/tramite.dart';
+import '../../tramite/models/tramite.dart';
 import 'estado_badge.dart';
 
 /// Tarjeta de trámite para el listado del cliente.

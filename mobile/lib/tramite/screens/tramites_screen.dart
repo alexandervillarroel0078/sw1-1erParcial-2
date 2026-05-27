@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../shared/widgets/tramite_card.dart';
 import '../models/tramite.dart';
 import '../services/tramite_service.dart';
-import '../widgets/tramite_card.dart';
 
 /// Lista de trámites del cliente.
 class TramitesScreen extends StatefulWidget {

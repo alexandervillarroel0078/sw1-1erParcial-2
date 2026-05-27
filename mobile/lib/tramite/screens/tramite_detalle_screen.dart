@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../shared/widgets/estado_badge.dart';
 import '../models/tramite.dart';
 import '../services/tramite_service.dart';
-import '../widgets/estado_badge.dart';
 
 /// Detalle de un trámite: progreso y timeline de tareas.
 class TramiteDetalleScreen extends StatefulWidget {

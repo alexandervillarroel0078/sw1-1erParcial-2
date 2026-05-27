@@ -1,19 +1,26 @@
 package com.dpn.backend.cliente.controller;
 
 import com.dpn.backend.cliente.dto.ClienteTramiteResumenDTO;
+import com.dpn.backend.tramite.dto.TramiteCreateDTO;
 import com.dpn.backend.tramite.dto.TramiteDetalleAdminResponse;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.notificacion.model.Notificacion;
+import com.dpn.backend.politica.model.Politica;
+import com.dpn.backend.politica.service.PoliticaService;
 import com.dpn.backend.tramite.model.Tramite;
 import com.dpn.backend.tramite.repository.TramiteRepository;
+import com.dpn.backend.tramite.service.TramiteService;
 import com.dpn.backend.notificacion.service.NotificacionService;
 import com.dpn.backend.tarea.service.TareaService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +38,33 @@ public class ClienteTramiteController {
 	private final TramiteRepository tramiteRepository;
 	private final TareaService tareaService;
 	private final NotificacionService notificacionService;
+	private final PoliticaService politicaService;
+	private final TramiteService tramiteService;
+
+	/**
+	 * Políticas activas (mismo listado que {@code GET /api/funcionario/politicas/activas}).
+	 */
+	@GetMapping("/politicas/activas")
+	public List<Politica> getPoliticasActivas() {
+		try {
+			return politicaService.listarActivas();
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw e;
+		}
+	}
+
+	/**
+	 * Iniciar trámite (misma lógica que {@code POST /api/funcionario/tramites}).
+	 * {@link Authentication#getName()} = clienteId del JWT.
+	 */
+	@PostMapping("/tramites")
+	public Tramite crearTramite(
+			@Valid @RequestBody TramiteCreateDTO dto,
+			Authentication authentication) {
+		String clienteId = authentication.getName();
+		return tramiteService.crear(dto, clienteId);
+	}
 
 	/**
 	 * Lista trámites del cliente autenticado (JWT → {@link Authentication#getName()} = clienteId).

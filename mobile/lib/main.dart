@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'auth/providers/auth_provider.dart';
+import 'auth/screens/home_screen.dart';
+import 'auth/screens/login_screen.dart';
+import 'auth/services/auth_service.dart';
 import 'config/app_config.dart';
-import 'providers/auth_provider.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/tramite_detalle_screen.dart';
-import 'services/auth_service.dart';
-import 'services/local_notification_service.dart';
-import 'services/notificacion_service.dart';
-import 'services/tramite_service.dart';
+import 'ia/services/ia_service.dart';
+import 'notificacion/services/local_notification_service.dart';
+import 'notificacion/services/notificacion_service.dart';
+import 'politica/services/politica_service.dart';
+import 'tramite/screens/nuevo_tramite_screen.dart';
+import 'tramite/screens/tramite_detalle_screen.dart';
+import 'tramite/services/tramite_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   await LocalNotificationService.init();
   final prefs = await SharedPreferences.getInstance();
   final authService = AuthService(prefs);
@@ -79,6 +84,10 @@ class _WorkflowAppState extends State<WorkflowApp> {
             return TramiteDetalleScreen(id: id);
           },
         ),
+        GoRoute(
+          path: '/nuevo-tramite',
+          builder: (context, state) => const NuevoTramiteScreen(),
+        ),
       ],
     );
   }
@@ -120,6 +129,10 @@ class _WorkflowAppState extends State<WorkflowApp> {
         ProxyProvider<AuthService, NotificacionService>(
           update: (_, auth, __) => NotificacionService(auth),
         ),
+        ProxyProvider<AuthService, PoliticaService>(
+          update: (_, auth, __) => PoliticaService(auth),
+        ),
+        Provider<IaService>(create: (_) => IaService()),
       ],
       child: MaterialApp.router(
         title: 'Workflow',

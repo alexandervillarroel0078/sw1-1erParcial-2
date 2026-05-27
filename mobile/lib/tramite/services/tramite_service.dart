@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config/app_config.dart';
+import '../../auth/services/auth_service.dart';
+import '../../config/app_config.dart';
 import '../models/tramite.dart';
-import 'auth_service.dart';
 
 /// Trámites del cliente autenticado.
 class TramiteService {
@@ -29,6 +29,35 @@ class TramiteService {
     return list
         .map((e) => Tramite.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// `POST /api/cliente/tramites`
+  Future<Tramite> crearTramite({
+    required String politicaId,
+    required String nombreCompleto,
+    required String telefono,
+    String? email,
+  }) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}/cliente/tramites');
+    final body = <String, String>{
+      'politicaId': politicaId.trim(),
+      'clienteNombreCompleto': nombreCompleto.trim(),
+      'clienteTelefono': telefono.trim(),
+    };
+    final emailTrim = email?.trim();
+    if (emailTrim != null && emailTrim.isNotEmpty) {
+      body['clienteEmail'] = emailTrim;
+    }
+    final res = await http.post(
+      uri,
+      headers: {
+        ..._headers,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(body),
+    );
+    _throwIfError(res);
+    return Tramite.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   /// `GET /api/cliente/tramites/{id}/detalle`
