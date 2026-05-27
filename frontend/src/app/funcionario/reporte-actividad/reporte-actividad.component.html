@@ -21,6 +21,9 @@
 
   <div class="layout">
     <mat-card class="panel panel--form" appearance="outlined">
+      <mat-tab-group class="reporte-tabs" animationDuration="0ms">
+        <mat-tab label="Mi informe">
+          <div class="reporte-tab-body">
       @if (soloLectura()) {
         <form [formGroup]="form" class="form form--readonly">
           @if (informe()?.enviadoEn) {
@@ -103,77 +106,8 @@
               <textarea matInput rows="3" formControlName="observaciones"></textarea>
             </mat-form-field>
           }
-
-          @if (informe()?.archivos?.length) {
-            <div class="adjuntos-readonly">
-              <div class="adjuntos-readonly__title">Archivos adjuntos</div>
-              <ul class="adjuntos-readonly__list">
-                @for (ar of informe()!.archivos!; track ar.id) {
-                  <li class="adjuntos-readonly__row">
-                    <mat-icon class="adjuntos-readonly__icon">{{
-                      esPdfAdjunto(ar.tipo ?? '') ? 'picture_as_pdf' : 'image'
-                    }}</mat-icon>
-                    <span class="adjuntos-readonly__name">{{ ar.nombre }}</span>
-                    <button
-                      mat-stroked-button
-                      type="button"
-                      color="primary"
-                      (click)="verAdjuntoInforme(ar.id)"
-                    >
-                      Ver
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
         </form>
       } @else {
-        <input
-          #adjuntoInput
-          type="file"
-          class="adjunto-input-hidden"
-          accept="image/*,application/pdf"
-          (change)="onArchivoSeleccionado($event)"
-        />
-        <div class="adjuntos-toolbar">
-          <button
-            mat-stroked-button
-            type="button"
-            [disabled]="subiendoArchivo()"
-            (click)="adjuntoInput.click()"
-          >
-            <mat-icon>attach_file</mat-icon>
-            Adjuntar archivo
-          </button>
-          @if (subiendoArchivo()) {
-            <mat-spinner class="adjuntos-toolbar__spinner" diameter="22" />
-          }
-        </div>
-        @if (adjuntos().length) {
-          <ul class="adjuntos-preview">
-            @for (a of adjuntos(); track a.id; let i = $index) {
-              <li class="adjuntos-preview__item">
-                @if (a.previewUrl) {
-                  <img [src]="a.previewUrl" alt="" class="adjuntos-preview__thumb" />
-                } @else {
-                  <mat-icon class="adjuntos-preview__doc">picture_as_pdf</mat-icon>
-                }
-                <span class="adjuntos-preview__fname">{{ a.nombre }}</span>
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="adjuntos-preview__remove"
-                  aria-label="Quitar adjunto"
-                  (click)="quitarAdjunto(i)"
-                >
-                  <mat-icon>close</mat-icon>
-                </button>
-              </li>
-            }
-          </ul>
-        }
-
         <mat-button-toggle-group
           class="modo-toggle"
           [value]="modo()"
@@ -613,6 +547,101 @@
           [permiso]="permisoNodoActual()">
         </app-documentos>
       }
+          </div>
+        </mat-tab>
+        @if (docColabHabilitado()) {
+          <mat-tab label="Documento colaborativo">
+            <div class="reporte-tab-body doc-colab-tab">
+              @if (docColabCargando()) {
+                <div class="doc-colab-loading">
+                  <mat-spinner diameter="32" />
+                </div>
+              } @else {
+                <h2 class="doc-colab__titulo-doc">{{ tituloDocColaborativo() }}</h2>
+                @if (docColabGuardando()) {
+                  <p class="doc-colab__autosave">Guardando…</p>
+                }
+                @if (seccionesPlantillaDocColab().length === 0) {
+                  <p class="doc-colab__empty">No hay secciones definidas en la plantilla.</p>
+                } @else {
+                  <form [formGroup]="docColabForm" class="doc-colab-form">
+                    @for (s of seccionesPlantillaDocColab(); track s.id) {
+                      <section class="doc-colab-seccion">
+                        @if (nombreEditandoSeccion(s.id); as editor) {
+                          <p class="doc-colab-edicion">✏ Editando: {{ editor }}</p>
+                        }
+                        @switch (normalizeTipoSeccion(s.tipo)) {
+                          @case ('texto_corto') {
+                            <mat-form-field appearance="outline" class="full">
+                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
+                              <input
+                                matInput
+                                [formControlName]="docColabControlKey(s.id)"
+                                (input)="onDocColabSeccionChange(s.id)"
+                              />
+                            </mat-form-field>
+                          }
+                          @case ('texto_largo') {
+                            <mat-form-field appearance="outline" class="full">
+                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
+                              <textarea
+                                matInput
+                                rows="4"
+                                [formControlName]="docColabControlKey(s.id)"
+                                (input)="onDocColabSeccionChange(s.id)"
+                              ></textarea>
+                            </mat-form-field>
+                          }
+                          @case ('select') {
+                            <mat-form-field appearance="outline" class="full">
+                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
+                              <mat-select
+                                [formControlName]="docColabControlKey(s.id)"
+                                (selectionChange)="onDocColabSeccionChange(s.id)"
+                              >
+                                @for (op of s.opciones ?? []; track op) {
+                                  <mat-option [value]="op">{{ op }}</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                          }
+                          @case ('fecha') {
+                            <mat-form-field appearance="outline" class="full">
+                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
+                              <input
+                                matInput
+                                type="date"
+                                [formControlName]="docColabControlKey(s.id)"
+                                (change)="onDocColabSeccionChange(s.id)"
+                              />
+                            </mat-form-field>
+                          }
+                          @case ('checkbox') {
+                            <div class="campo-checkbox">
+                              <mat-checkbox
+                                [formControlName]="docColabControlKey(s.id)"
+                                (change)="onDocColabSeccionChange(s.id)"
+                              >
+                                {{ s.titulo }}@if (s.obligatorio) { *}
+                              </mat-checkbox>
+                            </div>
+                          }
+                          @default {
+                            <div class="campo-estatico">
+                              <div class="campo-estatico__label">{{ s.titulo }}</div>
+                              <p class="hint-voz">Este tipo de sección no está disponible en el documento.</p>
+                            </div>
+                          }
+                        }
+                      </section>
+                    }
+                  </form>
+                }
+              }
+            </div>
+          </mat-tab>
+        }
+      </mat-tab-group>
     </mat-card>
 
     <mat-card class="panel panel--detalle" appearance="outlined">

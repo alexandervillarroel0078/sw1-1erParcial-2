@@ -31,10 +31,12 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
   catchError,
   finalize,
+  interval,
   map,
   Observable,
   of,
@@ -43,10 +45,19 @@ import {
   tap,
 } from 'rxjs';
 
-import { ArchivoAdjunto, Informe } from '../../core/models/informe.model';
+import type {
+  DocumentoColaborativo,
+  SeccionPlantillaDocumentoColaborativo,
+  SeccionPlantillaTipo,
+} from '../../core/models/doc-colaborativo.model';
+import { Informe } from '../../core/models/informe.model';
 import type { CampoFormulario, FormularioActividad } from '../../core/models/nodo.model';
 import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
+import {
+  DocColaborativoService,
+  type CambioSeccionDocumento,
+} from '../../core/services/doc-colaborativo.service';
 import { FormularioFuncionarioService } from '../../core/services/formulario-funcionario.service';
 import { IaService } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
@@ -66,14 +77,22 @@ type TipoCampoReporte =
   | 'checkbox'
   | 'fecha';
 
-/** Adjunto ya subido a GridFS pendiente de enviar con el informe. */
-export type AdjuntoPendiente = {
-  id: string;
-  nombre: string;
-  tipo: string;
-  tamanoBytes: number;
-  /** Solo imágenes: preview local (revocar al quitar o destruir). */
-  previewUrl?: string;
+const TIPOS_SECCION_DOC_COLAB = new Set<SeccionPlantillaTipo>([
+  'texto_corto',
+  'texto_largo',
+  'fecha',
+  'checkbox',
+  'select',
+  'tabla',
+]);
+
+const TIPO_API_A_SECCION_DOC_COLAB: Record<string, SeccionPlantillaTipo> = {
+  TEXTO_CORTO: 'texto_corto',
+  TEXTO_LARGO: 'texto_largo',
+  SELECT: 'select',
+  CHECKBOX: 'checkbox',
+  FECHA: 'fecha',
+  TABLA: 'tabla',
 };
 
 @Component({
@@ -94,6 +113,7 @@ export type AdjuntoPendiente = {
     MatChipsModule,
     MatProgressSpinnerModule,
     MatCheckboxModule,
+    MatTabsModule,
     DocumentosComponent,
   ],
   templateUrl: './reporte-actividad.component.html',
@@ -110,6 +130,7 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly formularioFuncionarioService = inject(FormularioFuncionarioService);
   private readonly iaService = inject(IaService);
   private readonly informeService = inject(InformeService);
+  private readonly docColabService = inject(DocColaborativoService);
   private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthService);
   private readonly snack = inject(MatSnackBar);
@@ -136,6 +157,26 @@ export class ReporteActividadComponent implements OnDestroy {
     () => this.camposFormularioOrdenados().length > 0,
   );
 
+  readonly docColabHabilitado = computed(
+    () => this.definicionFormulario()?.habilitadoDocumentoColaborativo ?? false,
+  );
+
+  readonly docColabEditable = computed(
+    () => this.tarea()?.estado === 'en_atencion',
+  );
+
+  readonly tituloDocColaborativo = computed(
+    () =>
+      this.definicionFormulario()?.tituloDocumentoColaborativo?.trim() ||
+      'Documento colaborativo',
+  );
+
+  readonly seccionesPlantillaDocColab = computed(() =>
+    (this.definicionFormulario()?.seccionesDocumentoColaborativo ?? []).map((s) =>
+      this.normalizeSeccionPlantilla(s),
+    ),
+  );
+
   readonly permisoNodoActual = computed(() => {
     const t = this.tarea();
     if (!t) return 'ACCESO_COMPLETO';
@@ -157,9 +198,15 @@ export class ReporteActividadComponent implements OnDestroy {
   readonly lineaVoz = signal('');
   readonly speechDisponible = signal(false);
   readonly enviando = signal(false);
-  /** Archivos subidos (GridFS) asociados al informe en curso. */
-  readonly adjuntos = signal<AdjuntoPendiente[]>([]);
-  readonly subiendoArchivo = signal(false);
+  readonly docColabCargando = signal(false);
+  readonly docColabGuardando = signal(false);
+  readonly edicionPorSeccion = signal<Record<string, string>>({});
+
+  private docColabDirty = false;
+  private aplicandoCambioRemotoDocColab = false;
+  private docColabTramiteId: string | null = null;
+  private docColabNodoId: string | null = null;
+  private readonly edicionTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   private acumuladoFinal = '';
   /** Web Speech API — tipado laxo (webkit / prefijos) */
@@ -168,6 +215,9 @@ export class ReporteActividadComponent implements OnDestroy {
 
   /** Controles variables: fallback fijo o campos `f_*` del formulario dinámico. */
   readonly form = this.fb.group({});
+
+  /** Valores por sección del documento colaborativo (`dc_*`). */
+  readonly docColabForm = this.fb.group({});
 
   constructor() {
     type Carga = {
@@ -183,7 +233,7 @@ export class ReporteActividadComponent implements OnDestroy {
           this.cargando.set(true);
           this.informe.set(null);
           this.definicionFormulario.set(null);
-          this.limpiarAdjuntosLocales();
+          this.teardownDocColaborativo();
         }),
         takeUntilDestroyed(this.destroyRef),
         switchMap((pm) => {
@@ -247,6 +297,7 @@ export class ReporteActividadComponent implements OnDestroy {
           this.informe.set(informe);
           this.definicionFormulario.set(definicion);
           this.rebuildForm(tarea, informe);
+          this.initDocColaborativoSiAplica(tarea);
           this.cdr.markForCheck();
         },
         error: () => {
@@ -263,11 +314,19 @@ export class ReporteActividadComponent implements OnDestroy {
       const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
       this.speechDisponible.set(Boolean(SR));
     }
+
+    this.docColabService.cambios$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((c) => this.onDocColabCambioRemoto(c));
+
+    interval(3000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.autoGuardarDocColaborativo());
   }
 
   ngOnDestroy(): void {
     this.detenerReconocimiento();
-    this.limpiarAdjuntosLocales();
+    this.teardownDocColaborativo();
   }
 
   campoControlKey(c: CampoFormulario): string {
@@ -557,7 +616,7 @@ export class ReporteActividadComponent implements OnDestroy {
           esBorrador && !descripcion.trim() ? '(borrador)' : descripcion.trim() || '(sin datos)',
         resultado: 'Completado',
         observaciones,
-        archivos: this.adjuntosParaInforme(),
+        archivos: [],
         esBorrador,
         creadoEn: new Date(),
         enviadoEn: esBorrador ? undefined : new Date(),
@@ -576,7 +635,7 @@ export class ReporteActividadComponent implements OnDestroy {
         (raw.descripcion?.trim() || (esBorrador ? '(borrador)' : '')) ?? '',
       resultado: 'Completado',
       observaciones: raw.observaciones?.trim() || undefined,
-      archivos: this.adjuntosParaInforme(),
+      archivos: [],
       esBorrador,
       creadoEn: new Date(),
       enviadoEn: esBorrador ? undefined : new Date(),
@@ -600,85 +659,22 @@ export class ReporteActividadComponent implements OnDestroy {
     return null;
   }
 
-  private limpiarAdjuntosLocales(): void {
-    for (const a of this.adjuntos()) {
-      if (a.previewUrl) {
-        URL.revokeObjectURL(a.previewUrl);
-      }
-    }
-    this.adjuntos.set([]);
+  nombreEditandoSeccion(seccionId: string): string | null {
+    return this.edicionPorSeccion()[seccionId] ?? null;
   }
 
-  onArchivoSeleccionado(ev: Event): void {
-    const input = ev.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) {
+  docColabControlKey(seccionId: string): string {
+    const id = seccionId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `dc_${id}`;
+  }
+
+  onDocColabSeccionChange(seccionId: string): void {
+    if (this.aplicandoCambioRemotoDocColab || !this.docColabEditable()) {
       return;
     }
-    const okTipo =
-      file.type.startsWith('image/') || file.type === 'application/pdf';
-    if (!okTipo) {
-      this.snack.open('Solo imágenes o PDF', 'Cerrar', { duration: 4000 });
-      return;
-    }
-    const max = 10 * 1024 * 1024;
-    if (file.size > max) {
-      this.snack.open('El archivo supera 10 MB', 'Cerrar', { duration: 4000 });
-      return;
-    }
-    this.subiendoArchivo.set(true);
-    this.informeService.subirArchivo(file).subscribe({
-      next: (resp) => {
-        let previewUrl: string | undefined;
-        if (file.type.startsWith('image/')) {
-          previewUrl = URL.createObjectURL(file);
-        }
-        this.adjuntos.update((list) => [
-          ...list,
-          {
-            id: resp.id,
-            nombre: resp.nombre,
-            tipo: resp.tipo,
-            tamanoBytes: resp.tamanoBytes,
-            previewUrl,
-          },
-        ]);
-        this.subiendoArchivo.set(false);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.subiendoArchivo.set(false);
-        this.cdr.markForCheck();
-      },
-    });
-  }
-
-  quitarAdjunto(index: number): void {
-    const list = [...this.adjuntos()];
-    const [rem] = list.splice(index, 1);
-    if (rem?.previewUrl) {
-      URL.revokeObjectURL(rem.previewUrl);
-    }
-    this.adjuntos.set(list);
-    this.cdr.markForCheck();
-  }
-
-  verAdjuntoInforme(id: string): void {
-    this.informeService.verArchivoNuevaPestana(id);
-  }
-
-  private adjuntosParaInforme(): ArchivoAdjunto[] {
-    return this.adjuntos().map((a) => ({
-      id: a.id,
-      nombre: a.nombre,
-      tipo: a.tipo,
-      tamanoBytes: a.tamanoBytes,
-    }));
-  }
-
-  esPdfAdjunto(tipo: string): boolean {
-    return tipo.toLowerCase().includes('pdf');
+    const contenido = this.contenidoSeccionDocColabPorId(seccionId);
+    this.docColabService.enviarCambioSeccion(seccionId, contenido);
+    this.docColabDirty = true;
   }
 
   volverBandeja(): void {
@@ -912,5 +908,210 @@ export class ReporteActividadComponent implements OnDestroy {
     const base = typeof dias === 'number' ? dias : 0;
     const lim = Math.max(3, base + 3);
     return `${lim} días hábiles`;
+  }
+
+  normalizeTipoSeccion(tipo: unknown): SeccionPlantillaTipo {
+    const raw = String(tipo ?? 'texto_largo');
+    const normalizado =
+      TIPO_API_A_SECCION_DOC_COLAB[raw] ?? (raw.toLowerCase() as SeccionPlantillaTipo);
+    return TIPOS_SECCION_DOC_COLAB.has(normalizado) ? normalizado : 'texto_largo';
+  }
+
+  private normalizeSeccionPlantilla(
+    s: SeccionPlantillaDocumentoColaborativo,
+  ): SeccionPlantillaDocumentoColaborativo {
+    const tipo = this.normalizeTipoSeccion(s.tipo);
+    return {
+      ...s,
+      tipo,
+      titulo: s.titulo?.trim() || 'Sección',
+      opciones:
+        tipo === 'select' && Array.isArray(s.opciones)
+          ? s.opciones.map((x) => String(x))
+          : tipo === 'select'
+            ? []
+            : undefined,
+    };
+  }
+
+  private initDocColaborativoSiAplica(tarea: Tarea): void {
+    this.teardownDocColaborativo();
+    if (!this.docColabHabilitado()) {
+      return;
+    }
+    const tramiteId = (tarea.tramiteId ?? '').trim();
+    const nodoId = (tarea.nodoFlujoId ?? '').trim();
+    if (!tramiteId || !nodoId) {
+      return;
+    }
+    this.docColabTramiteId = tramiteId;
+    this.docColabNodoId = nodoId;
+    this.docColabCargando.set(true);
+    this.docColabService.conectar(tramiteId, nodoId);
+    this.docColabService.obtener(tramiteId, nodoId).subscribe({
+      next: (doc) => {
+        this.rebuildDocColabForm(doc);
+        this.docColabCargando.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.rebuildDocColabForm(null);
+        this.docColabCargando.set(false);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private teardownDocColaborativo(): void {
+    this.docColabService.desconectar();
+    this.docColabTramiteId = null;
+    this.docColabNodoId = null;
+    this.docColabDirty = false;
+    this.docColabCargando.set(false);
+    this.docColabGuardando.set(false);
+    this.edicionPorSeccion.set({});
+    for (const timer of this.edicionTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.edicionTimers.clear();
+    Object.keys(this.docColabForm.controls).forEach((k) => this.docColabForm.removeControl(k));
+  }
+
+  private rebuildDocColabForm(doc: DocumentoColaborativo | null): void {
+    Object.keys(this.docColabForm.controls).forEach((k) => this.docColabForm.removeControl(k));
+    const contenidoPorId = new Map(
+      (doc?.secciones ?? []).map((s) => [s.id, s.contenido ?? '']),
+    );
+    for (const s of this.seccionesPlantillaDocColab()) {
+      const key = this.docColabControlKey(s.id);
+      const raw = contenidoPorId.get(s.id) ?? '';
+      const value = this.deserializarContenidoSeccion(s.tipo, raw);
+      this.docColabForm.addControl(key, this.fb.control(value));
+    }
+    if (this.docColabEditable()) {
+      this.docColabForm.enable({ emitEvent: false });
+    } else {
+      this.docColabForm.disable({ emitEvent: false });
+    }
+    this.docColabDirty = false;
+  }
+
+  private onDocColabCambioRemoto(cambio: CambioSeccionDocumento): void {
+    const tramiteId = this.docColabTramiteId;
+    const nodoId = this.docColabNodoId;
+    if (!tramiteId || !nodoId) {
+      return;
+    }
+    const seccion = this.seccionesPlantillaDocColab().find((s) => s.id === cambio.seccionId);
+    if (!seccion) {
+      return;
+    }
+    const key = this.docColabControlKey(cambio.seccionId);
+    const control = this.docColabForm.get(key);
+    if (!control) {
+      return;
+    }
+    this.aplicandoCambioRemotoDocColab = true;
+    control.setValue(this.deserializarContenidoSeccion(seccion.tipo, cambio.contenido), {
+      emitEvent: false,
+    });
+    this.aplicandoCambioRemotoDocColab = false;
+    this.marcarEdicionRemota(cambio.seccionId, cambio.usuarioNombre);
+    this.cdr.markForCheck();
+  }
+
+  private marcarEdicionRemota(seccionId: string, usuarioNombre: string): void {
+    const prev = this.edicionTimers.get(seccionId);
+    if (prev) {
+      clearTimeout(prev);
+    }
+    this.edicionPorSeccion.update((m) => ({ ...m, [seccionId]: usuarioNombre }));
+    this.edicionTimers.set(
+      seccionId,
+      setTimeout(() => {
+        this.edicionPorSeccion.update((m) => {
+          const next = { ...m };
+          delete next[seccionId];
+          return next;
+        });
+        this.edicionTimers.delete(seccionId);
+        this.cdr.markForCheck();
+      }, 4000),
+    );
+  }
+
+  private autoGuardarDocColaborativo(): void {
+    if (
+      !this.docColabHabilitado() ||
+      !this.docColabEditable() ||
+      !this.docColabDirty ||
+      this.docColabCargando() ||
+      this.docColabGuardando()
+    ) {
+      return;
+    }
+    const doc = this.buildDocumentoColaborativoParaGuardar();
+    const tramiteId = this.docColabTramiteId;
+    const nodoId = this.docColabNodoId;
+    if (!doc || !tramiteId || !nodoId) {
+      return;
+    }
+    this.docColabGuardando.set(true);
+    this.docColabService.guardar(tramiteId, nodoId, doc).subscribe({
+      next: () => {
+        this.docColabDirty = false;
+        this.docColabGuardando.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.docColabGuardando.set(false);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private buildDocumentoColaborativoParaGuardar(): DocumentoColaborativo | null {
+    const tramiteId = this.docColabTramiteId;
+    const nodoId = this.docColabNodoId;
+    if (!tramiteId || !nodoId) {
+      return null;
+    }
+    return {
+      tramiteId,
+      nodoId,
+      titulo: this.tituloDocColaborativo(),
+      secciones: this.seccionesPlantillaDocColab().map((s) => ({
+        id: s.id,
+        titulo: s.titulo,
+        contenido: this.contenidoSeccionDocColabPorId(s.id),
+      })),
+    };
+  }
+
+  private contenidoSeccionDocColabPorId(seccionId: string): string {
+    const seccion = this.seccionesPlantillaDocColab().find((s) => s.id === seccionId);
+    if (!seccion) {
+      return '';
+    }
+    const key = this.docColabControlKey(seccionId);
+    const raw = this.docColabForm.get(key)?.value;
+    return this.serializarContenidoSeccion(seccion.tipo, raw);
+  }
+
+  private serializarContenidoSeccion(tipo: SeccionPlantillaTipo, raw: unknown): string {
+    if (tipo === 'checkbox') {
+      return raw === true || raw === 'true' ? 'true' : 'false';
+    }
+    if (raw == null) {
+      return '';
+    }
+    return String(raw);
+  }
+
+  private deserializarContenidoSeccion(tipo: SeccionPlantillaTipo, raw: string): unknown {
+    if (tipo === 'checkbox') {
+      return raw === 'true';
+    }
+    return raw ?? '';
   }
 }
