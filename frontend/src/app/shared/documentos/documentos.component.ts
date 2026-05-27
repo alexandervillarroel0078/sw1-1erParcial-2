@@ -38,9 +38,20 @@ import {
             <mat-spinner diameter="30"></mat-spinner>
           </div>
         } @else if (documentos().length === 0) {
-          <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 13px; border: 1px dashed #e5e7eb; border-radius: 8px;">
-            <mat-icon style="font-size: 32px; display: block; margin: 0 auto 8px;">description</mat-icon>
-            No hay documentos subidos aún
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+            <div style="font-size: 12px; font-weight: 700; color: #374151;">Mis documentos</div>
+            @if (puedeSubir()) {
+              <button mat-stroked-button color="primary" (click)="fileInput.click()" [disabled]="subiendo()">
+                <ng-container>
+                  <mat-icon>upload</mat-icon>
+                  Subir documento
+                </ng-container>
+              </button>
+              <input #fileInput type="file" hidden (change)="onFileSelected($event)" accept="*/*">
+            }
+          </div>
+          <div style="text-align: center; padding: 14px; color: #9ca3af; font-size: 13px; border: 1px dashed #e5e7eb; border-radius: 8px;">
+            No hay documentos en este nodo
           </div>
         } @else {
           @if (documentosAnterioresAgrupados().length) {
