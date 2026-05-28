@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Local environment/config
+.env
+.env.*
+
+# Training artifacts / outputs
+training/datos_entrenamiento.csv
+training/history.json
+training/graficos/
+
+# Model artifacts (generated)
+modelo_demora.keras
+scaler.pkl
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+ 
