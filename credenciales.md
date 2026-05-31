@@ -11,14 +11,16 @@ ng serve
 cd mobile
 flutter pub get
 flutter devices
-flutter run -d R9JN7145S9J
+flutter run -d 15187705CJ007699
 
 ng serve --configuration=local --host 0.0.0.0
 
 cd ml-service
+venv\Scripts\activate
 python main.py
 
 cd ia-service
+venv\Scripts\activate
 python main.py
 
 // para poder usar s3 en local
@@ -26,7 +28,7 @@ cd C:\minio
 .\minio.windows-amd64.RELEASE.2025-09-07T16-13-09Z.exe server C:\minio\data --console-address ":9001"
 
 git add .
-git commit -m "credenciales de cada nodo y repositorio"
+git commit -m "ml service actualizado"
 git push origin main2
 
 
@@ -44,10 +46,6 @@ pip freeze > requirements.txt
 pip install -r requirements.txt
  
 http://127.0.0.1:8000/docs
-
-git add .
-git commit -m "politicas"
-git push origin main
 
 SELECT * FROM usuarios;
 SELECT * FROM politicas_negocio;

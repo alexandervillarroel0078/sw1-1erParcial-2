@@ -214,7 +214,7 @@ public class DataInitializer implements CommandLineRunner {
 				arista(r3, r4, null),
 				arista(r4, end, null));
 
-		return politica("Flujo secuencial en RRHH", nodos, aristas);
+		return politica("Proceso para registrar a un nuevo empleado en la empresa, incluyendo verificación de identidad, creación de usuario en el sistema y asignación de equipo de trabajo.", nodos, aristas);
 	}
 
 	private Politica buildPoliticaVacaciones(Map<String, String> deptIds) {
@@ -246,7 +246,7 @@ public class DataInitializer implements CommandLineRunner {
 				arista(yes, endYes, null),
 				arista(no, endNo, null));
 
-		return politica("Flujo alternativo con aprobación", nodos, aristas);
+		return politica("Proceso para que un empleado solicite días de vacaciones, con aprobación del jefe y registro en el sistema de RRHH.", nodos, aristas);
 	}
 
 	private Politica buildPoliticaCorreccionInforme(Map<String, String> deptIds) {
@@ -279,7 +279,7 @@ public class DataInitializer implements CommandLineRunner {
 				arista(publicar, end, null),
 				arista(corregir, revisar, null));
 
-		return politica("Flujo iterativo de revisión", nodos, aristas);
+		return politica("Proceso para redactar, revisar y corregir un informe oficial hasta obtener la aprobación y publicación final.", nodos, aristas);
 	}
 
 	private Politica buildPoliticaOnboardingProveedor(Map<String, String> deptIds) {
@@ -321,7 +321,7 @@ public class DataInitializer implements CommandLineRunner {
 				arista(join, aprobar, null),
 				arista(aprobar, end, null));
 
-		return politica("Flujo paralelo de validación", nodos, aristas);
+		return politica("Proceso para registrar y validar un nuevo proveedor, con verificación legal, financiera y de referencias comerciales en paralelo.", nodos, aristas);
 	}
 
 	private Politica buildPoliticaSolicitudCredito(Map<String, String> deptIds) {
@@ -396,7 +396,7 @@ public class DataInitializer implements CommandLineRunner {
 				arista(contrato, firmaDesembolso, null),
 				arista(firmaDesembolso, endOk, null));
 
-		return politica("Flujo combinado con decisiones y paralelo", nodos, aristas);
+		return politica("Proceso para solicitar un crédito financiero, con análisis legal, evaluación de riesgo, revisión de historial y aprobación según el monto.", nodos, aristas);
 	}
 
 	private Politica politica(String subtitulo, List<NodoPolitica> nodos, List<AristaPolitica> aristas) {
