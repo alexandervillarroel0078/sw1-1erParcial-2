@@ -41,7 +41,7 @@ public class SecurityConfig {
 							.hasAnyRole("FUNCIONARIO", "ADMINISTRADOR")
 						.requestMatchers("/api/archivos/**").authenticated()
 						.requestMatchers(HttpMethod.POST, "/api/documentos/tramite/*/nodo/*/upload")
-							.hasRole("CLIENTE")
+							.hasAnyRole("CLIENTE", "FUNCIONARIO")
 						.requestMatchers("/api/documentos/**").authenticated()
 						.requestMatchers("/api/doc-colaborativo/**").authenticated()
 						.requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")

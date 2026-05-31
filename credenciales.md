@@ -28,7 +28,7 @@ cd C:\minio
 .\minio.windows-amd64.RELEASE.2025-09-07T16-13-09Z.exe server C:\minio\data --console-address ":9001"
 
 git add .
-git commit -m "ml service actualizado"
+git commit -m "para que el funcionario pueda subir documentos en s3"
 git push origin main2
 
 

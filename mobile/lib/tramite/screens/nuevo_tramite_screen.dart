@@ -402,6 +402,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _nombreCtrl,
+                          enabled: false,
                           decoration: const InputDecoration(
                             labelText: 'Nombre completo',
                           ),
@@ -416,6 +417,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _telefonoCtrl,
+                          enabled: false,
                           decoration: const InputDecoration(
                             labelText: 'Teléfono',
                           ),
@@ -431,6 +433,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _emailCtrl,
+                          enabled: false,
                           decoration: const InputDecoration(
                             labelText: 'Email (opcional)',
                           ),
