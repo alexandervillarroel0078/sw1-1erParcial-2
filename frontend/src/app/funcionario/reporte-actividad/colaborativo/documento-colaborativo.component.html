@@ -1,0 +1,31 @@
+<div class="reporte-tab-body doc-colab-tab">
+  @if (docColabCargando) {
+    <div class="doc-colab-loading">
+      <mat-spinner diameter="32" />
+    </div>
+  } @else {
+    <h2 class="doc-colab__titulo-doc">{{ tituloDocColaborativo }}</h2>
+    <p class="doc-colab__info">
+      Este documento es colaborativo, compartilo con otros funcionarios del trámite.
+    </p>
+    @if (docColab; as doc) {
+      <app-onlyoffice-editor [doc]="doc" [readonly]="soloLectura" />
+    } @else if (!docColab && !soloLectura) {
+      <button
+        mat-raised-button
+        color="primary"
+        type="button"
+        [disabled]="docColabCreando"
+        (click)="crear.emit()"
+      >
+        @if (docColabCreando) {
+          <mat-spinner diameter="18" />
+        } @else {
+          Crear documento colaborativo
+        }
+      </button>
+    } @else {
+      <p class="doc-colab__empty">No se creó documento colaborativo para esta actividad.</p>
+    }
+  }
+</div>

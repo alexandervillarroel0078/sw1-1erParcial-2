@@ -87,7 +87,6 @@ export class FuncionarioLayoutComponent {
     if (url.includes('/funcionario/nuevo-proceso')) return 'Nuevo Trámite';
     if (url.includes('/funcionario/historial')) return 'Historial';
     if (url.includes('/funcionario/reporte')) return 'Reporte de actividad';
-    if (url.includes('/funcionario/tareas')) return 'Detalle de tarea';
     return 'Workflow';
   }
 }

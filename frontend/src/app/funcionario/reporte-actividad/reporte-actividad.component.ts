@@ -1,4 +1,4 @@
-import { DatePipe, isPlatformBrowser, NgClass } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -23,15 +23,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
@@ -49,17 +44,17 @@ import { HttpErrorResponse } from '@angular/common/http';
 import type { DocumentoColaborativo } from '../../core/models/doc-colaborativo.model';
 import { Informe } from '../../core/models/informe.model';
 import type { CampoFormulario, FormularioActividad } from '../../core/models/nodo.model';
-import { etiquetaClienteReferencia, Tarea } from '../../core/models/tarea.model';
+import { Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { DocColaborativoService } from '../../core/services/doc-colaborativo.service';
 import { FormularioFuncionarioService } from '../../core/services/formulario-funcionario.service';
 import { IaService } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
 import { TareaService } from '../../core/services/tarea.service';
-import { formatoTiempoAbierto } from '../../core/utils/tiempo-abierto.util';
-import { DocumentosComponent } from '../../shared/documentos/documentos.component';
-import { OnlyofficeEditorComponent } from '../../shared/onlyoffice-editor/onlyoffice-editor.component';
-import { DecisionRamaDialogComponent } from './decision-rama-dialog.component';
+import { DecisionRamaDialogComponent } from './informe/decision-rama-dialog/decision-rama-dialog.component';
+import { DocumentoColaborativoComponent } from './colaborativo/documento-colaborativo.component';
+import { DetalleTareaComponent } from './detalle-tarea/detalle-tarea.component';
+import { MiInformeComponent } from './informe/mi-informe.component';
 
 export type ModoEntrada = 'texto' | 'voz';
 
@@ -76,31 +71,22 @@ type TipoCampoReporte =
   selector: 'app-reporte-actividad',
   standalone: true,
   imports: [
-    DatePipe,
-    NgClass,
-    ReactiveFormsModule,
     MatToolbarModule,
     MatButtonModule,
-    MatButtonToggleModule,
     MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
     MatIconModule,
     MatChipsModule,
     MatProgressSpinnerModule,
-    MatCheckboxModule,
     MatTabsModule,
-    DocumentosComponent,
-    OnlyofficeEditorComponent,
+    MiInformeComponent,
+    DocumentoColaborativoComponent,
+    DetalleTareaComponent,
   ],
   templateUrl: './reporte-actividad.component.html',
   styleUrl: './reporte-actividad.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReporteActividadComponent implements OnDestroy {
-  readonly formatoTiempoAbierto = formatoTiempoAbierto;
-
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -956,33 +942,6 @@ export class ReporteActividadComponent implements OnDestroy {
 
   soloLectura(): boolean {
     return this.tarea()?.estado === 'completado';
-  }
-
-  estadoLabel(estado: Tarea['estado']): string {
-    switch (estado) {
-      case 'pendiente':
-        return 'Pendiente';
-      case 'en_atencion':
-        return 'En atención';
-      case 'completado':
-        return 'Completada';
-      default:
-        return estado;
-    }
-  }
-
-  badgeClass(estado: Tarea['estado']): string {
-    return `badge--${estado}`;
-  }
-
-  clienteEtiqueta(t: Tarea): string {
-    return etiquetaClienteReferencia(t);
-  }
-
-  slaPlaceholder(dias?: number): string {
-    const base = typeof dias === 'number' ? dias : 0;
-    const lim = Math.max(3, base + 3);
-    return `${lim} días hábiles`;
   }
 
   private initDocColaborativoSiAplica(tarea: Tarea): void {

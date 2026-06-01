@@ -1,0 +1,37 @@
+<mat-card class="panel panel--detalle" appearance="outlined">
+  <h3 class="detalle__title">Detalle de la tarea</h3>
+  <div class="detalle__row">
+    <span class="k">Actividad</span>
+    <span class="v">{{ tarea.actividadEtiqueta }}</span>
+  </div>
+  <div class="detalle__row">
+    <span class="k">Estado</span>
+    <mat-chip class="badge" [ngClass]="badgeClass(tarea.estado)" selected>
+      {{ estadoLabel(tarea.estado) }}
+    </mat-chip>
+  </div>
+  <div class="detalle__row">
+    <span class="k">Proceso</span>
+    <span class="v">{{ tarea.politicaNombre }}</span>
+  </div>
+  <div class="detalle__row">
+    <span class="k">Trámite</span>
+    <span class="v mono">{{ tarea.tramiteId }}</span>
+  </div>
+  <div class="detalle__row">
+    <span class="k">CLIENTE</span>
+    <span class="v">{{ clienteEtiqueta(tarea) }}</span>
+  </div>
+  <div class="detalle__row">
+    <span class="k">Días abierto</span>
+    <span class="v">{{ formatoTiempoAbierto(tarea.diasAbierto) }}</span>
+  </div>
+  <div class="detalle__row">
+    <span class="k">SLA límite</span>
+    <span class="v">{{ slaPlaceholder(tarea.diasAbierto) }}</span>
+  </div>
+  <div class="detalle__row detalle__row--block">
+    <span class="k">Siguiente actividad</span>
+    <span class="v muted">Se definirá al avanzar el flujo (próximamente)</span>
+  </div>
+</mat-card>

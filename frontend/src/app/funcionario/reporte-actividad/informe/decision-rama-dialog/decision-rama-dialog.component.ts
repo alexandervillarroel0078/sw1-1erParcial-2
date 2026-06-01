@@ -7,7 +7,7 @@ import {
   MatDialogRef,
 } from '@angular/material/dialog';
 
-import { OpcionDecision } from '../../core/models/tarea.model';
+import { OpcionDecision } from '../../../../core/models/tarea.model';
 
 export type DecisionRamaDialogData = {
   condicion: string;

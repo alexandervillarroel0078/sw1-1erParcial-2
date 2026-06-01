@@ -1,0 +1,525 @@
+<div class="reporte-tab-body">
+  @if (soloLectura) {
+        <form [formGroup]="form" class="form form--readonly">
+          @if (informe?.enviadoEn) {
+            <p class="fecha-envio">
+              Enviado el {{ informe!.enviadoEn | date: 'short' }}
+            </p>
+          } @else {
+            <p class="fecha-envio fecha-envio--muted">Fecha de envío no registrada</p>
+          }
+
+          @if (vistaCamposDinamicos) {
+            @for (c of camposFormularioOrdenados; track campoControlKey(c)) {
+              @switch (normalizeTipoCampo(c.tipo)) {
+                @case ('texto_corto') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <input matInput [formControlName]="campoControlKey(c)" />
+                  </mat-form-field>
+                }
+                @case ('texto_largo') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <textarea matInput rows="5" [formControlName]="campoControlKey(c)"></textarea>
+                  </mat-form-field>
+                }
+                @case ('select') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <mat-select [formControlName]="campoControlKey(c)">
+                      @for (op of opcionesCampoSelect(c); track op) {
+                        <mat-option [value]="op">{{ op }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                @case ('fecha') {
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>{{ c.etiqueta }}</mat-label>
+                    @if (c.textoAyuda) {
+                      <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                    }
+                    <input matInput type="date" [formControlName]="campoControlKey(c)" />
+                  </mat-form-field>
+                }
+                @case ('checkbox') {
+                  <div class="campo-checkbox">
+                    <mat-checkbox [formControlName]="campoControlKey(c)">{{ c.etiqueta }}</mat-checkbox>
+                    @if (c.textoAyuda) {
+                      <p class="hint-voz">{{ c.textoAyuda }}</p>
+                    }
+                  </div>
+                }
+                @default {
+                  <div class="campo-estatico">
+                    <div class="campo-estatico__label">{{ c.etiqueta }}</div>
+                    <p class="hint-voz">
+                      {{ c.textoAyuda || 'Este tipo de campo no está disponible en el reporte.' }}
+                    </p>
+                  </div>
+                }
+              }
+            }
+          } @else {
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Descripción de la actividad</mat-label>
+              <textarea matInput rows="6" formControlName="descripcion"></textarea>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full">
+              <mat-label>Observaciones</mat-label>
+              <textarea matInput rows="3" formControlName="observaciones"></textarea>
+            </mat-form-field>
+          }
+        </form>
+      } @else {
+        <mat-button-toggle-group
+          class="modo-toggle"
+          [value]="modo"
+          (change)="setModo.emit($event.value)"
+          aria-label="Modo de entrada"
+        >
+          <mat-button-toggle value="texto">Texto escrito</mat-button-toggle>
+          <mat-button-toggle value="voz">Voz — IA</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <form [formGroup]="form" class="form">
+          @if (usarFormularioDinamico) {
+            @if (modo === 'texto') {
+              @for (c of camposFormularioOrdenados; track campoControlKey(c)) {
+                @switch (normalizeTipoCampo(c.tipo)) {
+                  @case ('texto_corto') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <input matInput [formControlName]="campoControlKey(c)" />
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('texto_largo') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <textarea matInput rows="5" [formControlName]="campoControlKey(c)"></textarea>
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('minlength')
+                      ) {
+                        <mat-error>Mínimo 3 caracteres</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('select') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <mat-select [formControlName]="campoControlKey(c)">
+                        @for (op of opcionesCampoSelect(c); track op) {
+                          <mat-option [value]="op">{{ op }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Elegí una opción</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('fecha') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <input matInput type="date" [formControlName]="campoControlKey(c)" />
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('checkbox') {
+                    <div class="campo-checkbox">
+                      <mat-checkbox [formControlName]="campoControlKey(c)">{{ c.etiqueta }}</mat-checkbox>
+                      @if (c.textoAyuda) {
+                        <p class="hint-voz">{{ c.textoAyuda }}</p>
+                      }
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <p class="field-error">Este campo es obligatorio</p>
+                      }
+                    </div>
+                  }
+                  @default {
+                    <div class="campo-estatico">
+                      <div class="campo-estatico__label">{{ c.etiqueta }}</div>
+                      <p class="hint-voz">
+                        {{ c.textoAyuda || 'Este tipo de campo no está disponible en el reporte.' }}
+                      </p>
+                    </div>
+                  }
+                }
+              }
+              <div class="acciones-form">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  type="button"
+                  [disabled]="enviando"
+                  (click)="completar.emit()"
+                >
+                  @if (enviando) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    Completar y enviar reporte
+                  }
+                </button>
+                <button mat-stroked-button type="button" (click)="guardarBorrador.emit()">
+                  Guardar borrador
+                </button>
+              </div>
+            } @else {
+              @if (!speechDisponible) {
+                <div class="speech-no" role="status">
+                  <mat-icon>mic_off</mat-icon>
+                  <p>
+                    Tu navegador no admite reconocimiento de voz (Web Speech API). Usá el modo texto
+                    escrito.
+                  </p>
+                </div>
+              } @else {
+                <div class="voz-wrap">
+                  <button
+                    type="button"
+                    class="mic"
+                    [class.mic--grabando]="grabando"
+                    [attr.aria-pressed]="grabando"
+                    aria-label="Grabar voz"
+                    (click)="toggleMic.emit()"
+                  >
+                    <mat-icon>mic</mat-icon>
+                  </button>
+                  @if (grabando) {
+                    <div class="grabando-indicador">
+                      <span class="pulso"></span>
+                      Grabando…
+                    </div>
+                  }
+
+                  <div class="transcripcion" aria-live="polite">
+                    @if (lineaVoz) {
+                      {{ lineaVoz }}
+                    } @else {
+                      <span class="transcripcion__placeholder"
+                        >El texto transcrito aparecerá aquí en tiempo real</span
+                      >
+                    }
+                  </div>
+
+                  <p class="hint-voz">
+                    Idioma: es-ES. Al detener la grabación, se completa el primer campo de texto amplio
+                    (o el de texto corto si no hay ninguno).
+                  </p>
+
+                  <button mat-stroked-button type="button" (click)="limpiarVoz.emit()">
+                    Limpiar y volver a grabar
+                  </button>
+                </div>
+              }
+
+              @for (c of camposFormularioOrdenados; track campoControlKey(c)) {
+                @switch (normalizeTipoCampo(c.tipo)) {
+                  @case ('texto_corto') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <input matInput [formControlName]="campoControlKey(c)" />
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('texto_largo') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <textarea matInput rows="4" [formControlName]="campoControlKey(c)"></textarea>
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('minlength')
+                      ) {
+                        <mat-error>Mínimo 3 caracteres</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('select') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <mat-select [formControlName]="campoControlKey(c)">
+                        @for (op of opcionesCampoSelect(c); track op) {
+                          <mat-option [value]="op">{{ op }}</mat-option>
+                        }
+                      </mat-select>
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Elegí una opción</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('fecha') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-label>{{ c.etiqueta }}</mat-label>
+                      @if (c.textoAyuda) {
+                        <mat-hint>{{ c.textoAyuda }}</mat-hint>
+                      }
+                      <input matInput type="date" [formControlName]="campoControlKey(c)" />
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <mat-error>Este campo es obligatorio</mat-error>
+                      }
+                    </mat-form-field>
+                  }
+                  @case ('checkbox') {
+                    <div class="campo-checkbox">
+                      <mat-checkbox [formControlName]="campoControlKey(c)">{{ c.etiqueta }}</mat-checkbox>
+                      @if (c.textoAyuda) {
+                        <p class="hint-voz">{{ c.textoAyuda }}</p>
+                      }
+                      @if (
+                        form.get(campoControlKey(c))?.touched &&
+                        form.get(campoControlKey(c))?.hasError('required')
+                      ) {
+                        <p class="field-error">Este campo es obligatorio</p>
+                      }
+                    </div>
+                  }
+                  @default {
+                    <div class="campo-estatico">
+                      <div class="campo-estatico__label">{{ c.etiqueta }}</div>
+                      <p class="hint-voz">
+                        {{ c.textoAyuda || 'Este tipo de campo no está disponible en el reporte.' }}
+                      </p>
+                    </div>
+                  }
+                }
+              }
+
+              <div class="acciones-form">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  type="button"
+                  [disabled]="enviando"
+                  (click)="completar.emit()"
+                >
+                  @if (enviando) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    Completar y enviar reporte
+                  }
+                </button>
+                <button mat-stroked-button type="button" (click)="guardarBorrador.emit()">
+                  Guardar borrador
+                </button>
+              </div>
+            }
+          } @else {
+            @if (modo === 'texto') {
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Descripción de la actividad</mat-label>
+                <textarea
+                  matInput
+                  rows="6"
+                  formControlName="descripcion"
+                  placeholder="Describí lo realizado en esta actividad"
+                ></textarea>
+                @if (
+                  form.get('descripcion')?.touched && form.get('descripcion')?.hasError('required')
+                ) {
+                  <mat-error>La descripción es obligatoria</mat-error>
+                }
+                @if (
+                  form.get('descripcion')?.touched && form.get('descripcion')?.hasError('minlength')
+                ) {
+                  <mat-error>Mínimo 3 caracteres</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Observaciones</mat-label>
+                <textarea
+                  matInput
+                  rows="3"
+                  formControlName="observaciones"
+                  placeholder="Opcional"
+                ></textarea>
+              </mat-form-field>
+
+              <div class="acciones-form">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  type="button"
+                  [disabled]="enviando"
+                  (click)="completar.emit()"
+                >
+                  @if (enviando) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    Completar y enviar reporte
+                  }
+                </button>
+                <button mat-stroked-button type="button" (click)="guardarBorrador.emit()">
+                  Guardar borrador
+                </button>
+              </div>
+            } @else {
+              @if (!speechDisponible) {
+                <div class="speech-no" role="status">
+                  <mat-icon>mic_off</mat-icon>
+                  <p>
+                    Tu navegador no admite reconocimiento de voz (Web Speech API). Usá el modo texto
+                    escrito.
+                  </p>
+                </div>
+              } @else {
+                <div class="voz-wrap">
+                  <button
+                    type="button"
+                    class="mic"
+                    [class.mic--grabando]="grabando"
+                    [attr.aria-pressed]="grabando"
+                    aria-label="Grabar voz"
+                    (click)="toggleMic.emit()"
+                  >
+                    <mat-icon>mic</mat-icon>
+                  </button>
+                  @if (grabando) {
+                    <div class="grabando-indicador">
+                      <span class="pulso"></span>
+                      Grabando…
+                    </div>
+                  }
+
+                  <div class="transcripcion" aria-live="polite">
+                    @if (lineaVoz) {
+                      {{ lineaVoz }}
+                    } @else {
+                      <span class="transcripcion__placeholder"
+                        >El texto transcrito aparecerá aquí en tiempo real</span
+                      >
+                    }
+                  </div>
+
+                  <p class="hint-voz">
+                    Idioma: es-ES. Al detener la grabación, la descripción se completa automáticamente.
+                  </p>
+
+                  <button mat-stroked-button type="button" (click)="limpiarVoz.emit()">
+                    Limpiar y volver a grabar
+                  </button>
+                </div>
+              }
+
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Descripción de la actividad</mat-label>
+                <textarea
+                  matInput
+                  rows="4"
+                  formControlName="descripcion"
+                  placeholder="Completado por voz o editá manualmente"
+                ></textarea>
+                @if (
+                  form.get('descripcion')?.touched && form.get('descripcion')?.hasError('required')
+                ) {
+                  <mat-error>La descripción es obligatoria</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Observaciones</mat-label>
+                <textarea matInput rows="2" formControlName="observaciones"></textarea>
+              </mat-form-field>
+
+              <div class="acciones-form">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  type="button"
+                  [disabled]="enviando"
+                  (click)="completar.emit()"
+                >
+                  @if (enviando) {
+                    <mat-spinner diameter="18"></mat-spinner>
+                  } @else {
+                    Completar y enviar reporte
+                  }
+                </button>
+                <button mat-stroked-button type="button" (click)="guardarBorrador.emit()">
+                  Guardar borrador
+                </button>
+              </div>
+            }
+          }
+        </form>
+      }
+      @if (tarea?.tramiteId && tarea?.nodoFlujoId) {
+        <app-documentos
+          [tramiteId]="tarea!.tramiteId"
+          [nodoId]="tarea!.nodoFlujoId"
+          [permiso]="permisoNodoActual">
+        </app-documentos>
+      }
+</div>

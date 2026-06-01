@@ -20,13 +20,6 @@ export const FUNCIONARIO_ROUTES: Routes = [
           import('./historial/historial.component').then((m) => m.HistorialComponent),
       },
       {
-        path: 'tareas/:id',
-        loadComponent: () =>
-          import('./detalle-tarea/detalle-tarea.component').then(
-            (m) => m.DetalleTareaComponent,
-          ),
-      },
-      {
         path: 'reporte/:id',
         loadComponent: () =>
           import('./reporte-actividad/reporte-actividad.component').then(

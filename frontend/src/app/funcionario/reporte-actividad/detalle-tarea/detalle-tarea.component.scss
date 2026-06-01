@@ -1,0 +1,88 @@
+.panel {
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.panel--detalle {
+  position: sticky;
+  top: 12px;
+}
+
+.detalle__title {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.detalle__row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  &--block {
+    grid-template-columns: 1fr;
+    align-items: start;
+
+    .k {
+      margin-bottom: 4px;
+    }
+  }
+}
+
+.k {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.v {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.muted {
+  opacity: 0.72;
+  font-weight: 500;
+}
+
+.badge {
+  font-weight: 800;
+  font-size: 12px;
+  justify-self: start;
+}
+
+.badge--pendiente {
+  background: rgba(226, 75, 74, 0.14) !important;
+  color: #e24b4a !important;
+}
+
+.badge--en_atencion {
+  background: rgba(239, 159, 39, 0.16) !important;
+  color: #ef9f27 !important;
+}
+
+.badge--completado {
+  background: rgba(99, 153, 34, 0.16) !important;
+  color: #639922 !important;
+}
+
+@media (max-width: 900px) {
+  .panel--detalle {
+    position: static;
+  }
+
+  .detalle__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
