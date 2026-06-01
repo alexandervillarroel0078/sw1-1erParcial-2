@@ -3,4 +3,6 @@ export const environment = {
   apiUrl: 'https://backend-734852757342.us-central1.run.app/api',
   iaUrl: 'https://ia-service-734852757342.us-central1.run.app',
   wsUrl: 'https://backend-734852757342.us-central1.run.app/ws',
+  onlyofficeUrl: 'http://localhost',
+  backendPublicUrl: 'https://backend-734852757342.us-central1.run.app',
 };

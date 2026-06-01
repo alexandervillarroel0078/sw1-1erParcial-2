@@ -18,16 +18,12 @@ export interface CampoFormulario {
   opciones?: any[];
 }
 
-import type { SeccionPlantillaDocumentoColaborativo } from './doc-colaborativo.model';
-
-export type { SeccionPlantillaDocumentoColaborativo };
-
 export interface FormularioActividad {
   id?: string;
   nodoActividadId: string;
   politicaId: string;
   campos?: CampoFormulario[];
   tituloDocumentoColaborativo?: string;
-  seccionesDocumentoColaborativo?: SeccionPlantillaDocumentoColaborativo[];
+  plantillaContenido?: string;
   habilitadoDocumentoColaborativo?: boolean;
 }

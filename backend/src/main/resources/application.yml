@@ -23,3 +23,8 @@ minio:
   access-key: minioadmin
   secret-key: minioadmin
   bucket: flowgov-docs
+
+# URL accesible desde el contenedor OnlyOffice (host.docker.internal en Windows/Mac con extra_hosts)
+flowgov:
+  onlyoffice:
+    backend-public-url: ${ONLYOFFICE_BACKEND_PUBLIC_URL:http://host.docker.internal:8080}

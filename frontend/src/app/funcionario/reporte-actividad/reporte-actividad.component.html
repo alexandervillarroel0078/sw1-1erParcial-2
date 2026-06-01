@@ -558,84 +558,27 @@
                 </div>
               } @else {
                 <h2 class="doc-colab__titulo-doc">{{ tituloDocColaborativo() }}</h2>
-                @if (docColabGuardando()) {
-                  <p class="doc-colab__autosave">Guardando…</p>
-                }
-                @if (seccionesPlantillaDocColab().length === 0) {
-                  <p class="doc-colab__empty">No hay secciones definidas en la plantilla.</p>
-                } @else {
-                  <form [formGroup]="docColabForm" class="doc-colab-form">
-                    @for (s of seccionesPlantillaDocColab(); track s.id) {
-                      <section class="doc-colab-seccion">
-                        @if (nombreEditandoSeccion(s.id); as editor) {
-                          <p class="doc-colab-edicion">✏ Editando: {{ editor }}</p>
-                        }
-                        @switch (normalizeTipoSeccion(s.tipo)) {
-                          @case ('texto_corto') {
-                            <mat-form-field appearance="outline" class="full">
-                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                              <input
-                                matInput
-                                [formControlName]="docColabControlKey(s.id)"
-                                (input)="onDocColabSeccionChange(s.id)"
-                              />
-                            </mat-form-field>
-                          }
-                          @case ('texto_largo') {
-                            <mat-form-field appearance="outline" class="full">
-                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                              <textarea
-                                matInput
-                                rows="4"
-                                [formControlName]="docColabControlKey(s.id)"
-                                (input)="onDocColabSeccionChange(s.id)"
-                              ></textarea>
-                            </mat-form-field>
-                          }
-                          @case ('select') {
-                            <mat-form-field appearance="outline" class="full">
-                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                              <mat-select
-                                [formControlName]="docColabControlKey(s.id)"
-                                (selectionChange)="onDocColabSeccionChange(s.id)"
-                              >
-                                @for (op of s.opciones ?? []; track op) {
-                                  <mat-option [value]="op">{{ op }}</mat-option>
-                                }
-                              </mat-select>
-                            </mat-form-field>
-                          }
-                          @case ('fecha') {
-                            <mat-form-field appearance="outline" class="full">
-                              <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                              <input
-                                matInput
-                                type="date"
-                                [formControlName]="docColabControlKey(s.id)"
-                                (change)="onDocColabSeccionChange(s.id)"
-                              />
-                            </mat-form-field>
-                          }
-                          @case ('checkbox') {
-                            <div class="campo-checkbox">
-                              <mat-checkbox
-                                [formControlName]="docColabControlKey(s.id)"
-                                (change)="onDocColabSeccionChange(s.id)"
-                              >
-                                {{ s.titulo }}@if (s.obligatorio) { *}
-                              </mat-checkbox>
-                            </div>
-                          }
-                          @default {
-                            <div class="campo-estatico">
-                              <div class="campo-estatico__label">{{ s.titulo }}</div>
-                              <p class="hint-voz">Este tipo de sección no está disponible en el documento.</p>
-                            </div>
-                          }
-                        }
-                      </section>
+                <p class="doc-colab__info">
+                  Este documento es colaborativo, compartilo con otros funcionarios del trámite.
+                </p>
+                @if (docColab(); as doc) {
+                  <app-onlyoffice-editor [doc]="doc" [readonly]="soloLectura()" />
+                } @else if (!docColab() && !soloLectura() && docColabHabilitado()) {
+                  <button
+                    mat-raised-button
+                    color="primary"
+                    type="button"
+                    [disabled]="docColabCreando()"
+                    (click)="crearDocumentoColaborativo()"
+                  >
+                    @if (docColabCreando()) {
+                      <mat-spinner diameter="18" />
+                    } @else {
+                      Crear documento colaborativo
                     }
-                  </form>
+                  </button>
+                } @else {
+                  <p class="doc-colab__empty">No se creó documento colaborativo para esta actividad.</p>
                 }
               }
             </div>

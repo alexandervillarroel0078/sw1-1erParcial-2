@@ -6,6 +6,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,8 +21,16 @@ public class CorsConfig {
 		}
 		String[] origins = allowedOrigins.split(",");
 
+		List<String> originsList = new ArrayList<>(Arrays.asList(origins));
+		if (!originsList.contains("http://host.docker.internal")) {
+			originsList.add("http://host.docker.internal");
+		}
+		if (!originsList.contains("http://host.docker.internal:80")) {
+			originsList.add("http://host.docker.internal:80");
+		}
+
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(Arrays.asList(origins));
+		config.setAllowedOrigins(originsList);
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

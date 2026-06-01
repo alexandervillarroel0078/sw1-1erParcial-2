@@ -1,7 +1,6 @@
 package com.dpn.backend.formulario.model;
 
 import com.dpn.backend.formulario.model.embedded.CampoFormulario;
-import com.dpn.backend.formulario.model.embedded.SeccionPlantilla;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,9 +31,8 @@ public class FormularioActividad {
 	private List<CampoFormulario> campos = new ArrayList<>();
 	@Field("titulo_documento_colaborativo")
 	private String tituloDocumentoColaborativo;
-	@Field("secciones_documento_colaborativo")
-	@Builder.Default
-	private List<SeccionPlantilla> seccionesDocumentoColaborativo = new ArrayList<>();
+	@Field("plantilla_contenido")
+	private String plantillaContenido;
 	@JsonProperty("habilitadoDocumentoColaborativo")
 	@Field("habilitado_documento_colaborativo")
 	@Builder.Default

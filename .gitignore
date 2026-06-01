@@ -1,0 +1,9 @@
+# OnlyOffice data
+onlyoffice/data/
+onlyoffice/logs/
+
+# Google credentials
+backend/src/main/resources/google-credentials.json
+
+# Python venv
+ml-service/venv/

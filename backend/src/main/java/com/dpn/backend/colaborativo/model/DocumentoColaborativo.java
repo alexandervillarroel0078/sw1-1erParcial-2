@@ -1,6 +1,5 @@
 package com.dpn.backend.colaborativo.model;
 
-import com.dpn.backend.colaborativo.model.embedded.SeccionDocumento;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,8 +8,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @Builder
@@ -23,10 +20,8 @@ public class DocumentoColaborativo {
 	private String id;
 	private String tramiteId;
 	private String nodoId;
-	private String politicaId;
 	private String titulo;
-	@Builder.Default
-	private List<SeccionDocumento> secciones = new ArrayList<>();
-	private Instant ultimaModificacion;
-	private String ultimoEditorNombre;
+	private String plantillaContenido;
+	private String documentKey;
+	private Instant creadoEn;
 }

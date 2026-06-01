@@ -250,233 +250,36 @@
 
       @if (!documentoColaborativoHabilitado()) {
         <p class="fd-doc-colab-disabled-msg">
-          El documento colaborativo está deshabilitado para este nodo. Actívalo para diseñar la plantilla.
+          El documento colaborativo está deshabilitado para este nodo. Actívalo para configurar la plantilla de Google Docs.
         </p>
       } @else {
-      <div class="fd-layout">
-        <aside class="fd-col fd-col--palette" aria-label="Tipos de sección">
-          <h2 class="fd-col__title">Tipos de sección</h2>
-          <p class="fd-col__hint">Hacé clic para agregar al documento</p>
-          <ul class="fd-palette">
-            @for (t of tiposPaletaDocColab; track t.tipo) {
-              <li>
-                <button
-                  type="button"
-                  class="fd-palette__btn"
-                  (click)="agregarSeccion(t.tipo)"
-                >
-                  <mat-icon>{{ t.icon }}</mat-icon>
-                  <span>{{ t.label }}</span>
-                </button>
-              </li>
-            }
-          </ul>
-        </aside>
+        <div class="fd-doc-colab-config">
+          <h2 class="fd-doc-colab__title">Documento colaborativo (Google Docs)</h2>
+          <p class="fd-col__hint">
+            Definí el título y el contenido inicial del documento que se creará en Google Docs al iniciar el trámite.
+          </p>
 
-        <section class="fd-col fd-col--editor" aria-label="Plantilla documento colaborativo">
-          <div class="fd-doc-colab">
-            <h2 class="fd-doc-colab__title">Documento colaborativo (plantilla)</h2>
-            <p class="fd-col__hint">
-              Definí el título y las secciones que los funcionarios completarán en tiempo real.
-            </p>
+          <mat-form-field appearance="outline" class="fd-doc-colab__titulo" subscriptSizing="dynamic">
+            <mat-label>Título del documento</mat-label>
+            <input
+              matInput
+              [ngModel]="tituloDocColab()"
+              (ngModelChange)="tituloDocColab.set($event)"
+              placeholder="Ej. Informe técnico colaborativo"
+            />
+          </mat-form-field>
 
-            <mat-form-field appearance="outline" class="fd-doc-colab__titulo" subscriptSizing="dynamic">
-              <mat-label>Título del documento</mat-label>
-              <input
-                matInput
-                [ngModel]="tituloDocColab()"
-                (ngModelChange)="tituloDocColab.set($event)"
-                placeholder="Ej. Informe técnico colaborativo"
-              />
-            </mat-form-field>
-
-            @if (seccionesDocColabOrdenadas().length === 0) {
-              <p class="fd-empty fd-doc-colab__empty">Agregá secciones desde el panel izquierdo</p>
-            } @else {
-              <div
-                class="fd-editor-list fd-doc-colab__list"
-                cdkDropList
-                [cdkDropListData]="seccionesDocColabOrdenadas()"
-                (cdkDropListDropped)="onDropSeccionDocColab($event)"
-              >
-                @for (s of seccionesDocColabOrdenadas(); track s.id) {
-                  <div class="fd-campo fd-doc-colab__seccion" cdkDrag>
-                    <div class="fd-campo__drag" cdkDragHandle aria-label="Arrastrar sección">
-                      <mat-icon>drag_indicator</mat-icon>
-                    </div>
-                    <div class="fd-campo__body">
-                      <mat-form-field appearance="outline" class="fd-campo__nombre" subscriptSizing="dynamic">
-                        <mat-label>Título de la sección</mat-label>
-                        <input
-                          matInput
-                          [ngModel]="s.titulo"
-                          (ngModelChange)="patchSeccionTitulo(s.id, $event)"
-                        />
-                      </mat-form-field>
-                      <span [class]="claseBadgeTipoSeccion(s.tipo)">{{ etiquetaTipoSeccion(s.tipo) }}</span>
-                      <mat-checkbox
-                        [ngModel]="!!s.obligatorio"
-                        (ngModelChange)="patchSeccionObligatorio(s.id, $event)"
-                      >
-                        Obligatorio
-                      </mat-checkbox>
-                      @if (s.tipo === 'select') {
-                        <div class="fd-campo__opciones">
-                          @for (opt of s.opciones ?? []; track $index) {
-                            <div class="fd-campo__opcion-row">
-                              <mat-form-field
-                                appearance="outline"
-                                class="fd-campo__opcion-input"
-                                subscriptSizing="dynamic"
-                              >
-                                <mat-label>Opción {{ $index + 1 }}</mat-label>
-                                <input
-                                  matInput
-                                  [ngModel]="opt"
-                                  (ngModelChange)="onOpcionSelectSeccionModelChange(s.id, $index, $event)"
-                                />
-                              </mat-form-field>
-                              <button
-                                mat-icon-button
-                                type="button"
-                                aria-label="Eliminar opción"
-                                (click)="eliminarOpcionSelectSeccion(s.id, $index)"
-                              >
-                                <mat-icon>close</mat-icon>
-                              </button>
-                            </div>
-                          }
-                          <button
-                            mat-icon-button
-                            type="button"
-                            aria-label="Agregar opción"
-                            (click)="agregarOpcionSelectSeccion(s.id)"
-                          >
-                            <mat-icon>add</mat-icon>
-                          </button>
-                        </div>
-                      }
-                    </div>
-                    <div class="fd-campo__actions">
-                      <button
-                        mat-icon-button
-                        type="button"
-                        aria-label="Subir"
-                        (click)="subirSeccion(s.id)"
-                      >
-                        <mat-icon>arrow_upward</mat-icon>
-                      </button>
-                      <button
-                        mat-icon-button
-                        type="button"
-                        aria-label="Bajar"
-                        (click)="bajarSeccion(s.id)"
-                      >
-                        <mat-icon>arrow_downward</mat-icon>
-                      </button>
-                      <button
-                        mat-icon-button
-                        type="button"
-                        color="warn"
-                        aria-label="Eliminar sección"
-                        (click)="eliminarSeccion(s.id)"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </section>
-
-        <aside class="fd-col fd-col--preview" aria-label="Vista previa documento colaborativo">
-          <h2 class="fd-col__title">Vista previa</h2>
-          <div class="fd-preview-card fd-doc-colab-preview">
-            <h3 class="fd-doc-colab-preview__doc-title">
-              {{ tituloDocColab().trim() || 'Título del documento' }}
-            </h3>
-            @if (seccionesDocColabOrdenadas().length === 0) {
-              <p class="fd-preview__empty">Sin secciones definidas</p>
-            } @else {
-              @for (s of seccionesDocColabOrdenadas(); track s.id) {
-                <div class="fd-doc-colab-preview__seccion">
-                  @switch (s.tipo) {
-                    @case ('texto_corto') {
-                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                        <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                        <input matInput placeholder="Texto" readonly />
-                      </mat-form-field>
-                    }
-                    @case ('texto_largo') {
-                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                        <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                        <textarea matInput rows="4" placeholder="Texto largo" readonly></textarea>
-                      </mat-form-field>
-                    }
-                    @case ('select') {
-                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                        <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                        <mat-select [value]="s.opciones?.[0] ?? ''" disabled>
-                          @for (opt of s.opciones ?? []; track opt) {
-                            <mat-option [value]="opt">{{ opt }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
-                    }
-                    @case ('checkbox') {
-                      <div class="fd-preview__checkbox-row">
-                        <mat-checkbox disabled>{{ s.titulo }}@if (s.obligatorio) { *}</mat-checkbox>
-                      </div>
-                    }
-                    @case ('fecha') {
-                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                        <mat-label>{{ s.titulo }}@if (s.obligatorio) { *}</mat-label>
-                        <input
-                          matInput
-                          [matDatepicker]="pickerDocColab"
-                          [ngModel]="demoFecha()"
-                          (ngModelChange)="demoFecha.set($event)"
-                          placeholder="Elegir fecha"
-                        />
-                        <mat-datepicker-toggle matIconSuffix [for]="pickerDocColab" />
-                        <mat-datepicker #pickerDocColab />
-                      </mat-form-field>
-                    }
-                    @case ('tabla') {
-                      <div class="fd-preview__tabla">
-                        <span class="fd-preview__upload-label">{{ s.titulo }}@if (s.obligatorio) { *}</span>
-                        <table class="fd-preview__tabla-grid" aria-readonly="true">
-                          <thead>
-                            <tr>
-                              <th>Columna A</th>
-                              <th>Columna B</th>
-                              <th>Columna C</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>—</td>
-                              <td>—</td>
-                              <td>—</td>
-                            </tr>
-                            <tr>
-                              <td>—</td>
-                              <td>—</td>
-                              <td>—</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    }
-                  }
-                </div>
-              }
-            }
-          </div>
-        </aside>
-      </div>
+          <mat-form-field appearance="outline" class="fd-doc-colab__plantilla" subscriptSizing="dynamic">
+            <mat-label>Contenido inicial (plantilla)</mat-label>
+            <textarea
+              matInput
+              rows="10"
+              [ngModel]="plantillaContenido()"
+              (ngModelChange)="plantillaContenido.set($event)"
+              placeholder="Texto que aparecerá en el Google Doc al crearlo…"
+            ></textarea>
+          </mat-form-field>
+        </div>
       }
     </div>
   </mat-tab>

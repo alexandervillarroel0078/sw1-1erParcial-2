@@ -1,19 +1,19 @@
 package com.dpn.backend.colaborativo.controller;
 
+import com.dpn.backend.colaborativo.dto.CrearDocumentoColaborativoRequest;
+import com.dpn.backend.colaborativo.dto.OnlyOfficeCallbackRequest;
 import com.dpn.backend.colaborativo.model.DocumentoColaborativo;
 import com.dpn.backend.colaborativo.service.DocumentoColaborativoService;
-import com.dpn.backend.usuario.model.Usuario;
-import com.dpn.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/doc-colaborativo")
@@ -21,7 +21,18 @@ import java.time.Instant;
 public class DocumentoColaborativoRestController {
 
 	private final DocumentoColaborativoService documentoColaborativoService;
-	private final UsuarioRepository usuarioRepository;
+
+	@PostMapping("/{tramiteId}/{nodoId}")
+	public DocumentoColaborativo crear(
+			@PathVariable String tramiteId,
+			@PathVariable String nodoId,
+			@RequestBody CrearDocumentoColaborativoRequest body) {
+		return documentoColaborativoService.crearDocumento(
+				tramiteId,
+				nodoId,
+				body.getTitulo(),
+				body.getPlantillaContenido());
+	}
 
 	@GetMapping("/{tramiteId}/{nodoId}")
 	public DocumentoColaborativo obtener(
@@ -30,22 +41,18 @@ public class DocumentoColaborativoRestController {
 		return documentoColaborativoService.obtener(tramiteId, nodoId);
 	}
 
-	@PutMapping("/{tramiteId}/{nodoId}")
-	public DocumentoColaborativo guardar(
+	@GetMapping("/{tramiteId}/{nodoId}/content")
+	public ResponseEntity<byte[]> obtenerContenido(
 			@PathVariable String tramiteId,
-			@PathVariable String nodoId,
-			@RequestBody DocumentoColaborativo documento,
-			Authentication auth) {
-		documento.setTramiteId(tramiteId);
-		documento.setNodoId(nodoId);
-		documento.setUltimaModificacion(Instant.now());
-		documento.setUltimoEditorNombre(resolverUsuarioNombre(auth.getName()));
-		return documentoColaborativoService.guardar(documento);
+			@PathVariable String nodoId) {
+		return documentoColaborativoService.obtenerContenido(tramiteId, nodoId);
 	}
 
-	private String resolverUsuarioNombre(String usuarioId) {
-		return usuarioRepository.findById(usuarioId)
-				.map(Usuario::getNombre)
-				.orElse(usuarioId);
+	@PostMapping("/{tramiteId}/{nodoId}/callback")
+	public Map<String, Integer> callback(
+			@PathVariable String tramiteId,
+			@PathVariable String nodoId,
+			@RequestBody OnlyOfficeCallbackRequest body) {
+		return documentoColaborativoService.procesarCallback(tramiteId, nodoId, body);
 	}
 }

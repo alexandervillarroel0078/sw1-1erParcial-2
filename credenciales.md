@@ -31,10 +31,12 @@ git add .
 git commit -m "feat: permisos de documentos por nodo implementados en DocumentoService"
 git push origin main2
 
+cd onlyoffice
+docker-compose up -d
 
 rmdir venv -Recurse -Force
 python -m venv venv
-
+http://localhost/welcome/
 http://localhost:9001
 Login con minioadmin / minioadmin
 
@@ -89,3 +91,6 @@ SELECT * FROM analisis_cuello_botella;
 ✅ Reportes por lenguaje natural
 ✅ TensorFlow predicciones
 
+git add .
+git commit -m "feat: colaborativo OnlyOffice funcionando con edición en tiempo real"
+git push origin main2

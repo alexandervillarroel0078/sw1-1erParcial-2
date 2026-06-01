@@ -33,14 +33,12 @@ public class FormularioActividadService {
 			FormularioActividad e = existing.get();
 			e.setCampos(form.getCampos());
 			e.setTituloDocumentoColaborativo(form.getTituloDocumentoColaborativo());
-			e.setSeccionesDocumentoColaborativo(form.getSeccionesDocumentoColaborativo() != null
-					? form.getSeccionesDocumentoColaborativo()
-					: new ArrayList<>());
+			e.setPlantillaContenido(form.getPlantillaContenido());
 			e.setHabilitadoDocumentoColaborativo(form.isHabilitadoDocumentoColaborativo());
 			return formularioActividadRepository.save(e);
 		}
-		if (form.getSeccionesDocumentoColaborativo() == null) {
-			form.setSeccionesDocumentoColaborativo(new ArrayList<>());
+		if (form.getCampos() == null) {
+			form.setCampos(new ArrayList<>());
 		}
 		if (form.getId() == null || form.getId().isBlank()) {
 			form.setId(UUID.randomUUID().toString());
