@@ -24,6 +24,12 @@ public class Tarea {
 	private String tramiteId;
 	@Field("nodo_flujo_id")
 	private String nodoFlujoId;
+	/**
+	 * Si la tarea pertenece a un bloque paralelo, contiene el {@code nodoId} del {@code FORK_BAR} padre.
+	 * Si es {@code null}, la tarea no es parte de un paralelo (o no aplica).
+	 */
+	@Field("fork_nodo_id")
+	private String forkNodoId;
 	/** Etiqueta de la arista entrante (p. ej. Sí/No tras un nodo DECISION). */
 	@Field("arista_etiqueta_entrada")
 	private String aristaEtiquetaEntrada;

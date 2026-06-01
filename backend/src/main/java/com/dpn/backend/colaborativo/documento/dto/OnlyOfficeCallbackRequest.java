@@ -1,4 +1,4 @@
-package com.dpn.backend.colaborativo.dto;
+package com.dpn.backend.colaborativo.documento.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

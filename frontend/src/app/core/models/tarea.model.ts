@@ -7,6 +7,8 @@ export interface Tarea {
   id?: string;
   tramiteId: string;
   nodoFlujoId: string;
+  /** Si pertenece a un bloque paralelo, id del FORK_BAR padre. */
+  forkNodoId?: string;
   actividadEtiqueta: string;
   departamentoTexto: string;
   politicaId?: string;

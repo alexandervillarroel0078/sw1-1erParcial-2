@@ -27,8 +27,9 @@ python main.py
 cd C:\minio
 .\minio.windows-amd64.RELEASE.2025-09-07T16-13-09Z.exe server C:\minio\data --console-address ":9001"
 
+
 git add .
-git commit -m "feat: permisos de documentos por nodo implementados en DocumentoService"
+git commit -m "feat: colaborativo OnlyOffice funcionando con edición en tiempo real"
 git push origin main2
 
 cd onlyoffice
@@ -90,7 +91,4 @@ SELECT * FROM analisis_cuello_botella;
 ✅ Llenado de formulario por voz (ya existía)
 ✅ Reportes por lenguaje natural
 ✅ TensorFlow predicciones
-
-git add .
-git commit -m "feat: colaborativo OnlyOffice funcionando con edición en tiempo real"
-git push origin main2
+ 

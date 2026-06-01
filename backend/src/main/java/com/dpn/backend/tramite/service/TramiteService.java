@@ -10,6 +10,7 @@ import com.dpn.backend.politica.repository.PoliticaRepository;
 import com.dpn.backend.tramite.repository.TramiteRepository;
 import com.dpn.backend.cliente.service.ClienteService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TramiteService {
 
 	private final TramiteRepository tramiteRepository;
@@ -77,6 +79,7 @@ public class TramiteService {
 				.actualizadoEn(Instant.now())
 				.build();
 		tramiteRepository.save(t);
+		log.info("[TRAMITE] Nuevo trámite creado tramiteId={} politicaId={} clienteId={}", t.getId(), t.getPoliticaId(), t.getClienteId());
 		workflowEngine.iniciarTramite(t);
 		return tramiteRepository.findById(t.getId()).orElse(t);
 	}

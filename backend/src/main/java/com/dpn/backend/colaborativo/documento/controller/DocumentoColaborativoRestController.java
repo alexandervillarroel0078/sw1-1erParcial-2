@@ -1,9 +1,9 @@
-package com.dpn.backend.colaborativo.controller;
+package com.dpn.backend.colaborativo.documento.controller;
 
-import com.dpn.backend.colaborativo.dto.CrearDocumentoColaborativoRequest;
-import com.dpn.backend.colaborativo.dto.OnlyOfficeCallbackRequest;
-import com.dpn.backend.colaborativo.model.DocumentoColaborativo;
-import com.dpn.backend.colaborativo.service.DocumentoColaborativoService;
+import com.dpn.backend.colaborativo.documento.dto.CrearDocumentoColaborativoRequest;
+import com.dpn.backend.colaborativo.documento.dto.OnlyOfficeCallbackRequest;
+import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
+import com.dpn.backend.colaborativo.documento.service.DocumentoColaborativoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

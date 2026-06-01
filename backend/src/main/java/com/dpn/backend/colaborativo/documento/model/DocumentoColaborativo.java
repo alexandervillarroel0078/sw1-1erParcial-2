@@ -1,4 +1,4 @@
-package com.dpn.backend.colaborativo.model;
+package com.dpn.backend.colaborativo.documento.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

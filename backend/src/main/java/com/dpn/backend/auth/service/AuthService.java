@@ -11,6 +11,7 @@ import com.dpn.backend.cliente.repository.ClienteRepository;
 import com.dpn.backend.usuario.repository.UsuarioRepository;
 import com.dpn.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
 	private final UsuarioRepository usuarioRepository;
@@ -39,6 +41,7 @@ public class AuthService {
 			if (!passwordEncoder.matches(req.getPassword(), u.getPasswordHash())) {
 				throw new ApiException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
 			}
+			log.info("[AUTH] Login exitoso usuario={} rol={}", u.getCorreo(), u.getRol());
 			String token = jwtUtil.generateToken(u.getId(), Map.of(JwtUtil.CLAIM_ROLES, List.of(u.getRol().name())));
 			return LoginResponse.builder()
 					.token(token)

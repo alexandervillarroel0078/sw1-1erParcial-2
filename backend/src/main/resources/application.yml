@@ -28,3 +28,8 @@ minio:
 flowgov:
   onlyoffice:
     backend-public-url: ${ONLYOFFICE_BACKEND_PUBLIC_URL:http://host.docker.internal:8080}
+
+logging:
+  level:
+    com.dpn.backend: DEBUG
+    root: WARN

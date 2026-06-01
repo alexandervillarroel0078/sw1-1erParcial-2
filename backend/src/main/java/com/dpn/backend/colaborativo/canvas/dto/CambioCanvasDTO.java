@@ -1,4 +1,4 @@
-package com.dpn.backend.colaborativo.dto;
+package com.dpn.backend.colaborativo.canvas.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

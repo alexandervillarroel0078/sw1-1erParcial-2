@@ -14,6 +14,7 @@ type TareaApi = Omit<Tarea, 'estado'> & {
   estado?: string;
   completadoEn?: string;
   politica_id?: string;
+  forkNodoId?: string;
   requiereDecision?: boolean;
   condicionDecision?: string | null;
   opcionesDecision?: OpcionDecision[];
@@ -53,6 +54,7 @@ export class TareaService {
     return {
       ...rest,
       politicaId,
+      forkNodoId: raw.forkNodoId,
       estado,
       completadoA,
       requiereDecision: raw.requiereDecision === true,

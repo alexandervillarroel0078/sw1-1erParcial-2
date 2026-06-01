@@ -1,6 +1,6 @@
-package com.dpn.backend.colaborativo.controller;
+package com.dpn.backend.colaborativo.canvas.controller;
 
-import com.dpn.backend.colaborativo.dto.CambioCanvasDTO;
+import com.dpn.backend.colaborativo.canvas.dto.CambioCanvasDTO;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;

@@ -1,8 +1,8 @@
-package com.dpn.backend.colaborativo.service;
+package com.dpn.backend.colaborativo.documento.service;
 
-import com.dpn.backend.colaborativo.dto.OnlyOfficeCallbackRequest;
-import com.dpn.backend.colaborativo.model.DocumentoColaborativo;
-import com.dpn.backend.colaborativo.repository.DocumentoColaborativoRepository;
+import com.dpn.backend.colaborativo.documento.dto.OnlyOfficeCallbackRequest;
+import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
+import com.dpn.backend.colaborativo.documento.repository.DocumentoColaborativoRepository;
 import com.dpn.backend.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,29 @@ public class DocumentoColaborativoService {
 			String nodoId,
 			String titulo,
 			String plantillaContenido) {
-		documentoColaborativoRepository.findByTramiteIdAndNodoId(tramiteId, nodoId)
+		return crearDocumentoConNodoClave(tramiteId, nodoId, titulo, plantillaContenido);
+	}
+
+	/**
+	 * Variante para tareas en paralelo: si {@code forkNodoId} viene informado, el documento se indexa por
+	 * {@code tramiteId + forkNodoId} (documento compartido por el bloque paralelo).
+	 */
+	public DocumentoColaborativo crearDocumentoParaTarea(
+			String tramiteId,
+			String nodoId,
+			String forkNodoId,
+			String titulo,
+			String plantillaContenido) {
+		String nodoClave = (forkNodoId != null && !forkNodoId.isBlank()) ? forkNodoId : nodoId;
+		return crearDocumentoConNodoClave(tramiteId, nodoClave, titulo, plantillaContenido);
+	}
+
+	private DocumentoColaborativo crearDocumentoConNodoClave(
+			String tramiteId,
+			String nodoClave,
+			String titulo,
+			String plantillaContenido) {
+		documentoColaborativoRepository.findByTramiteIdAndNodoId(tramiteId, nodoClave)
 				.ifPresent(existing -> {
 					throw new ApiException(
 							HttpStatus.CONFLICT,
@@ -50,7 +72,7 @@ public class DocumentoColaborativoService {
 		DocumentoColaborativo documento = DocumentoColaborativo.builder()
 				.id(UUID.randomUUID().toString())
 				.tramiteId(tramiteId)
-				.nodoId(nodoId)
+				.nodoId(nodoClave)
 				.titulo(tituloDoc)
 				.plantillaContenido(plantillaContenido != null ? plantillaContenido : "")
 				.documentKey(UUID.randomUUID().toString())
@@ -61,11 +83,23 @@ public class DocumentoColaborativoService {
 	}
 
 	public DocumentoColaborativo obtener(String tramiteId, String nodoId) {
-		DocumentoColaborativo doc = documentoColaborativoRepository.findByTramiteIdAndNodoId(tramiteId, nodoId)
+		return obtenerConNodoClave(tramiteId, nodoId);
+	}
+
+	/**
+	 * Variante para tareas en paralelo: si {@code forkNodoId} viene informado, el documento se obtiene por
+	 * {@code tramiteId + forkNodoId}.
+	 */
+	public DocumentoColaborativo obtenerParaTarea(String tramiteId, String nodoId, String forkNodoId) {
+		String nodoClave = (forkNodoId != null && !forkNodoId.isBlank()) ? forkNodoId : nodoId;
+		return obtenerConNodoClave(tramiteId, nodoClave);
+	}
+
+	private DocumentoColaborativo obtenerConNodoClave(String tramiteId, String nodoClave) {
+		DocumentoColaborativo doc = documentoColaborativoRepository.findByTramiteIdAndNodoId(tramiteId, nodoClave)
 				.orElseThrow(() -> new ApiException(
 						HttpStatus.NOT_FOUND,
 						"Documento colaborativo no encontrado"));
-		doc.setDocumentKey(UUID.randomUUID().toString());
 		return doc;
 	}
 

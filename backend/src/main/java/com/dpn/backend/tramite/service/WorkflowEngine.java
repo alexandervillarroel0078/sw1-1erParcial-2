@@ -20,6 +20,7 @@ import com.dpn.backend.usuario.repository.UsuarioRepository;
 import com.dpn.backend.notificacion.service.NotificacionService;
 import com.dpn.backend.tarea.service.TareaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WorkflowEngine {
 
 	/**
@@ -45,6 +47,8 @@ public class WorkflowEngine {
 	 * {@link Tramite#getPasoActual()} aquí (solo al completar nodos ACTIVIDAD en {@link #avanzarFlujo}).
 	 */
 	private static final ThreadLocal<Boolean> CREANDO_TAREA_TRAS_DECISION = new ThreadLocal<>();
+	/** Stack de FORK activo durante la expansión del flujo (para marcar tareas hijas con forkNodoId). */
+	private static final ThreadLocal<Deque<String>> FORK_STACK = ThreadLocal.withInitial(ArrayDeque::new);
 
 	private final PoliticaRepository politicaRepository;
 	private final TramiteRepository tramiteRepository;
@@ -365,18 +369,39 @@ public class WorkflowEngine {
 				yield true;
 			}
 			case FORK_BAR -> {
-				boolean any = false;
-				for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
-					Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
-					if (next.isPresent()) {
-						any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
+				Deque<String> st = FORK_STACK.get();
+				st.addLast(nodo.getId());
+				try {
+					boolean any = false;
+					for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
+						Optional<NodoPolitica> next = findNodoById(politica, a.getHaciaNodoId());
+						if (next.isPresent()) {
+							any |= expandirDesdeNodo(tramite, politica, next.get(), trimToNull(a.getEtiqueta()));
+						}
+					}
+					yield any;
+				} finally {
+					Deque<String> st2 = FORK_STACK.get();
+					if (!st2.isEmpty() && nodo.getId().equals(st2.peekLast())) {
+						st2.removeLast();
+					} else {
+						st2.removeLastOccurrence(nodo.getId());
 					}
 				}
-				yield any;
 			}
 			case JOIN_BAR -> {
 				if (!puedeAvanzarJoinBar(tramite, politica, nodo)) {
 					yield false;
+				}
+				// Al salir por el JOIN, ya no queremos que tareas posteriores hereden el forkNodoId de esta región.
+				String forkId = encontrarForkBarParaJoin(politica, nodo.getId());
+				if (forkId != null) {
+					Deque<String> st = FORK_STACK.get();
+					if (!st.isEmpty() && forkId.equals(st.peekLast())) {
+						st.removeLast();
+					} else {
+						st.removeLastOccurrence(forkId);
+					}
 				}
 				boolean any = false;
 				for (AristaPolitica a : aristasSalientes(politica, nodo.getId())) {
@@ -435,10 +460,17 @@ public class WorkflowEngine {
 		}
 		int totalMostrarEnTarea = totalFlujo > 0 ? totalFlujo : Math.max(pasoMostrarEnTarea, 1);
 
+		String forkNodoId = null;
+		Deque<String> forkStack = FORK_STACK.get();
+		if (forkStack != null && !forkStack.isEmpty()) {
+			forkNodoId = forkStack.peekLast();
+		}
+
 		Tarea t = Tarea.builder()
 				.id(UUID.randomUUID().toString())
 				.tramiteId(tramite.getId())
 				.nodoFlujoId(nodo.getId())
+				.forkNodoId(forkNodoId)
 				.aristaEtiquetaEntrada(trimToNull(aristaEtiquetaEntrada))
 				.actividadEtiqueta(nodo.getEtiqueta())
 				.departamentoTexto(deptoNombre)
@@ -454,6 +486,7 @@ public class WorkflowEngine {
 				.permisoDocumentos(nodo.getPermisoDocumentos())
 				.build();
 		tareaRepository.save(t);
+		log.info("[TAREA] Tarea creada tareaId={} nodoId={} forkNodoId={} tramiteId={}", t.getId(), t.getNodoFlujoId(), t.getForkNodoId(), t.getTramiteId());
 
 		Tramite tramiteParaEstado = tramiteRepository.findById(tramite.getId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));

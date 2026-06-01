@@ -5,6 +5,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   OnDestroy,
   PLATFORM_ID,
@@ -135,17 +136,17 @@ export class ReporteActividadComponent implements OnDestroy {
   );
 
   readonly docColabHabilitado = computed(
-    () => this.definicionFormulario()?.habilitadoDocumentoColaborativo ?? false,
+    () => this.definicionDocColab()?.habilitadoDocumentoColaborativo ?? false,
   );
 
   readonly tituloDocColaborativo = computed(
     () =>
-      this.definicionFormulario()?.tituloDocumentoColaborativo?.trim() ||
+      this.definicionDocColab()?.tituloDocumentoColaborativo?.trim() ||
       'Documento colaborativo',
   );
 
   readonly plantillaContenidoDocColab = computed(
-    () => this.definicionFormulario()?.plantillaContenido ?? '',
+    () => this.definicionDocColab()?.plantillaContenido ?? '',
   );
 
   readonly permisoNodoActual = computed(() => {
@@ -172,6 +173,16 @@ export class ReporteActividadComponent implements OnDestroy {
   readonly docColabCargando = signal(false);
   readonly docColabCreando = signal(false);
   readonly docColab = signal<DocumentoColaborativo | null>(null);
+  readonly definicionForkDocColab = signal<FormularioActividad | null>(null);
+  readonly definicionDocColab = computed(() => {
+    const t = this.tarea();
+    const forkId = (t?.forkNodoId ?? '').trim();
+    if (forkId) {
+      // Para paralelo: el doc se define en el FORK_BAR padre (compartido por las ramas).
+      return this.definicionForkDocColab();
+    }
+    return this.definicionFormulario();
+  });
 
   private docColabTramiteId: string | null = null;
   private docColabNodoId: string | null = null;
@@ -189,8 +200,14 @@ export class ReporteActividadComponent implements OnDestroy {
       tarea: Tarea | null;
       informe: Informe | null;
       definicion: FormularioActividad | null;
+      definicionForkDocColab?: FormularioActividad | null;
     };
-    const vacio: Carga = { tarea: null, informe: null, definicion: null };
+    const vacio: Carga = {
+      tarea: null,
+      informe: null,
+      definicion: null,
+      definicionForkDocColab: null,
+    };
 
     this.route.paramMap
       .pipe(
@@ -198,6 +215,7 @@ export class ReporteActividadComponent implements OnDestroy {
           this.cargando.set(true);
           this.informe.set(null);
           this.definicionFormulario.set(null);
+          this.definicionForkDocColab.set(null);
           this.teardownDocColaborativo();
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -216,35 +234,93 @@ export class ReporteActividadComponent implements OnDestroy {
                   switchMap((informe) => {
                     const pid = (t.politicaId ?? '').trim();
                     const nid = (t.nodoFlujoId ?? '').trim();
+                    const forkId = (t.forkNodoId ?? '').trim();
                     if (!pid || !nid) {
                       return of({
                         tarea: t,
                         informe,
                         definicion: null as FormularioActividad | null,
+                        definicionForkDocColab: null as FormularioActividad | null,
                       });
                     }
                     return this.formularioFuncionarioService.obtener(pid, nid).pipe(
-                      map((definicion) => ({
-                        tarea: t,
-                        informe,
-                        definicion,
-                      })),
+                      switchMap((definicion) => {
+                        if (!forkId) {
+                          return of({
+                            tarea: t,
+                            informe,
+                            definicion,
+                            definicionForkDocColab: null as FormularioActividad | null,
+                          });
+                        }
+                        return this.formularioFuncionarioService.obtener(pid, forkId).pipe(
+                          map((forkDef) => ({
+                            tarea: t,
+                            informe,
+                            definicion,
+                            definicionForkDocColab: forkDef,
+                          })),
+                          catchError(() =>
+                            of({
+                              tarea: t,
+                              informe,
+                              definicion,
+                              definicionForkDocColab: null as FormularioActividad | null,
+                            }),
+                          ),
+                        );
+                      }),
                     );
                   }),
                 );
               }
               const pid = (t.politicaId ?? '').trim();
               const nid = (t.nodoFlujoId ?? '').trim();
+              const forkId = (t.forkNodoId ?? '').trim();
 
               if (!pid || !nid) {
-                return of({ tarea: t, informe: null, definicion: null });
+                return of({
+                  tarea: t,
+                  informe: null,
+                  definicion: null,
+                  definicionForkDocColab: null as FormularioActividad | null,
+                });
               }
               return this.formularioFuncionarioService.obtener(pid, nid).pipe(
-                map((definicion) => ({
-                  tarea: t,
-                  informe: null as Informe | null,
-                  definicion,
-                })),
+                switchMap((definicion) => {
+                  if (!forkId) {
+                    return of({
+                      tarea: t,
+                      informe: null as Informe | null,
+                      definicion,
+                      definicionForkDocColab: null as FormularioActividad | null,
+                    });
+                  }
+                  return this.formularioFuncionarioService.obtener(pid, forkId).pipe(
+                    map((forkDef) => ({
+                      tarea: t,
+                      informe: null as Informe | null,
+                      definicion,
+                      definicionForkDocColab: forkDef,
+                    })),
+                    catchError(() =>
+                      of({
+                        tarea: t,
+                        informe: null as Informe | null,
+                        definicion,
+                        definicionForkDocColab: null as FormularioActividad | null,
+                      }),
+                    ),
+                  );
+                }),
+                catchError(() =>
+                  of({
+                    tarea: t,
+                    informe: null as Informe | null,
+                    definicion: null as FormularioActividad | null,
+                    definicionForkDocColab: null as FormularioActividad | null,
+                  }),
+                ),
               );
             }),
             catchError(() => of(vacio)),
@@ -252,7 +328,7 @@ export class ReporteActividadComponent implements OnDestroy {
         }),
       )
       .subscribe({
-        next: ({ tarea, informe, definicion }) => {
+        next: ({ tarea, informe, definicion, definicionForkDocColab }) => {
           this.cargando.set(false);
           if (!tarea) {
             void this.router.navigate(['/funcionario/bandeja']);
@@ -261,6 +337,7 @@ export class ReporteActividadComponent implements OnDestroy {
           this.tarea.set(tarea);
           this.informe.set(informe);
           this.definicionFormulario.set(definicion);
+          this.definicionForkDocColab.set(definicionForkDocColab ?? null);
           this.rebuildForm(tarea, informe);
           this.initDocColaborativoSiAplica(tarea);
           this.cdr.markForCheck();
@@ -280,6 +357,17 @@ export class ReporteActividadComponent implements OnDestroy {
       this.speechDisponible.set(Boolean(SR));
     }
 
+    effect(() => {
+      const forkDef = this.definicionForkDocColab();
+      const tarea = this.tarea();
+      if (!tarea || this.cargando()) return;
+      const forkId = (tarea.forkNodoId ?? '').trim();
+      if (!forkId) return;
+      if (forkDef === null) return;
+      if (this.docColabTramiteId) return;
+      this.initDocColaborativoSiAplica(tarea);
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -625,8 +713,27 @@ export class ReporteActividadComponent implements OnDestroy {
     }
     this.docColabCreando.set(true);
     this.docColabService
-      .crear(tramiteId, nodoId, this.tituloDocColaborativo(), this.plantillaContenidoDocColab())
-      .pipe(take(1))
+      .obtener(tramiteId, nodoId)
+      .pipe(
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) {
+            return of(null);
+          }
+          throw err;
+        }),
+        switchMap((existing) => {
+          if (existing) {
+            return of(existing);
+          }
+          return this.docColabService.crear(
+            tramiteId,
+            nodoId,
+            this.tituloDocColaborativo(),
+            this.plantillaContenidoDocColab(),
+          );
+        }),
+        take(1),
+      )
       .subscribe({
         next: (doc) => {
           this.docColab.set(doc);
@@ -879,8 +986,12 @@ export class ReporteActividadComponent implements OnDestroy {
   }
 
   private initDocColaborativoSiAplica(tarea: Tarea): void {
-    this.teardownDocColaborativo();
-    const formulario = this.definicionFormulario();
+    this.docColabTramiteId = null;
+    this.docColabNodoId = null;
+    this.docColab.set(null);
+    this.docColabCargando.set(false);
+    this.docColabCreando.set(false);
+    const formulario = this.definicionDocColab();
     console.log('[DocColab] formulario:', formulario);
     console.log('[DocColab] docColab:', this.docColab());
     console.log('[DocColab] soloLectura:', this.soloLectura());
@@ -890,7 +1001,8 @@ export class ReporteActividadComponent implements OnDestroy {
       return;
     }
     const tramiteId = (tarea.tramiteId ?? '').trim();
-    const nodoId = (tarea.nodoFlujoId ?? '').trim();
+    const forkNodoId = (tarea.forkNodoId ?? '').trim();
+    const nodoId = forkNodoId || (tarea.nodoFlujoId ?? '').trim();
     if (!tramiteId || !nodoId) {
       return;
     }
@@ -913,9 +1025,10 @@ export class ReporteActividadComponent implements OnDestroy {
       .subscribe({
         next: (doc) => {
           this.docColab.set(doc);
-          const formulario = this.definicionFormulario();
+          const formulario = this.definicionDocColab();
           console.log('[DocColab] formulario:', formulario);
           console.log('[DocColab] docColab:', this.docColab());
+          console.log('[DocColab] documentKey:', doc?.documentKey, 'tramiteId:', doc?.tramiteId, 'nodoId:', doc?.nodoId);
           console.log('[DocColab] soloLectura:', this.soloLectura());
           console.log('[DocColab] habilitadoDocColab:', formulario?.habilitadoDocumentoColaborativo);
           console.log('[DocColab] docColabHabilitado:', this.docColabHabilitado());

@@ -1,6 +1,6 @@
-package com.dpn.backend.colaborativo.repository;
+package com.dpn.backend.colaborativo.documento.repository;
 
-import com.dpn.backend.colaborativo.model.DocumentoColaborativo;
+import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;

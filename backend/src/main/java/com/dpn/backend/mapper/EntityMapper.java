@@ -49,6 +49,7 @@ public class EntityMapper {
 				.id(t.getId())
 				.tramiteId(t.getTramiteId())
 				.nodoFlujoId(t.getNodoFlujoId())
+				.forkNodoId(t.getForkNodoId())
 				.actividadEtiqueta(t.getActividadEtiqueta())
 				.departamentoTexto(t.getDepartamentoTexto())
 				.politicaId(t.getPoliticaId())

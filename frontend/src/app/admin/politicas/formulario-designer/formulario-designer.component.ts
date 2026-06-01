@@ -165,6 +165,7 @@ export class FormularioDesignerComponent {
   readonly nodoId = signal<string | null>(null);
   readonly actividadEtiqueta = signal('Actividad');
   readonly departamentoNombre = signal('—');
+  readonly modoForkBar = signal(false);
   readonly campos = signal<CampoFormularioItem[]>([]);
   readonly documentoColaborativoHabilitado = signal(false);
   readonly tituloDocColab = signal('');
@@ -196,29 +197,38 @@ export class FormularioDesignerComponent {
         this.politicaId.set(politicaId || null);
         this.nodoId.set(nodoId || null);
         const nodo = politica?.nodos?.find((n) => n.id === nodoId);
-        if (!nodo || nodo.tipo !== 'ACTIVIDAD') {
+        const esActividad = nodo?.tipo === 'ACTIVIDAD';
+        const esFork = nodo?.tipo === 'FORK_BAR';
+        if (!nodo || (!esActividad && !esFork)) {
           this.snack.open(
-            'Actividad no encontrada o inválida',
+            'Nodo no encontrado o inválido',
             'Cerrar',
             { duration: 3500 },
           );
           void this.router.navigate(['/admin/politicas', politicaId, 'editor']);
           return;
         }
+        this.modoForkBar.set(esFork);
         this.actividadEtiqueta.set(nodo.etiqueta);
-        this.departamentoService.getDepartamentos().pipe(take(1)).subscribe((deps) => {
-          const dep = deps.find((d) => d.id === nodo.departamentoId);
-          this.departamentoNombre.set(dep?.nombre ?? 'Sin departamento');
-        });
-        const items =
-          form == null
-            ? camposInicialesPor404()
-            : form.campos?.length && form.campos.length > 0
-              ? [...form.campos]
-                  .sort((a, b) => a.orden - b.orden)
-                  .map((c) => campoApiToItem(c))
-              : [];
-        this.campos.set(items);
+
+        if (esActividad) {
+          this.departamentoService.getDepartamentos().pipe(take(1)).subscribe((deps) => {
+            const dep = deps.find((d) => d.id === nodo.departamentoId);
+            this.departamentoNombre.set(dep?.nombre ?? 'Sin departamento');
+          });
+          const items =
+            form == null
+              ? camposInicialesPor404()
+              : form.campos?.length && form.campos.length > 0
+                ? [...form.campos]
+                    .sort((a, b) => a.orden - b.orden)
+                    .map((c) => campoApiToItem(c))
+                : [];
+          this.campos.set(items);
+        } else {
+          this.departamentoNombre.set('—');
+          this.campos.set([]);
+        }
         this.documentoColaborativoHabilitado.set(
           !!form?.habilitadoDocumentoColaborativo,
         );

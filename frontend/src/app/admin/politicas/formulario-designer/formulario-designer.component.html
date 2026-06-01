@@ -21,221 +21,223 @@
 </header>
 
 <mat-tab-group class="fd-tabs" animationDuration="0ms">
-  <mat-tab label="Formulario de informe">
-    <div class="fd-tab-body">
-      <div class="fd-layout">
-        <!-- Columna I: paleta -->
-        <aside class="fd-col fd-col--palette" aria-label="Tipos de campo">
-          <h2 class="fd-col__title">Tipos de campo</h2>
-          <p class="fd-col__hint">Hacé clic para agregar al formulario</p>
-          <ul class="fd-palette">
-            @for (t of tiposPaleta; track t.tipo) {
-              <li>
-                <button
-                  type="button"
-                  class="fd-palette__btn"
-                  (click)="agregarCampo(t.tipo)"
-                >
-                  <mat-icon>{{ t.icon }}</mat-icon>
-                  <span>{{ t.label }}</span>
-                </button>
-              </li>
-            }
-          </ul>
-        </aside>
-
-        <!-- Columna II: editor -->
-        <section class="fd-col fd-col--editor" aria-label="Editor de campos">
-          <h2 class="fd-col__title">Formulario: {{ actividadEtiqueta() }}</h2>
-
-          @if (camposOrdenados().length === 0) {
-            <p class="fd-empty">Agregá campos desde el panel izquierdo</p>
-          } @else {
-            <div
-              class="fd-editor-list"
-              cdkDropList
-              [cdkDropListData]="camposOrdenados()"
-              (cdkDropListDropped)="onDrop($event)"
-            >
-              @for (c of camposOrdenados(); track c.id) {
-                <div class="fd-campo" cdkDrag>
-                  <div class="fd-campo__drag" cdkDragHandle aria-label="Arrastrar para reordenar">
-                    <mat-icon>drag_indicator</mat-icon>
-                  </div>
-                  <div class="fd-campo__body">
-                    <mat-form-field appearance="outline" class="fd-campo__nombre" subscriptSizing="dynamic">
-                      <mat-label>Nombre del campo</mat-label>
-                      <input
-                        matInput
-                        [ngModel]="c.nombre"
-                        (ngModelChange)="patchCampoNombre(c.id, $event)"
-                      />
-                    </mat-form-field>
-                    <span [class]="claseBadgeTipo(c.tipo)">{{ etiquetaTipo(c.tipo) }}</span>
-                    <mat-checkbox
-                      [ngModel]="c.obligatorio"
-                      (ngModelChange)="patchCampoObligatorio(c.id, $event)"
-                    >
-                      Obligatorio
-                    </mat-checkbox>
-                    @if (c.tipo === 'select') {
-                      <div class="fd-campo__opciones">
-                        @for (opt of c.opcionesSelect ?? []; track $index) {
-                          <div class="fd-campo__opcion-row">
-                            <mat-form-field
-                              appearance="outline"
-                              class="fd-campo__opcion-input"
-                              subscriptSizing="dynamic"
-                            >
-                              <mat-label>Opción {{ $index + 1 }}</mat-label>
-                              <input
-                                matInput
-                                [ngModel]="opt"
-                                (ngModelChange)="onOpcionSelectModelChange(c.id, $index, $event)"
-                              />
-                            </mat-form-field>
-                            <button
-                              mat-icon-button
-                              type="button"
-                              aria-label="Eliminar opción"
-                              (click)="eliminarOpcionSelect(c.id, $index)"
-                            >
-                              <mat-icon>close</mat-icon>
-                            </button>
-                          </div>
-                        }
-                        <button
-                          mat-icon-button
-                          type="button"
-                          aria-label="Agregar opción"
-                          (click)="agregarOpcionSelect(c.id)"
-                        >
-                          <mat-icon>add</mat-icon>
-                        </button>
-                      </div>
-                    }
-                  </div>
-                  <div class="fd-campo__actions">
-                    <button
-                      mat-icon-button
-                      type="button"
-                      aria-label="Subir"
-                      (click)="subirCampo(c.id)"
-                    >
-                      <mat-icon>arrow_upward</mat-icon>
-                    </button>
-                    <button
-                      mat-icon-button
-                      type="button"
-                      aria-label="Bajar"
-                      (click)="bajarCampo(c.id)"
-                    >
-                      <mat-icon>arrow_downward</mat-icon>
-                    </button>
-                    <button
-                      mat-icon-button
-                      type="button"
-                      color="warn"
-                      aria-label="Eliminar campo"
-                      (click)="eliminarCampo(c.id)"
-                    >
-                      <mat-icon>delete</mat-icon>
-                    </button>
-                  </div>
-                </div>
+  @if (!modoForkBar()) {
+    <mat-tab label="Formulario de informe">
+      <div class="fd-tab-body">
+        <div class="fd-layout">
+          <!-- Columna I: paleta -->
+          <aside class="fd-col fd-col--palette" aria-label="Tipos de campo">
+            <h2 class="fd-col__title">Tipos de campo</h2>
+            <p class="fd-col__hint">Hacé clic para agregar al formulario</p>
+            <ul class="fd-palette">
+              @for (t of tiposPaleta; track t.tipo) {
+                <li>
+                  <button
+                    type="button"
+                    class="fd-palette__btn"
+                    (click)="agregarCampo(t.tipo)"
+                  >
+                    <mat-icon>{{ t.icon }}</mat-icon>
+                    <span>{{ t.label }}</span>
+                  </button>
+                </li>
               }
-            </div>
-          }
-        </section>
+            </ul>
+          </aside>
 
-        <!-- Columna III: preview -->
-        <aside class="fd-col fd-col--preview" aria-label="Vista previa del funcionario">
-          <h2 class="fd-col__title">Vista previa</h2>
-          <div class="fd-preview-card">
-            @for (c of camposOrdenados(); track c.id) {
-              <div class="fd-preview__block">
-                @switch (c.tipo) {
-                  @case ('texto_corto') {
-                    <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                      <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
-                      <input matInput placeholder="Texto" readonly />
-                    </mat-form-field>
-                  }
-                  @case ('texto_largo') {
-                    <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                      <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
-                      <textarea matInput rows="3" placeholder="Texto largo" readonly></textarea>
-                    </mat-form-field>
-                  }
-                  @case ('select') {
-                    <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                      <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
-                      <mat-select [value]="c.opcionesSelect?.[0] ?? ''" disabled>
-                        @for (opt of c.opcionesSelect ?? []; track opt) {
-                          <mat-option [value]="opt">{{ opt }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                  }
-                  @case ('checkbox') {
-                    <div class="fd-preview__checkbox-row">
-                      <mat-checkbox disabled>{{ c.nombre }}@if (c.obligatorio) { *}</mat-checkbox>
+          <!-- Columna II: editor -->
+          <section class="fd-col fd-col--editor" aria-label="Editor de campos">
+            <h2 class="fd-col__title">Formulario: {{ actividadEtiqueta() }}</h2>
+
+            @if (camposOrdenados().length === 0) {
+              <p class="fd-empty">Agregá campos desde el panel izquierdo</p>
+            } @else {
+              <div
+                class="fd-editor-list"
+                cdkDropList
+                [cdkDropListData]="camposOrdenados()"
+                (cdkDropListDropped)="onDrop($event)"
+              >
+                @for (c of camposOrdenados(); track c.id) {
+                  <div class="fd-campo" cdkDrag>
+                    <div class="fd-campo__drag" cdkDragHandle aria-label="Arrastrar para reordenar">
+                      <mat-icon>drag_indicator</mat-icon>
                     </div>
-                  }
-                  @case ('fecha') {
-                    <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
-                      <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
-                      <input
-                        matInput
-                        [matDatepicker]="picker"
-                        [ngModel]="demoFecha()"
-                        (ngModelChange)="demoFecha.set($event)"
-                        placeholder="Elegir fecha"
-                      />
-                      <mat-datepicker-toggle matIconSuffix [for]="picker" />
-                      <mat-datepicker #picker />
-                    </mat-form-field>
-                  }
-                  @case ('imagen') {
-                    <div class="fd-preview__upload">
-                      <span class="fd-preview__upload-label">{{ c.nombre }}@if (c.obligatorio) { *}</span>
-                      <button mat-stroked-button type="button" disabled>
-                        <mat-icon>image</mat-icon>
-                        Seleccionar imagen
+                    <div class="fd-campo__body">
+                      <mat-form-field appearance="outline" class="fd-campo__nombre" subscriptSizing="dynamic">
+                        <mat-label>Nombre del campo</mat-label>
+                        <input
+                          matInput
+                          [ngModel]="c.nombre"
+                          (ngModelChange)="patchCampoNombre(c.id, $event)"
+                        />
+                      </mat-form-field>
+                      <span [class]="claseBadgeTipo(c.tipo)">{{ etiquetaTipo(c.tipo) }}</span>
+                      <mat-checkbox
+                        [ngModel]="c.obligatorio"
+                        (ngModelChange)="patchCampoObligatorio(c.id, $event)"
+                      >
+                        Obligatorio
+                      </mat-checkbox>
+                      @if (c.tipo === 'select') {
+                        <div class="fd-campo__opciones">
+                          @for (opt of c.opcionesSelect ?? []; track $index) {
+                            <div class="fd-campo__opcion-row">
+                              <mat-form-field
+                                appearance="outline"
+                                class="fd-campo__opcion-input"
+                                subscriptSizing="dynamic"
+                              >
+                                <mat-label>Opción {{ $index + 1 }}</mat-label>
+                                <input
+                                  matInput
+                                  [ngModel]="opt"
+                                  (ngModelChange)="onOpcionSelectModelChange(c.id, $index, $event)"
+                                />
+                              </mat-form-field>
+                              <button
+                                mat-icon-button
+                                type="button"
+                                aria-label="Eliminar opción"
+                                (click)="eliminarOpcionSelect(c.id, $index)"
+                              >
+                                <mat-icon>close</mat-icon>
+                              </button>
+                            </div>
+                          }
+                          <button
+                            mat-icon-button
+                            type="button"
+                            aria-label="Agregar opción"
+                            (click)="agregarOpcionSelect(c.id)"
+                          >
+                            <mat-icon>add</mat-icon>
+                          </button>
+                        </div>
+                      }
+                    </div>
+                    <div class="fd-campo__actions">
+                      <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="Subir"
+                        (click)="subirCampo(c.id)"
+                      >
+                        <mat-icon>arrow_upward</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        aria-label="Bajar"
+                        (click)="bajarCampo(c.id)"
+                      >
+                        <mat-icon>arrow_downward</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        color="warn"
+                        aria-label="Eliminar campo"
+                        (click)="eliminarCampo(c.id)"
+                      >
+                        <mat-icon>delete</mat-icon>
                       </button>
                     </div>
-                  }
-                  @case ('archivo') {
-                    <div class="fd-preview__upload">
-                      <span class="fd-preview__upload-label">{{ c.nombre }}@if (c.obligatorio) { *}</span>
-                      <button mat-stroked-button type="button" disabled>
-                        <mat-icon>upload_file</mat-icon>
-                        Seleccionar archivo
-                      </button>
-                    </div>
-                  }
+                  </div>
                 }
               </div>
             }
+          </section>
 
-            @if (camposOrdenados().length === 0) {
-              <p class="fd-preview__empty">Sin campos para mostrar</p>
-            }
+          <!-- Columna III: preview -->
+          <aside class="fd-col fd-col--preview" aria-label="Vista previa del funcionario">
+            <h2 class="fd-col__title">Vista previa</h2>
+            <div class="fd-preview-card">
+              @for (c of camposOrdenados(); track c.id) {
+                <div class="fd-preview__block">
+                  @switch (c.tipo) {
+                    @case ('texto_corto') {
+                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
+                        <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
+                        <input matInput placeholder="Texto" readonly />
+                      </mat-form-field>
+                    }
+                    @case ('texto_largo') {
+                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
+                        <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
+                        <textarea matInput rows="3" placeholder="Texto largo" readonly></textarea>
+                      </mat-form-field>
+                    }
+                    @case ('select') {
+                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
+                        <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
+                        <mat-select [value]="c.opcionesSelect?.[0] ?? ''" disabled>
+                          @for (opt of c.opcionesSelect ?? []; track opt) {
+                            <mat-option [value]="opt">{{ opt }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                    }
+                    @case ('checkbox') {
+                      <div class="fd-preview__checkbox-row">
+                        <mat-checkbox disabled>{{ c.nombre }}@if (c.obligatorio) { *}</mat-checkbox>
+                      </div>
+                    }
+                    @case ('fecha') {
+                      <mat-form-field appearance="outline" class="fd-preview__field" subscriptSizing="dynamic">
+                        <mat-label>{{ c.nombre }}@if (c.obligatorio) { *}</mat-label>
+                        <input
+                          matInput
+                          [matDatepicker]="picker"
+                          [ngModel]="demoFecha()"
+                          (ngModelChange)="demoFecha.set($event)"
+                          placeholder="Elegir fecha"
+                        />
+                        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+                        <mat-datepicker #picker />
+                      </mat-form-field>
+                    }
+                    @case ('imagen') {
+                      <div class="fd-preview__upload">
+                        <span class="fd-preview__upload-label">{{ c.nombre }}@if (c.obligatorio) { *}</span>
+                        <button mat-stroked-button type="button" disabled>
+                          <mat-icon>image</mat-icon>
+                          Seleccionar imagen
+                        </button>
+                      </div>
+                    }
+                    @case ('archivo') {
+                      <div class="fd-preview__upload">
+                        <span class="fd-preview__upload-label">{{ c.nombre }}@if (c.obligatorio) { *}</span>
+                        <button mat-stroked-button type="button" disabled>
+                          <mat-icon>upload_file</mat-icon>
+                          Seleccionar archivo
+                        </button>
+                      </div>
+                    }
+                  }
+                </div>
+              }
 
-            <div class="fd-preview__footer">
-              <button mat-flat-button color="primary" type="button" disabled>
-                Completar actividad
-              </button>
-              <button mat-stroked-button type="button" class="fd-preview__voice">
-                <mat-icon>mic</mat-icon>
-                Dictar informe por voz
-              </button>
+              @if (camposOrdenados().length === 0) {
+                <p class="fd-preview__empty">Sin campos para mostrar</p>
+              }
+
+              <div class="fd-preview__footer">
+                <button mat-flat-button color="primary" type="button" disabled>
+                  Completar actividad
+                </button>
+                <button mat-stroked-button type="button" class="fd-preview__voice">
+                  <mat-icon>mic</mat-icon>
+                  Dictar informe por voz
+                </button>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
-    </div>
-  </mat-tab>
+    </mat-tab>
+  }
 
   <mat-tab label="Documento colaborativo">
     <div class="fd-tab-body">

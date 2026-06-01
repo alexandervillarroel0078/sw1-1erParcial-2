@@ -19,6 +19,7 @@ public class TareaDTO {
 	private String id;
 	private String tramiteId;
 	private String nodoFlujoId;
+	private String forkNodoId;
 	private String actividadEtiqueta;
 	private String departamentoTexto;
 	private String politicaId;
