@@ -22,6 +22,7 @@ import * as Y from 'yjs';
 
 import type { DocumentoColaborativo } from '../../core/models/doc-colaborativo.model';
 import { AuthService } from '../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 const CURSOR_COLORS = [
   '#958DF1',
@@ -121,7 +122,7 @@ export class OnlyofficeEditorComponent implements OnDestroy {
 
     this.ydoc = new Y.Doc();
     this.provider = new HocuspocusProvider({
-      url: 'ws://localhost:1234',
+      url: environment.collabUrl,
       name: roomName,
       document: this.ydoc,
     });

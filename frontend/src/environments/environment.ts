@@ -4,7 +4,5 @@ export const environment = {
   iaUrl: 'http://localhost:8000',
   mlUrl: 'http://localhost:8001',
   wsUrl: 'http://localhost:8080/ws',
-  onlyofficeUrl: 'http://localhost',
-  /** URL del backend accesible desde el contenedor OnlyOffice */
-  backendPublicUrl: 'http://host.docker.internal:8080',
+  collabUrl: 'ws://localhost:1234',
 };

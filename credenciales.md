@@ -4,6 +4,9 @@ mvn spring-boot:run
 cd frontend
 ng serve
 
+cd frontend
+npm run collab
+
 cd mobile
 flutter pub get
 flutter devices
