@@ -161,11 +161,11 @@ public class DataInitializer implements CommandLineRunner {
 
 	private boolean ensurePoliticas(Map<String, String> deptIds) {
 		boolean createdAny = false;
-		createdAny |= createPoliticaIfMissing("Alta de empleado (Secuencial)", deptIds, "#0C447C", this::buildPoliticaAltaEmpleado);
-		createdAny |= createPoliticaIfMissing("Aprobación de vacaciones (Alternativo)", deptIds, "#1F6FEB", this::buildPoliticaVacaciones);
-		createdAny |= createPoliticaIfMissing("Corrección de informe (Iterativo)", deptIds, "#3A7D44", this::buildPoliticaCorreccionInforme);
-		createdAny |= createPoliticaIfMissing("Onboarding de proveedor (Paralelo)", deptIds, "#8C4A1F", this::buildPoliticaOnboardingProveedor);
-		createdAny |= createPoliticaIfMissing("Solicitud de crédito (Combinado)", deptIds, "#5D2E8C", this::buildPoliticaSolicitudCredito);
+		createdAny |= createPoliticaIfMissing("Alta de empleado", deptIds, "#0C447C", this::buildPoliticaAltaEmpleado);
+		createdAny |= createPoliticaIfMissing("Aprobación de vacaciones", deptIds, "#1F6FEB", this::buildPoliticaVacaciones);
+		createdAny |= createPoliticaIfMissing("Corrección de informe", deptIds, "#3A7D44", this::buildPoliticaCorreccionInforme);
+		createdAny |= createPoliticaIfMissing("Onboarding de proveedor", deptIds, "#8C4A1F", this::buildPoliticaOnboardingProveedor);
+		createdAny |= createPoliticaIfMissing("Solicitud de crédito", deptIds, "#5D2E8C", this::buildPoliticaSolicitudCredito);
 		return createdAny;
 	}
 

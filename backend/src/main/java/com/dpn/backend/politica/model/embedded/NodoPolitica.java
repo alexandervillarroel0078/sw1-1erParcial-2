@@ -30,12 +30,6 @@ public class NodoPolitica {
 	private Integer slaMinutos;
 	@Field("permiso_documentos")
 	private String permisoDocumentos; // SIN_ACCESO, SOLO_VER, VER_MODIFICAR, ACCESO_COMPLETO
-	@Field("habilitado_documento_colaborativo")
-	private boolean habilitadoDocumentoColaborativo;
-	@Field("titulo_documento_colaborativo")
-	private String tituloDocumentoColaborativo;
-	@Field("plantilla_contenido")
-	private String plantillaContenido;
 	@Field("requisitos_iniciales")
 	@Builder.Default
 	private List<RequisitoInicial> requisitosIniciales = new ArrayList<>();

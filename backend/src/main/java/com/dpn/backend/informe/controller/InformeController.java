@@ -12,8 +12,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,5 +42,21 @@ public class InformeController {
 			@PathVariable String tareaId,
 			Authentication authentication) {
 		return informeService.obtenerPorTareaId(tareaId, authentication.getName());
+	}
+
+	@GetMapping("/borrador")
+	public Informe obtenerBorrador(
+			@RequestParam String tramiteId,
+			@RequestParam String nodoId,
+			Authentication authentication) {
+		return informeService.obtenerBorrador(tramiteId, nodoId, authentication.getName());
+	}
+
+	@PutMapping("/{id}")
+	public Informe actualizarBorrador(
+			@PathVariable String id,
+			@Valid @RequestBody InformeCreateDTO dto,
+			Authentication authentication) {
+		return informeService.actualizarBorrador(id, dto, authentication.getName());
 	}
 }

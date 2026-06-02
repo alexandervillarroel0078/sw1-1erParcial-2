@@ -193,6 +193,28 @@ public class InformeService {
 		return i;
 	}
 
+	public Informe obtenerBorrador(String tramiteId, String nodoId, String funcionarioId) {
+		return informeRepository
+				.findByTramiteIdAndNodoActividadIdAndFuncionarioIdAndEsBorrador(
+						tramiteId, nodoId, funcionarioId, true)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Borrador no encontrado"));
+	}
+
+	public Informe actualizarBorrador(String id, InformeCreateDTO dto, String funcionarioId) {
+		Informe i = informeRepository.findById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Informe no encontrado"));
+		if (i.getFuncionarioId() == null || !i.getFuncionarioId().equals(funcionarioId)) {
+			throw new ApiException(HttpStatus.NOT_FOUND, "Informe no encontrado");
+		}
+		if (!i.isEsBorrador()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Solo se pueden actualizar borradores");
+		}
+		i.setDescripcion(dto.getDescripcion());
+		i.setObservaciones(dto.getObservaciones());
+		i.setResultado(dto.getResultado());
+		return informeRepository.save(i);
+	}
+
 	private static final class ByteArrayMultipartFile implements MultipartFile {
 
 		private final byte[] content;

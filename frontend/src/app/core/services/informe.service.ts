@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
@@ -128,7 +128,7 @@ export class InformeService {
     );
   }
 
-  crearInforme(informe: Informe): Observable<Informe> {
+  private buildInformeBody(informe: Informe): Record<string, unknown> {
     const body: Record<string, unknown> = {
       tramiteId: informe.tramiteId,
       descripcion: informe.descripcion,
@@ -154,7 +154,33 @@ export class InformeService {
         subidoEn: a.subidoEn?.toISOString(),
       }));
     }
-    return this.http.post<InformeApi>(this.base, body).pipe(
+    return body;
+  }
+
+  getBorrador(tramiteId: string, nodoId: string): Observable<Informe> {
+    return this.http
+      .get<InformeApi>(`${this.base}/borrador`, {
+        params: { tramiteId, nodoId },
+      })
+      .pipe(
+        map((x) => this.mapInforme(x)),
+        catchError((err) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) {
+            return throwError(() => err);
+          }
+          return handleApiError(this.auth, this.snack, err);
+        }),
+      );
+  }
+
+  actualizarBorrador(id: string, informe: Informe): Observable<Informe> {
+    return this.http
+      .put<InformeApi>(`${this.base}/${encodeURIComponent(id)}`, this.buildInformeBody(informe))
+      .pipe(map((x) => this.mapInforme(x)));
+  }
+
+  crearInforme(informe: Informe): Observable<Informe> {
+    return this.http.post<InformeApi>(this.base, this.buildInformeBody(informe)).pipe(
       map((x) => this.mapInforme(x)),
       catchError((err) => handleApiError(this.auth, this.snack, err)),
     );

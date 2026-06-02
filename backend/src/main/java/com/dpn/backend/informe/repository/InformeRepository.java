@@ -13,4 +13,7 @@ public interface InformeRepository extends MongoRepository<Informe, String> {
 	List<Informe> findByFuncionarioId(String funcionarioId);
 
 	Optional<Informe> findByTareaId(String tareaId);
+
+	Optional<Informe> findByTramiteIdAndNodoActividadIdAndFuncionarioIdAndEsBorrador(
+			String tramiteId, String nodoActividadId, String funcionarioId, boolean esBorrador);
 }

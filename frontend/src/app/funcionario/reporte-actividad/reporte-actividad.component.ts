@@ -31,6 +31,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
   catchError,
+  EMPTY,
   finalize,
   map,
   Observable,
@@ -38,6 +39,7 @@ import {
   switchMap,
   take,
   tap,
+  throwError,
 } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 
@@ -104,6 +106,7 @@ export class ReporteActividadComponent implements OnDestroy {
 
   readonly cargando = signal(true);
   readonly tarea = signal<Tarea | null>(null);
+  readonly borradorId = signal<string | null>(null);
   readonly informe = signal<Informe | null>(null);
   readonly definicionFormulario = signal<FormularioActividad | null>(null);
 
@@ -200,6 +203,7 @@ export class ReporteActividadComponent implements OnDestroy {
         tap(() => {
           this.cargando.set(true);
           this.informe.set(null);
+          this.borradorId.set(null);
           this.definicionFormulario.set(null);
           this.definicionForkDocColab.set(null);
           this.teardownDocColaborativo();
@@ -325,6 +329,13 @@ export class ReporteActividadComponent implements OnDestroy {
           this.definicionFormulario.set(definicion);
           this.definicionForkDocColab.set(definicionForkDocColab ?? null);
           this.rebuildForm(tarea, informe);
+          if (tarea.estado !== 'completado') {
+            const tramiteId = (tarea.tramiteId ?? '').trim();
+            const nodoId = (tarea.nodoFlujoId ?? '').trim();
+            if (tramiteId && nodoId) {
+              this.cargarBorradorSiExiste(tramiteId, nodoId);
+            }
+          }
           this.initDocColaborativoSiAplica(tarea);
           this.cdr.markForCheck();
         },
@@ -877,7 +888,67 @@ export class ReporteActividadComponent implements OnDestroy {
     if (!informe) {
       return;
     }
-    this.informeService.crearInforme(informe).pipe(take(1)).subscribe();
+    const id = this.borradorId();
+    const req$ = id
+      ? this.informeService.actualizarBorrador(id, informe)
+      : this.informeService.crearInforme(informe);
+    req$.pipe(take(1)).subscribe({
+      next: (resp) => {
+        if (resp.id) {
+          this.borradorId.set(resp.id);
+        }
+        this.snack.open('Borrador guardado', 'Cerrar', { duration: 3000 });
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.snack.open('No se pudo guardar el borrador', 'Cerrar', { duration: 5000 });
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private cargarBorradorSiExiste(tramiteId: string, nodoId: string): void {
+    this.informeService
+      .getBorrador(tramiteId, nodoId)
+      .pipe(
+        take(1),
+        catchError((err: unknown) => {
+          if (err instanceof HttpErrorResponse && err.status === 404) {
+            this.borradorId.set(null);
+            return EMPTY;
+          }
+          return throwError(() => err);
+        }),
+      )
+      .subscribe({
+        next: (borrador) => {
+          this.borradorId.set(borrador.id ?? null);
+          this.aplicarBorradorAlForm(borrador);
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  private aplicarBorradorAlForm(borrador: Informe): void {
+    const raw = (borrador.descripcion ?? '').trim();
+    const descripcion = raw === '(borrador)' ? '' : raw;
+    if (this.usarFormularioDinamico()) {
+      const patch = this.patchValoresDesdeInformeCompletado(
+        { ...borrador, descripcion: descripcion || borrador.descripcion },
+        this.camposFormularioOrdenados(),
+      );
+      if (Object.keys(patch).length > 0) {
+        this.form.patchValue(patch as Record<string, unknown>, { emitEvent: false });
+      }
+      return;
+    }
+    this.form.patchValue(
+      {
+        descripcion,
+        observaciones: borrador.observaciones ?? '',
+      },
+      { emitEvent: false },
+    );
   }
 
   completarYEnviar(): void {
