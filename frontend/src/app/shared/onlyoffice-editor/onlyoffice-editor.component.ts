@@ -1,68 +1,51 @@
 import { isPlatformBrowser } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   effect,
+  ElementRef,
   inject,
   Injector,
   input,
   OnDestroy,
   PLATFORM_ID,
-  afterNextRender,
+  viewChild,
 } from '@angular/core';
+import { Editor } from '@tiptap/core';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import StarterKit from '@tiptap/starter-kit';
+import { HocuspocusProvider } from '@hocuspocus/provider';
+import * as Y from 'yjs';
 
-import {
-  docColaborativoFileType,
-  type DocumentoColaborativo,
-} from '../../core/models/doc-colaborativo.model';
-import { environment } from '../../../environments/environment';
+import type { DocumentoColaborativo } from '../../core/models/doc-colaborativo.model';
+import { AuthService } from '../../core/services/auth.service';
 
-declare global {
-  interface Window {
-    DocsAPI?: {
-      DocEditor: new (
-        id: string,
-        config: Record<string, unknown>,
-      ) => { destroyEditor: () => void };
-    };
-  }
-}
+const CURSOR_COLORS = [
+  '#958DF1',
+  '#F98181',
+  '#FBBC88',
+  '#FAF594',
+  '#70CFF8',
+  '#94FADB',
+  '#B9F18D',
+];
 
-let scriptLoadPromise: Promise<void> | null = null;
-
-function loadOnlyOfficeApi(): Promise<void> {
-  if (typeof window === 'undefined') {
-    return Promise.resolve();
+function cursorColorForUser(label: string): string {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = label.charCodeAt(i) + ((hash << 5) - hash);
   }
-  if (window.DocsAPI) {
-    return Promise.resolve();
-  }
-  if (scriptLoadPromise) {
-    return scriptLoadPromise;
-  }
-  scriptLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `${environment.onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('No se pudo cargar OnlyOffice Document Server'));
-    document.body.appendChild(script);
-  });
-  return scriptLoadPromise;
+  return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length]!;
 }
 
 @Component({
   selector: 'app-onlyoffice-editor',
   standalone: true,
-  template: `<div [id]="containerId" class="onlyoffice-editor"></div>`,
-  styles: [
-    `
-      .onlyoffice-editor {
-        min-height: 600px;
-        width: 100%;
-      }
-    `,
-  ],
+  templateUrl: './onlyoffice-editor.component.html',
+  styleUrl: './onlyoffice-editor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OnlyofficeEditorComponent implements OnDestroy {
@@ -71,27 +54,32 @@ export class OnlyofficeEditorComponent implements OnDestroy {
 
   private readonly platformId = inject(PLATFORM_ID);
   private readonly injector = inject(Injector);
-  readonly containerId = `onlyoffice-${Math.random().toString(36).slice(2, 10)}`;
+  private readonly auth = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private editorInstance: { destroyEditor: () => void } | null = null;
-  private lastConfigKey = '';
+  editor: Editor | null = null;
+
+  private ydoc: Y.Doc | null = null;
+  private provider: HocuspocusProvider | null = null;
+  private lastRoomKey = '';
 
   constructor() {
     effect(() => {
       const documento = this.doc();
       const soloLectura = this.readonly();
-      if (!documento?.documentKey || !isPlatformBrowser(this.platformId)) {
+      if (!documento?.tramiteId || !documento?.nodoId || !isPlatformBrowser(this.platformId)) {
         return;
       }
-      const configKey = `${documento.documentKey}:${soloLectura}`;
-      if (configKey === this.lastConfigKey) {
+      const roomKey = `${documento.tramiteId}-${documento.nodoId}:${soloLectura}`;
+      if (roomKey === this.lastRoomKey) {
+        this.editor?.setEditable(!soloLectura);
         return;
       }
-      this.lastConfigKey = configKey;
+      this.lastRoomKey = roomKey;
       afterNextRender(
         () => {
-          void this.initEditor(documento, soloLectura);
+          this.initEditor(documento, soloLectura);
         },
         { injector: this.injector },
       );
@@ -102,55 +90,75 @@ export class OnlyofficeEditorComponent implements OnDestroy {
     this.destroyEditor();
   }
 
-  private async initEditor(
-    documento: DocumentoColaborativo,
-    soloLectura: boolean,
-  ): Promise<void> {
-    try {
-      await loadOnlyOfficeApi();
-    } catch {
+  toggleBold(): void {
+    this.editor?.chain().focus().toggleBold().run();
+  }
+
+  toggleItalic(): void {
+    this.editor?.chain().focus().toggleItalic().run();
+  }
+
+  toggleBulletList(): void {
+    this.editor?.chain().focus().toggleBulletList().run();
+  }
+
+  toggleOrderedList(): void {
+    this.editor?.chain().focus().toggleOrderedList().run();
+  }
+
+  private initEditor(documento: DocumentoColaborativo, soloLectura: boolean): void {
+    const host = this.editorHost()?.nativeElement;
+    if (!host) {
       return;
     }
+
     this.destroyEditor();
 
-    const tramiteId = documento.tramiteId;
-    const nodoId = documento.nodoId;
-    const fileType = docColaborativoFileType(documento.plantillaContenido);
-    const contentUrl =
-      `${environment.backendPublicUrl}/api/doc-colaborativo/${tramiteId}/${nodoId}/content`;
-    const callbackUrl =
-      `${environment.backendPublicUrl}/api/doc-colaborativo/${tramiteId}/${nodoId}/callback`;
+    const usuario = this.auth.getUsuario();
+    const userName = usuario.nombre?.trim() || usuario.correo || 'Usuario';
+    const userColor = cursorColorForUser(userName);
+    const roomName = `${documento.tramiteId}-${documento.nodoId}`;
 
-    const config = {
-      document: {
-        fileType,
-        key: documento.documentKey,
-        title: documento.titulo,
-        url: contentUrl,
-      },
-      documentType: 'word',
-      editorConfig: {
-        mode: soloLectura ? 'view' : 'edit',
-        lang: 'es',
-        callbackUrl,
-      },
-      height: '600px',
-      width: '100%',
-    };
+    this.ydoc = new Y.Doc();
+    this.provider = new HocuspocusProvider({
+      url: 'ws://localhost:1234',
+      name: roomName,
+      document: this.ydoc,
+    });
 
-    if (window.DocsAPI) {
-      this.editorInstance = new window.DocsAPI.DocEditor(this.containerId, config);
-    }
+    this.editor = new Editor({
+      element: host,
+      editable: !soloLectura,
+      extensions: [
+        StarterKit.configure({
+          history: false,
+        }),
+        Collaboration.configure({
+          document: this.ydoc,
+        }),
+        CollaborationCursor.configure({
+          provider: this.provider,
+          user: {
+            name: userName,
+            color: userColor,
+          },
+        }),
+      ],
+      onTransaction: () => {
+        this.cdr.markForCheck();
+      },
+    });
+
+    this.cdr.markForCheck();
   }
 
   private destroyEditor(): void {
-    if (this.editorInstance) {
-      try {
-        this.editorInstance.destroyEditor();
-      } catch {
-        /* ignore teardown errors */
-      }
-      this.editorInstance = null;
-    }
+    this.editor?.destroy();
+    this.editor = null;
+    this.provider?.destroy();
+    this.provider = null;
+    this.ydoc?.destroy();
+    this.ydoc = null;
+    this.lastRoomKey = '';
   }
 }

@@ -26,6 +26,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -193,11 +194,9 @@ public class InformeService {
 		return i;
 	}
 
-	public Informe obtenerBorrador(String tramiteId, String nodoId, String funcionarioId) {
-		return informeRepository
-				.findByTramiteIdAndNodoActividadIdAndFuncionarioIdAndEsBorrador(
-						tramiteId, nodoId, funcionarioId, true)
-				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Borrador no encontrado"));
+	public Optional<Informe> obtenerBorrador(String tramiteId, String nodoId, String funcionarioId) {
+		return informeRepository.findByTramiteIdAndNodoActividadIdAndFuncionarioIdAndEsBorrador(
+				tramiteId, nodoId, funcionarioId, true);
 	}
 
 	public Informe actualizarBorrador(String id, InformeCreateDTO dto, String funcionarioId) {

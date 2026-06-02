@@ -911,13 +911,19 @@ export class ReporteActividadComponent implements OnDestroy {
     this.informeService
       .getBorrador(tramiteId, nodoId)
       .pipe(
+        takeUntilDestroyed(this.destroyRef),
         take(1),
         catchError((err: unknown) => {
           if (err instanceof HttpErrorResponse && err.status === 404) {
             this.borradorId.set(null);
             return EMPTY;
           }
-          return throwError(() => err);
+          if (err instanceof HttpErrorResponse && err.status === 500) {
+            console.warn('[BORRADOR] Error al cargar borrador (500)', err);
+            return EMPTY;
+          }
+          console.warn('[BORRADOR] Error al cargar borrador', err);
+          return EMPTY;
         }),
       )
       .subscribe({

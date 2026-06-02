@@ -24,12 +24,11 @@ minio:
   secret-key: minioadmin
   bucket: flowgov-docs
 
-# URL accesible desde el contenedor OnlyOffice (host.docker.internal en Windows/Mac con extra_hosts)
-flowgov:
-  onlyoffice:
-    backend-public-url: ${ONLYOFFICE_BACKEND_PUBLIC_URL:http://host.docker.internal:8080}
-
 logging:
+  file:
+    name: logs/backend.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   level:
-    com.dpn.backend: DEBUG
+    com.dpn.backend.informe: DEBUG
     root: WARN

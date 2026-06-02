@@ -1,0 +1,43 @@
+<div class="tiptap-editor">
+  @if (!readonly()) {
+    <div class="tiptap-toolbar" role="toolbar" aria-label="Formato de texto">
+      <button
+        type="button"
+        class="tiptap-toolbar__btn"
+        [class.tiptap-toolbar__btn--active]="editor?.isActive('bold')"
+        (click)="toggleBold()"
+        title="Negrita"
+      >
+        <strong>B</strong>
+      </button>
+      <button
+        type="button"
+        class="tiptap-toolbar__btn"
+        [class.tiptap-toolbar__btn--active]="editor?.isActive('italic')"
+        (click)="toggleItalic()"
+        title="Cursiva"
+      >
+        <em>I</em>
+      </button>
+      <button
+        type="button"
+        class="tiptap-toolbar__btn"
+        [class.tiptap-toolbar__btn--active]="editor?.isActive('bulletList')"
+        (click)="toggleBulletList()"
+        title="Lista con viñetas"
+      >
+        • Lista
+      </button>
+      <button
+        type="button"
+        class="tiptap-toolbar__btn"
+        [class.tiptap-toolbar__btn--active]="editor?.isActive('orderedList')"
+        (click)="toggleOrderedList()"
+        title="Lista numerada"
+      >
+        1. Lista
+      </button>
+    </div>
+  }
+  <div #editorHost class="tiptap-content"></div>
+</div>
