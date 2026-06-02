@@ -118,7 +118,7 @@ export class OnlyofficeEditorComponent implements OnDestroy {
     const usuario = this.auth.getUsuario();
     const userName = usuario.nombre?.trim() || usuario.correo || 'Usuario';
     const userColor = cursorColorForUser(userName);
-    const roomName = `${documento.tramiteId}-${documento.nodoId}`;
+    const roomName = `${documento.tramiteId}-nodo-${documento.nodoId}`;
 
     this.ydoc = new Y.Doc();
     this.provider = new HocuspocusProvider({

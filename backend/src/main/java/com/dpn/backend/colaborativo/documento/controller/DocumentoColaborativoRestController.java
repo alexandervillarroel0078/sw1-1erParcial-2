@@ -1,5 +1,6 @@
 package com.dpn.backend.colaborativo.documento.controller;
 
+import com.dpn.backend.colaborativo.documento.dto.ActualizarContenidoDocumentoRequest;
 import com.dpn.backend.colaborativo.documento.dto.CrearDocumentoColaborativoRequest;
 import com.dpn.backend.colaborativo.documento.dto.OnlyOfficeCallbackRequest;
 import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +41,17 @@ public class DocumentoColaborativoRestController {
 			@PathVariable String tramiteId,
 			@PathVariable String nodoId) {
 		return documentoColaborativoService.obtener(tramiteId, nodoId);
+	}
+
+	@PutMapping("/{tramiteId}/{nodoId}/contenido")
+	public DocumentoColaborativo actualizarContenido(
+			@PathVariable String tramiteId,
+			@PathVariable String nodoId,
+			@RequestBody ActualizarContenidoDocumentoRequest body) {
+		return documentoColaborativoService.actualizarContenido(
+				tramiteId,
+				nodoId,
+				body.getContenido());
 	}
 
 	@GetMapping("/{tramiteId}/{nodoId}/content")

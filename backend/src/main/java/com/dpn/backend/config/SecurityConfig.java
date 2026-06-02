@@ -45,6 +45,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/documentos/**").authenticated()
 						.requestMatchers(HttpMethod.GET, "/api/doc-colaborativo/*/*/content").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/doc-colaborativo/*/*/callback").permitAll()
+						.requestMatchers(HttpMethod.PUT, "/api/doc-colaborativo/*/*/contenido").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/doc-colaborativo/*/*").permitAll()
 						.requestMatchers("/api/doc-colaborativo/**").authenticated()
 						.requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
