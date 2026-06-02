@@ -1,143 +1,154 @@
 @if (vm$ | async; as vm) {
-  <mat-toolbar class="toolbar" color="primary">
+  <mat-toolbar class="toolbar toolbar--global" color="primary">
     <div class="toolbar__inner">
-      <div class="toolbar__title">Análisis de cuellos de botella</div>
-      <mat-form-field class="toolbar__select" appearance="outline">
-        <mat-label>Política</mat-label>
-        <mat-select [formControl]="politicaCtrl">
-          @for (p of vm.politicasSelect; track p.id) {
-            <mat-option [value]="p.id">{{ p.nombre }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <div class="toolbar__title">Análisis</div>
     </div>
   </mat-toolbar>
 
-  @if (vm.politicasSelect.length === 0) {
-    <p class="empty-msg">No hay políticas activas para analizar.</p>
-  } @else if (vm.insuficiente) {
-    <p class="empty-msg">No hay suficientes trámites completados para analizar.</p>
-  } @else {
-    <div class="metrics">
-      <mat-card class="metric metric--blue" appearance="outlined">
-        <div class="metric__label">Trámites analizados</div>
-        <div class="metric__value">{{ vm.tramitesAnalizados }}</div>
-      </mat-card>
-      <mat-card class="metric metric--yellow" appearance="outlined">
-        <div class="metric__label">Tiempo promedio total</div>
-        <div class="metric__value">
-          {{ formatoMinutos(vm.tiempoPromedioTotal) }}
-          <span class="metric__unit">min</span>
-        </div>
-      </mat-card>
-      <mat-card class="metric metric--delayed" appearance="outlined">
-        <div class="metric__label">Total demorados</div>
-        <div class="metric__value metric__value--delayed">
-          {{ vm.totalDemorados }}
-        </div>
-      </mat-card>
-      <mat-card class="metric metric--critical" appearance="outlined">
-        <div class="metric__label">Nodo crítico</div>
-        <div class="metric__value metric__value--red">{{ vm.nodoCriticoNombre }}</div>
-      </mat-card>
-    </div>
-
-    @if (vm.hayCritico) {
-      <div class="alerta" role="alert">
-        <mat-icon class="alerta__icon">warning</mat-icon>
-        <div class="alerta__text">
-          {{ vm.alertaNodo }} ({{ formatoMinutos(vm.alertaTiempo) }} min) — considere
-          redistribuir responsables
-        </div>
+  <mat-tab-group class="analisis-tabs">
+    <mat-tab label="Análisis de cuellos de botella">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;"
+      >
+        <h2 style="margin:0;">Análisis de cuellos de botella</h2>
+        <mat-form-field appearance="outline" style="min-width:280px;">
+          <mat-label>Política</mat-label>
+          <mat-select [formControl]="politicaCtrl">
+            @for (p of vm.politicasSelect; track p.id) {
+              <mat-option [value]="p.id">{{ p.nombre }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       </div>
-    }
 
-    <mat-card class="panel" appearance="outlined">
-      <div class="panel__title">Tiempo por actividad</div>
-      <div class="barras">
-        @for (b of vm.barras; track b.nodoId) {
-          <div class="bar-row">
-            <div class="bar-label" [title]="b.actividad">{{ b.actividad }}</div>
-            <div class="bar-track">
-              <div
-                class="bar-fill"
-                [ngClass]="b.barClass"
-                [style.width.%]="b.pct"
-              ></div>
+      @if (vm.politicasSelect.length === 0) {
+        <p class="empty-msg">No hay políticas activas para analizar.</p>
+      } @else if (vm.insuficiente) {
+        <p class="empty-msg">No hay suficientes trámites completados para analizar.</p>
+      } @else {
+        <div class="metrics">
+          <mat-card class="metric metric--blue" appearance="outlined">
+            <div class="metric__label">Trámites analizados</div>
+            <div class="metric__value">{{ vm.tramitesAnalizados }}</div>
+          </mat-card>
+          <mat-card class="metric metric--yellow" appearance="outlined">
+            <div class="metric__label">Tiempo promedio total</div>
+            <div class="metric__value">
+              {{ formatoMinutos(vm.tiempoPromedioTotal) }}
+              <span class="metric__unit">min</span>
             </div>
-            <div class="bar-value">{{ formatoMinutos(b.tiempoPromedioDias) }} min</div>
+          </mat-card>
+          <mat-card class="metric metric--delayed" appearance="outlined">
+            <div class="metric__label">Total demorados</div>
+            <div class="metric__value metric__value--delayed">
+              {{ vm.totalDemorados }}
+            </div>
+          </mat-card>
+          <mat-card class="metric metric--critical" appearance="outlined">
+            <div class="metric__label">Nodo crítico</div>
+            <div class="metric__value metric__value--red">{{ vm.nodoCriticoNombre }}</div>
+          </mat-card>
+        </div>
+
+        @if (vm.hayCritico) {
+          <div class="alerta" role="alert">
+            <mat-icon class="alerta__icon">warning</mat-icon>
+            <div class="alerta__text">
+              {{ vm.alertaNodo }} ({{ formatoMinutos(vm.alertaTiempo) }} min) — considere
+              redistribuir responsables
+            </div>
           </div>
         }
+
+        <mat-card class="panel" appearance="outlined">
+          <div class="panel__title">Tiempo por actividad</div>
+          <div class="barras">
+            @for (b of vm.barras; track b.nodoId) {
+              <div class="bar-row">
+                <div class="bar-label" [title]="b.actividad">{{ b.actividad }}</div>
+                <div class="bar-track">
+                  <div
+                    class="bar-fill"
+                    [ngClass]="b.barClass"
+                    [style.width.%]="b.pct"
+                  ></div>
+                </div>
+                <div class="bar-value">{{ formatoMinutos(b.tiempoPromedioDias) }} min</div>
+              </div>
+            }
+          </div>
+        </mat-card>
+
+        <mat-card class="panel panel--table" appearance="outlined">
+          <div class="panel__head">
+            <div class="panel__title">Detalle por nodo</div>
+            <mat-button-toggle-group
+              class="filtro-sev"
+              [formControl]="severidadFiltro"
+              aria-label="Filtrar por severidad"
+            >
+              <mat-button-toggle value="todos">Todos</mat-button-toggle>
+              <mat-button-toggle value="critico">Crítico</mat-button-toggle>
+              <mat-button-toggle value="alto">Alto</mat-button-toggle>
+              <mat-button-toggle value="medio">Medio</mat-button-toggle>
+              <mat-button-toggle value="rapido">Rápido</mat-button-toggle>
+            </mat-button-toggle-group>
+          </div>
+
+          <div class="table-wrap">
+            <table mat-table [dataSource]="vm.filasTabla" class="table">
+              <ng-container matColumnDef="actividad">
+                <th mat-header-cell *matHeaderCellDef>Actividad</th>
+                <td mat-cell *matCellDef="let row">{{ row.actividad }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="responsable">
+                <th mat-header-cell *matHeaderCellDef>Responsable / Departamento</th>
+                <td mat-cell *matCellDef="let row">{{ row.responsable }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="tiempo">
+                <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
+                <td mat-cell *matCellDef="let row">
+                  {{ formatoMinutos(row.tiempoPromedioDias) }} min
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="demorados">
+                <th mat-header-cell *matHeaderCellDef>Demorados</th>
+                <td mat-cell *matCellDef="let row">
+                  @if (row.cantidadDemorados > 0) {
+                    <span class="cell-demorados cell-demorados--alert">
+                      <mat-icon class="cell-demorados__icon">warning</mat-icon>
+                      {{ row.cantidadDemorados }}
+                    </span>
+                  } @else {
+                    <span class="cell-demorados cell-demorados--none">—</span>
+                  }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let row">
+                  <mat-chip class="badge" [ngClass]="row.badgeClass" selected>
+                    {{ row.severidadLabel }}
+                  </mat-chip>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="vm.displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: vm.displayedColumns"></tr>
+            </table>
+          </div>
+        </mat-card>
+      }
+    </mat-tab>
+
+    <mat-tab label="Predicciones IA — TensorFlow">
+      <div class="tab-ia">
+        <app-predicciones-ia />
       </div>
-    </mat-card>
-
-    <mat-card class="panel panel--table" appearance="outlined">
-      <div class="panel__head">
-        <div class="panel__title">Detalle por nodo</div>
-        <mat-button-toggle-group
-          class="filtro-sev"
-          [formControl]="severidadFiltro"
-          aria-label="Filtrar por severidad"
-        >
-          <mat-button-toggle value="todos">Todos</mat-button-toggle>
-          <mat-button-toggle value="critico">Crítico</mat-button-toggle>
-          <mat-button-toggle value="alto">Alto</mat-button-toggle>
-          <mat-button-toggle value="medio">Medio</mat-button-toggle>
-          <mat-button-toggle value="rapido">Rápido</mat-button-toggle>
-        </mat-button-toggle-group>
-      </div>
-
-      <div class="table-wrap">
-        <table mat-table [dataSource]="vm.filasTabla" class="table">
-          <ng-container matColumnDef="actividad">
-            <th mat-header-cell *matHeaderCellDef>Actividad</th>
-            <td mat-cell *matCellDef="let row">{{ row.actividad }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="responsable">
-            <th mat-header-cell *matHeaderCellDef>Responsable / Departamento</th>
-            <td mat-cell *matCellDef="let row">{{ row.responsable }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="tiempo">
-            <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
-            <td mat-cell *matCellDef="let row">
-              {{ formatoMinutos(row.tiempoPromedioDias) }} min
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="demorados">
-            <th mat-header-cell *matHeaderCellDef>Demorados</th>
-            <td mat-cell *matCellDef="let row">
-              @if (row.cantidadDemorados > 0) {
-                <span class="cell-demorados cell-demorados--alert">
-                  <mat-icon class="cell-demorados__icon">warning</mat-icon>
-                  {{ row.cantidadDemorados }}
-                </span>
-              } @else {
-                <span class="cell-demorados cell-demorados--none">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="estado">
-            <th mat-header-cell *matHeaderCellDef>Estado</th>
-            <td mat-cell *matCellDef="let row">
-              <mat-chip class="badge" [ngClass]="row.badgeClass" selected>
-                {{ row.severidadLabel }}
-              </mat-chip>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="vm.displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: vm.displayedColumns"></tr>
-        </table>
-      </div>
-    </mat-card>
-  }
-
-  <div style="padding: 0 16px 24px;">
-    <mat-divider style="margin-bottom:24px;"></mat-divider>
-    <app-predicciones-ia></app-predicciones-ia>
-  </div>
+    </mat-tab>
+  </mat-tab-group>
 }

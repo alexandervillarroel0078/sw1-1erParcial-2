@@ -28,7 +28,7 @@ cd C:\minio
 
 
 git add .
-git commit -m "feat: colaborativo OnlyOffice funcionando con edición en tiempo real"
+git commit -m "feat: analisis con ia en tiempo real"
 git push origin main2
 
 cd onlyoffice
