@@ -116,39 +116,46 @@ interface RiesgoConTarea {
         </section>
 
         <section class="metricas-seccion">
-          <div class="metricas-seccion__header">
-            <h3 class="seccion-titulo">Métricas del modelo</h3>
-            @if (trainingHistory()) {
-              <span class="accuracy-badge">
-                Accuracy validación: {{ accuracyFinalPct() }}
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h3 style="margin:0; cursor:pointer;" (click)="toggleMetricas()">
+              Métricas del modelo
+              <mat-icon style="vertical-align:middle; font-size:18px;">
+                {{ mostrarMetricas ? 'expand_less' : 'expand_more' }}
+              </mat-icon>
+            </h3>
+            @if (accuracyFinal) {
+              <span style="background:#e8f5e9; color:#2e7d32; padding:4px 12px; border-radius:12px; font-size:13px;">
+                Accuracy: {{ accuracyFinal }}%
               </span>
             }
           </div>
-          @if (trainingHistory()) {
-            <div class="metricas-grid">
-              <mat-card appearance="outlined" class="metrica-card">
-                <div class="metrica-card__titulo">Accuracy por época</div>
-                <div class="metrica-chart-wrap">
-                  <canvas #canvasAccuracy aria-label="Accuracy por época"></canvas>
-                </div>
-              </mat-card>
-              <mat-card appearance="outlined" class="metrica-card">
-                <div class="metrica-card__titulo">Loss por época</div>
-                <div class="metrica-chart-wrap">
-                  <canvas #canvasLoss aria-label="Loss por época"></canvas>
-                </div>
-              </mat-card>
-            </div>
-          } @else {
-            <p class="metricas-aviso">
-              @if (metricasSinDatos()) {
-                Ejecuta el entrenamiento del modelo para generar
-                <code>training/history.json</code>
-                y ver las curvas de accuracy y loss.
-              } @else {
-                Cargando métricas del entrenamiento...
-              }
-            </p>
+          @if (mostrarMetricas) {
+            @if (trainingHistory()) {
+              <div class="metricas-grid">
+                <mat-card appearance="outlined" class="metrica-card">
+                  <div class="metrica-card__titulo">Accuracy por época</div>
+                  <div class="metrica-chart-wrap">
+                    <canvas #canvasAccuracy aria-label="Accuracy por época"></canvas>
+                  </div>
+                </mat-card>
+                <mat-card appearance="outlined" class="metrica-card">
+                  <div class="metrica-card__titulo">Loss por época</div>
+                  <div class="metrica-chart-wrap">
+                    <canvas #canvasLoss aria-label="Loss por época"></canvas>
+                  </div>
+                </mat-card>
+              </div>
+            } @else {
+              <p class="metricas-aviso">
+                @if (metricasSinDatos()) {
+                  Ejecuta el entrenamiento del modelo para generar
+                  <code>training/history.json</code>
+                  y ver las curvas de accuracy y loss.
+                } @else {
+                  Cargando métricas del entrenamiento...
+                }
+              </p>
+            }
           }
         </section>
 
@@ -597,22 +604,6 @@ interface RiesgoConTarea {
       .metricas-seccion {
         margin-bottom: 28px;
       }
-      .metricas-seccion__header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-bottom: 14px;
-      }
-      .accuracy-badge {
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 700;
-        background: #e8eaf6;
-        color: #3949ab;
-      }
       .metricas-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -660,6 +651,8 @@ export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy
   readonly anomalias = signal<Anomalia[]>([]);
   readonly trainingHistory = signal<TrainingHistory | null>(null);
   readonly metricasSinDatos = signal(false);
+  mostrarMetricas = false;
+  accuracyFinal: number | null = null;
   private readonly actividadPorTramite = signal<Map<string, string>>(new Map());
   private chartAccuracy: Chart | null = null;
   private chartLoss: Chart | null = null;
@@ -679,7 +672,7 @@ export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngAfterViewInit(): void {
-    if (this.trainingHistory()) {
+    if (this.mostrarMetricas && this.trainingHistory()) {
       this.scheduleRenderMetricasCharts();
     }
   }
@@ -689,13 +682,21 @@ export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy
     this.chartLoss?.destroy();
   }
 
-  accuracyFinalPct(): string {
-    const vals = this.trainingHistory()?.val_accuracy;
+  toggleMetricas(): void {
+    this.mostrarMetricas = !this.mostrarMetricas;
+    if (this.mostrarMetricas) {
+      this.scheduleRenderMetricasCharts();
+    }
+  }
+
+  private actualizarAccuracyFinal(history: TrainingHistory): void {
+    const vals = history.val_accuracy;
     if (!vals?.length) {
-      return '—';
+      this.accuracyFinal = null;
+      return;
     }
     const last = vals[vals.length - 1]!;
-    return `${(last * 100).toFixed(1)}%`;
+    this.accuracyFinal = +(last * 100).toFixed(1);
   }
 
   private scheduleRenderMetricasCharts(): void {
@@ -704,7 +705,7 @@ export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy
 
   private finalizarCargaPrincipal(): void {
     this.cargando.set(false);
-    if (this.trainingHistory()) {
+    if (this.mostrarMetricas && this.trainingHistory()) {
       this.scheduleRenderMetricasCharts();
     }
   }
@@ -715,10 +716,14 @@ export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy
       next: (history) => {
         this.trainingHistory.set(history);
         this.metricasSinDatos.set(false);
-        this.scheduleRenderMetricasCharts();
+        this.actualizarAccuracyFinal(history);
+        if (this.mostrarMetricas) {
+          this.scheduleRenderMetricasCharts();
+        }
       },
       error: () => {
         this.trainingHistory.set(null);
+        this.accuracyFinal = null;
         this.metricasSinDatos.set(true);
       },
     });
