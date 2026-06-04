@@ -10,6 +10,8 @@ export interface RiesgoTarea {
   recomendacion: string;
 }
 
+export type EstadoAnomalia = 'ANOMALIA' | 'ADVERTENCIA' | 'NORMAL';
+
 export interface Anomalia {
   tramite_id: string;
   cliente_nombre: string;
@@ -17,6 +19,7 @@ export interface Anomalia {
   dias_abierto: number;
   promedio_historico: number;
   desviacion: number;
+  estado?: EstadoAnomalia;
   es_anomalia: boolean;
 }
 

@@ -57,6 +57,7 @@ class AnomaliaResponse(BaseModel):
     dias_abierto: int
     promedio_historico: float
     desviacion: float
+    estado: str  # ANOMALIA | ADVERTENCIA | NORMAL
     es_anomalia: bool
 
 def predecir_riesgo(dias_abierto: float, sla_minutos: float, paso_actual: int, total_pasos: int) -> tuple[str, float]:
@@ -73,6 +74,14 @@ def predecir_riesgo(dias_abierto: float, sla_minutos: float, paso_actual: int, t
     else:
         riesgo = "BAJO"
     return riesgo, round(prob, 3)
+
+def clasificar_estado_anomalia(dias_abierto: int, promedio_historico: float) -> str:
+    """Reglas: >2x promedio = ANOMALIA; >1.5x = ADVERTENCIA; si no = NORMAL."""
+    if dias_abierto > promedio_historico * 2.0:
+        return "ANOMALIA"
+    if dias_abierto > promedio_historico * 1.5:
+        return "ADVERTENCIA"
+    return "NORMAL"
 
 @app.get("/health")
 def health():
@@ -142,10 +151,10 @@ def detectar_anomalias():
     
     promedio = float(np.mean(dias_lista)) if dias_lista else 0
     std = float(np.std(dias_lista)) if dias_lista else 0
-    umbral = promedio + 2 * std
-    
+
     resultado = []
     for t, dias in zip(tramites, dias_lista):
+        estado = clasificar_estado_anomalia(dias, promedio)
         resultado.append(AnomaliaResponse(
             tramite_id=str(t.get("_id", "")),
             cliente_nombre=t.get("cliente_nombre", ""),
@@ -153,7 +162,8 @@ def detectar_anomalias():
             dias_abierto=dias,
             promedio_historico=round(promedio, 1),
             desviacion=round(std, 1),
-            es_anomalia=dias > umbral
+            estado=estado,
+            es_anomalia=estado == "ANOMALIA",
         ))
     
     resultado.sort(key=lambda x: x.dias_abierto, reverse=True)

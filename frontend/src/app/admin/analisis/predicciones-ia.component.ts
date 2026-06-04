@@ -11,7 +11,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { Tarea, etiquetaClienteReferencia } from '../../core/models/tarea.model';
-import { Anomalia, MlService, RiesgoTarea } from '../../core/services/ml.service';
+import {
+  Anomalia,
+  EstadoAnomalia,
+  MlService,
+  RiesgoTarea,
+} from '../../core/services/ml.service';
 import { TareaService } from '../../core/services/tarea.service';
 import type { Observable } from 'rxjs';
 
@@ -34,298 +39,498 @@ interface RiesgoConTarea {
     MatTableModule,
   ],
   template: `
-    <div style="padding: 16px 0;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <h2 style="margin:0; font-size:18px; font-weight:600;">
-          <mat-icon style="vertical-align:middle; margin-right:8px; color:#7c3aed;">psychology</mat-icon>
+    <div class="predicciones">
+      <header class="predicciones__header">
+        <h2 class="predicciones__titulo">
+          <mat-icon class="predicciones__titulo-icon">psychology</mat-icon>
           Predicciones IA — TensorFlow
         </h2>
         <button mat-stroked-button color="primary" (click)="cargar()" [disabled]="cargando()">
           <mat-icon>refresh</mat-icon>
           Actualizar
         </button>
-      </div>
+      </header>
 
       @if (cargando()) {
-        <div style="text-align:center; padding:32px;">
+        <div class="predicciones__loading">
           <mat-spinner diameter="40"></mat-spinner>
-          <p style="color:#666; margin-top:12px;">Analizando con modelo TensorFlow...</p>
+          <p>Analizando con modelo TensorFlow...</p>
         </div>
       } @else {
-        @if (riesgos().length > 0) {
-          <mat-card appearance="outlined" class="resumen-ejecutivo">
-            <div class="resumen-ejecutivo__titulo">Resumen ejecutivo</div>
-            <p class="resumen-ejecutivo__texto">{{ textoResumenEjecutivo() }}</p>
-          </mat-card>
-        }
-
-        <div class="riesgo-cards">
-          <mat-card appearance="outlined" class="riesgo-card riesgo-card--alto">
-            <div class="riesgo-card__label">Riesgo ALTO</div>
-            <div class="riesgo-card__value">{{ contarRiesgo('ALTO') }}</div>
-            <div class="riesgo-card__hint">tareas críticas</div>
-          </mat-card>
-          <mat-card appearance="outlined" class="riesgo-card riesgo-card--medio">
-            <div class="riesgo-card__label">Riesgo MEDIO</div>
-            <div class="riesgo-card__value">{{ contarRiesgo('MEDIO') }}</div>
-            <div class="riesgo-card__hint">tareas a revisar</div>
-          </mat-card>
-          <mat-card appearance="outlined" class="riesgo-card riesgo-card--bajo">
-            <div class="riesgo-card__label">Riesgo BAJO</div>
-            <div class="riesgo-card__value">{{ contarRiesgo('BAJO') }}</div>
-            <div class="riesgo-card__hint">tareas en tiempo</div>
-          </mat-card>
-        </div>
-
-        @if (riesgos().length > 0) {
-          <h3 class="seccion-titulo">Recomendaciones de prioridad</h3>
-          <ol class="prioridad-lista">
-            @for (r of riesgos(); track r.tarea.id) {
-              <li class="prioridad-item">
-                <span class="prioridad-cliente">{{ nombreCliente(r.tarea) }}</span>
-                <span class="prioridad-sep">→</span>
-                <span>{{ r.tarea.actividadEtiqueta || '—' }}</span>
-                <span class="prioridad-sep">→</span>
-                <span>{{ r.tarea.diasAbierto ?? 0 }} días</span>
-                <span class="prioridad-sep">→</span>
-                <span>{{ r.tarea.departamentoTexto || '—' }}</span>
-              </li>
-            }
-          </ol>
-
-          <h3 class="seccion-titulo">Análisis de riesgo por tarea</h3>
-          <div class="riesgo-lista">
-            @for (r of riesgos(); track r.tarea.id) {
-              <div class="riesgo-fila">
-                <span
-                  class="riesgo-badge"
-                  [ngClass]="{
-                    'riesgo-badge--alto': r.riesgo === 'ALTO',
-                    'riesgo-badge--medio': r.riesgo === 'MEDIO',
-                    'riesgo-badge--bajo': r.riesgo === 'BAJO'
-                  }"
-                >
-                  {{ r.riesgo }}
-                </span>
-                <div class="riesgo-fila__body">
-                  <div class="riesgo-fila__meta">
-                    <strong>{{ nombreCliente(r.tarea) }}</strong>
-                    <span class="riesgo-fila__sep">·</span>
-                    <span>{{ r.tarea.actividadEtiqueta || '—' }}</span>
-                    <span class="riesgo-fila__sep">·</span>
-                    <span>{{ r.tarea.departamentoTexto || '—' }}</span>
-                    <span class="riesgo-fila__sep">·</span>
-                    <span>{{ r.tarea.diasAbierto ?? 0 }} días abierto</span>
-                  </div>
-                  <div class="riesgo-fila__recom">{{ r.recomendacion }}</div>
-                </div>
-                <div class="riesgo-fila__prob">{{ (r.probabilidad * 100).toFixed(0) }}%</div>
+        <section class="resumen-seccion">
+          <h3 class="seccion-titulo">Resumen ejecutivo</h3>
+          <div class="riesgo-cards">
+            <mat-card appearance="outlined" class="riesgo-card riesgo-card--alto">
+              <mat-icon class="riesgo-card__icon">error</mat-icon>
+              <div class="riesgo-card__body">
+                <div class="riesgo-card__label">Riesgo ALTO</div>
+                <div class="riesgo-card__value">{{ contarRiesgo('ALTO') }}</div>
+                <div class="riesgo-card__hint">tareas críticas</div>
               </div>
-            }
+            </mat-card>
+            <mat-card appearance="outlined" class="riesgo-card riesgo-card--medio">
+              <mat-icon class="riesgo-card__icon">warning_amber</mat-icon>
+              <div class="riesgo-card__body">
+                <div class="riesgo-card__label">Riesgo MEDIO</div>
+                <div class="riesgo-card__value">{{ contarRiesgo('MEDIO') }}</div>
+                <div class="riesgo-card__hint">tareas a revisar</div>
+              </div>
+            </mat-card>
+            <mat-card appearance="outlined" class="riesgo-card riesgo-card--bajo">
+              <mat-icon class="riesgo-card__icon">check_circle</mat-icon>
+              <div class="riesgo-card__body">
+                <div class="riesgo-card__label">Riesgo BAJO</div>
+                <div class="riesgo-card__value">{{ contarRiesgo('BAJO') }}</div>
+                <div class="riesgo-card__hint">tareas en tiempo</div>
+              </div>
+            </mat-card>
           </div>
+          @if (riesgos().length > 0) {
+            <p class="resumen-ejecutivo__texto">{{ textoResumenEjecutivo() }}</p>
+          }
+        </section>
+
+        @if (riesgos().length > 0) {
+          <section class="bloque-seccion">
+            <h3 class="seccion-titulo">Recomendaciones de prioridad</h3>
+            <ul class="prioridad-lista">
+              @for (r of riesgos().slice(0, 5); track r.tarea.id; let i = $index) {
+                <li class="prioridad-item">
+                  <span class="prioridad-orden" [ngClass]="claseOrdenPrioridad(i)">{{ i + 1 }}</span>
+                  <div class="prioridad-item__content">
+                    <div class="prioridad-item__fila">
+                      <span class="prioridad-cliente">{{ nombreCliente(r.tarea) }}</span>
+                      <span class="badge-dias" [ngClass]="claseBadgeDias(r.tarea.diasAbierto ?? 0)">
+                        {{ r.tarea.diasAbierto ?? 0 }} días
+                      </span>
+                    </div>
+                    <div class="prioridad-item__detalle">
+                      {{ r.tarea.actividadEtiqueta || '—' }}
+                      ·
+                      {{ r.tarea.departamentoTexto || '—' }}
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          </section>
+
+          <section class="bloque-seccion">
+            <h3 class="seccion-titulo">Análisis de riesgo por tarea</h3>
+            <div class="riesgo-tarea-grid">
+              @for (r of riesgos(); track r.tarea.id) {
+                <mat-card appearance="outlined" class="riesgo-tarea-card">
+                  <div class="riesgo-tarea-card__top">
+                    <span
+                      class="riesgo-badge"
+                      [ngClass]="{
+                        'riesgo-badge--alto': r.riesgo === 'ALTO',
+                        'riesgo-badge--medio': r.riesgo === 'MEDIO',
+                        'riesgo-badge--bajo': r.riesgo === 'BAJO'
+                      }"
+                    >
+                      {{ r.riesgo }}
+                    </span>
+                    <span class="riesgo-tarea-card__pct">{{ (r.probabilidad * 100).toFixed(0) }}%</span>
+                  </div>
+                  <div class="riesgo-bar" role="presentation">
+                    <div
+                      class="riesgo-bar__fill"
+                      [ngClass]="claseBarraRiesgo(r.riesgo)"
+                      [style.width.%]="r.probabilidad * 100"
+                    ></div>
+                  </div>
+                  <p class="riesgo-tarea-card__meta">
+                    {{ nombreCliente(r.tarea) }}
+                    ·
+                    {{ r.tarea.actividadEtiqueta || '—' }}
+                    ·
+                    {{ r.tarea.departamentoTexto || '—' }}
+                    ·
+                    {{ r.tarea.diasAbierto ?? 0 }} días
+                  </p>
+                  <p class="riesgo-tarea-card__recom">{{ r.recomendacion }}</p>
+                </mat-card>
+              }
+            </div>
+          </section>
         }
 
-        <h3 class="seccion-titulo">
-          <mat-icon class="seccion-titulo__icon">warning</mat-icon>
-          Detección de anomalías
-        </h3>
-        <div class="tabla-wrap">
-          <table mat-table [dataSource]="anomalias()" class="tabla-anomalias">
-            <ng-container matColumnDef="cliente">
-              <th mat-header-cell *matHeaderCellDef>Cliente</th>
-              <td mat-cell *matCellDef="let a">{{ a.cliente_nombre }}</td>
-            </ng-container>
-            <ng-container matColumnDef="politica">
-              <th mat-header-cell *matHeaderCellDef>Política</th>
-              <td mat-cell *matCellDef="let a">{{ a.politica_nombre }}</td>
-            </ng-container>
-            <ng-container matColumnDef="actividad">
-              <th mat-header-cell *matHeaderCellDef>Actividad actual</th>
-              <td mat-cell *matCellDef="let a">{{ actividadAnomalia(a) }}</td>
-            </ng-container>
-            <ng-container matColumnDef="dias">
-              <th mat-header-cell *matHeaderCellDef>Días abierto</th>
-              <td mat-cell *matCellDef="let a">{{ a.dias_abierto }}</td>
-            </ng-container>
-            <ng-container matColumnDef="promedio">
-              <th mat-header-cell *matHeaderCellDef>Promedio histórico</th>
-              <td mat-cell *matCellDef="let a">{{ a.promedio_historico }}</td>
-            </ng-container>
-            <ng-container matColumnDef="anomalia">
-              <th mat-header-cell *matHeaderCellDef>Anomalía</th>
-              <td mat-cell *matCellDef="let a">
-                @if (a.es_anomalia) {
-                  <span class="anomalia-si">⚠️ SÍ</span>
-                } @else {
-                  <span class="anomalia-no">✓ Normal</span>
-                }
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="columnasAnomalias"></tr>
-            <tr mat-row *matRowDef="let row; columns: columnasAnomalias"></tr>
-          </table>
-        </div>
+        <section class="bloque-seccion">
+          <h3 class="seccion-titulo">
+            <mat-icon class="seccion-titulo__icon">insights</mat-icon>
+            Detección de anomalías
+          </h3>
+          <div class="tabla-wrap">
+            <table mat-table [dataSource]="anomalias()" class="tabla-anomalias">
+              <ng-container matColumnDef="cliente">
+                <th mat-header-cell *matHeaderCellDef>Cliente</th>
+                <td mat-cell *matCellDef="let a">{{ a.cliente_nombre }}</td>
+              </ng-container>
+              <ng-container matColumnDef="politica">
+                <th mat-header-cell *matHeaderCellDef>Política</th>
+                <td mat-cell *matCellDef="let a">{{ a.politica_nombre }}</td>
+              </ng-container>
+              <ng-container matColumnDef="actividad">
+                <th mat-header-cell *matHeaderCellDef>Actividad</th>
+                <td mat-cell *matCellDef="let a">{{ actividadAnomalia(a) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="dias">
+                <th mat-header-cell *matHeaderCellDef>Días abierto</th>
+                <td mat-cell *matCellDef="let a">{{ a.dias_abierto }}</td>
+              </ng-container>
+              <ng-container matColumnDef="promedio">
+                <th mat-header-cell *matHeaderCellDef>Promedio</th>
+                <td mat-cell *matCellDef="let a">{{ a.promedio_historico }}</td>
+              </ng-container>
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let a">
+                  @switch (estadoAnomalia(a)) {
+                    @case ('ANOMALIA') {
+                      <span class="estado-badge estado-badge--anomalia">Anomalía</span>
+                    }
+                    @case ('ADVERTENCIA') {
+                      <span class="estado-badge estado-badge--advertencia">Advertencia</span>
+                    }
+                    @default {
+                      <span class="estado-badge estado-badge--normal">Normal</span>
+                    }
+                  }
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="columnasAnomalias"></tr>
+              <tr
+                mat-row
+                *matRowDef="let row; columns: columnasAnomalias; let i = index"
+                [class.tabla-anomalias__fila--par]="i % 2 === 1"
+              ></tr>
+            </table>
+          </div>
+        </section>
       }
     </div>
   `,
   styles: [
     `
-      .resumen-ejecutivo {
-        padding: 16px 20px;
-        margin-bottom: 20px;
-        border-left: 4px solid #7c3aed;
-        background: #faf5ff;
+      .predicciones {
+        padding: 16px 0;
+        max-width: 100%;
+        overflow-x: hidden;
       }
-      .resumen-ejecutivo__titulo {
-        font-size: 13px;
-        font-weight: 700;
-        color: #6d28d9;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+      .predicciones__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .predicciones__titulo {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .predicciones__titulo-icon {
+        color: #7c3aed;
+      }
+      .predicciones__loading {
+        text-align: center;
+        padding: 32px;
+      }
+      .predicciones__loading p {
+        color: rgba(0, 0, 0, 0.6);
+        margin-top: 12px;
+      }
+      .resumen-seccion {
+        margin-bottom: 28px;
       }
       .resumen-ejecutivo__texto {
-        margin: 0;
-        font-size: 15px;
-        color: #374151;
+        margin: 14px 0 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: rgba(0, 0, 0, 0.55);
       }
       .riesgo-cards {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      @media (max-width: 720px) {
+        .riesgo-cards {
+          grid-template-columns: 1fr;
+        }
       }
       .riesgo-card {
-        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 16px;
+      }
+      .riesgo-card__icon {
+        width: 44px;
+        height: 44px;
+        font-size: 44px;
+        flex-shrink: 0;
       }
       .riesgo-card--alto {
-        border-left: 4px solid #dc2626;
+        border-left: 4px solid #f44336;
+        background: #ffebee;
+      }
+      .riesgo-card--alto .riesgo-card__icon {
+        color: #d32f2f;
       }
       .riesgo-card--medio {
-        border-left: 4px solid #d97706;
+        border-left: 4px solid #ff9800;
+        background: #fff8e1;
+      }
+      .riesgo-card--medio .riesgo-card__icon {
+        color: #f57c00;
       }
       .riesgo-card--bajo {
-        border-left: 4px solid #16a34a;
+        border-left: 4px solid #4caf50;
+        background: #e8f5e9;
+      }
+      .riesgo-card--bajo .riesgo-card__icon {
+        color: #388e3c;
       }
       .riesgo-card__label {
-        font-size: 13px;
-        color: #666;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: rgba(0, 0, 0, 0.55);
       }
       .riesgo-card__value {
-        font-size: 28px;
-        font-weight: 700;
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1.1;
       }
       .riesgo-card--alto .riesgo-card__value {
-        color: #dc2626;
+        color: #c62828;
       }
       .riesgo-card--medio .riesgo-card__value {
-        color: #d97706;
+        color: #e65100;
       }
       .riesgo-card--bajo .riesgo-card__value {
-        color: #16a34a;
+        color: #2e7d32;
       }
       .riesgo-card__hint {
         font-size: 11px;
-        color: #999;
+        color: rgba(0, 0, 0, 0.45);
+      }
+      .bloque-seccion {
+        margin-bottom: 28px;
       }
       .seccion-titulo {
         font-size: 15px;
         font-weight: 600;
-        margin: 0 0 12px;
+        margin: 0 0 14px;
         display: flex;
         align-items: center;
         gap: 6px;
       }
       .seccion-titulo__icon {
-        font-size: 18px;
-        color: #f59e0b;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        color: #ff9800;
       }
       .prioridad-lista {
-        margin: 0 0 24px;
-        padding-left: 20px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
       }
       .prioridad-item {
-        font-size: 13px;
-        color: #374151;
-      }
-      .prioridad-cliente {
-        font-weight: 600;
-      }
-      .prioridad-sep {
-        margin: 0 6px;
-        color: #9ca3af;
-      }
-      .riesgo-lista {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 24px;
-      }
-      .riesgo-fila {
         display: flex;
         align-items: flex-start;
         gap: 12px;
         padding: 12px 14px;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        background: #fff;
       }
-      .riesgo-badge {
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-size: 11px;
+      .prioridad-orden {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
         font-weight: 700;
+        color: #fff;
         flex-shrink: 0;
       }
-      .riesgo-badge--alto {
-        background: #fee2e2;
-        color: #dc2626;
+      .prioridad-orden--rojo {
+        background: #d32f2f;
       }
-      .riesgo-badge--medio {
-        background: #fef3c7;
-        color: #d97706;
+      .prioridad-orden--naranja {
+        background: #f57c00;
       }
-      .riesgo-badge--bajo {
-        background: #dcfce7;
-        color: #16a34a;
-      }
-      .riesgo-fila__body {
+      .prioridad-item__content {
         flex: 1;
         min-width: 0;
       }
-      .riesgo-fila__meta {
+      .prioridad-item__fila {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .prioridad-cliente {
+        font-weight: 700;
+        font-size: 14px;
+        color: rgba(0, 0, 0, 0.87);
+      }
+      .prioridad-item__detalle {
+        margin-top: 4px;
         font-size: 13px;
-        color: #374151;
-        margin-bottom: 4px;
+        color: rgba(0, 0, 0, 0.55);
       }
-      .riesgo-fila__sep {
-        margin: 0 4px;
-        color: #9ca3af;
+      .badge-dias {
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
       }
-      .riesgo-fila__recom {
+      .badge-dias--rojo {
+        background: #ffebee;
+        color: #c62828;
+      }
+      .badge-dias--naranja {
+        background: #fff3e0;
+        color: #e65100;
+      }
+      .badge-dias--verde {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+      .riesgo-tarea-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+      }
+      .riesgo-tarea-card {
+        padding: 12px 14px !important;
+      }
+      .riesgo-tarea-card__top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .riesgo-badge {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .riesgo-badge--alto {
+        background: #ffcdd2;
+        color: #b71c1c;
+      }
+      .riesgo-badge--medio {
+        background: #ffe0b2;
+        color: #e65100;
+      }
+      .riesgo-badge--bajo {
+        background: #c8e6c9;
+        color: #1b5e20;
+      }
+      .riesgo-tarea-card__pct {
         font-size: 12px;
-        color: #6b7280;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.45);
       }
-      .riesgo-fila__prob {
+      .riesgo-bar {
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+      .riesgo-bar__fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .riesgo-bar__fill--alto {
+        background: #f44336;
+      }
+      .riesgo-bar__fill--medio {
+        background: #ff9800;
+      }
+      .riesgo-bar__fill--bajo {
+        background: #4caf50;
+      }
+      .riesgo-tarea-card__meta {
+        margin: 0 0 6px;
         font-size: 12px;
-        color: #9ca3af;
-        flex-shrink: 0;
+        line-height: 1.45;
+        color: rgba(0, 0, 0, 0.7);
+        word-break: break-word;
+      }
+      .riesgo-tarea-card__recom {
+        margin: 0;
+        font-size: 12px;
+        font-style: italic;
+        color: rgba(0, 0, 0, 0.55);
+        line-height: 1.4;
       }
       .tabla-wrap {
-        overflow-x: auto;
+        width: 100%;
+        overflow-x: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
       }
       .tabla-anomalias {
         width: 100%;
+        table-layout: fixed;
       }
-      .anomalia-si {
-        color: #dc2626;
+      .tabla-anomalias th {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.7);
+        background: #f5f5f5;
+      }
+      .tabla-anomalias td,
+      .tabla-anomalias th {
+        padding: 10px 8px;
+        word-break: break-word;
+        font-size: 12px;
+      }
+      .tabla-anomalias__fila--par {
+        background: #fafafa;
+      }
+      .estado-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
         font-weight: 700;
+        white-space: nowrap;
       }
-      .anomalia-no {
-        color: #16a34a;
+      .estado-badge--anomalia {
+        background: #ffebee;
+        color: #c62828;
+      }
+      .estado-badge--advertencia {
+        background: #fff3e0;
+        color: #e65100;
+      }
+      .estado-badge--normal {
+        background: #e8f5e9;
+        color: #2e7d32;
       }
     `,
   ],
@@ -345,7 +550,7 @@ export class PrediccionesIaComponent implements OnInit {
     'actividad',
     'dias',
     'promedio',
-    'anomalia',
+    'estado',
   ];
 
   ngOnInit(): void {
@@ -368,6 +573,28 @@ export class PrediccionesIaComponent implements OnInit {
     return this.riesgos().filter((r) => r.riesgo === nivel).length;
   }
 
+  claseOrdenPrioridad(index: number): string {
+    return index < 3 ? 'prioridad-orden--rojo' : 'prioridad-orden--naranja';
+  }
+
+  claseBadgeDias(dias: number): string {
+    if (dias > 20) {
+      return 'badge-dias--rojo';
+    }
+    if (dias > 7) {
+      return 'badge-dias--naranja';
+    }
+    return 'badge-dias--verde';
+  }
+
+  claseBarraRiesgo(riesgo: string): string {
+    const nivel = riesgo.toLowerCase();
+    if (nivel === 'alto' || nivel === 'medio' || nivel === 'bajo') {
+      return `riesgo-bar__fill--${nivel}`;
+    }
+    return 'riesgo-bar__fill--medio';
+  }
+
   nombreCliente(tarea: Tarea): string {
     return etiquetaClienteReferencia(tarea);
   }
@@ -375,6 +602,22 @@ export class PrediccionesIaComponent implements OnInit {
   actividadAnomalia(anomalia: Anomalia): string {
     const actividad = this.actividadPorTramite().get(anomalia.tramite_id);
     return actividad?.trim() || '—';
+  }
+
+  /** Usa `estado` del API o recalcula con la misma regla del ml-service. */
+  estadoAnomalia(a: Anomalia): EstadoAnomalia {
+    if (a.estado === 'ANOMALIA' || a.estado === 'ADVERTENCIA' || a.estado === 'NORMAL') {
+      return a.estado;
+    }
+    const dias = a.dias_abierto ?? 0;
+    const promedio = a.promedio_historico ?? 0;
+    if (dias > promedio * 2.0) {
+      return 'ANOMALIA';
+    }
+    if (dias > promedio * 1.5) {
+      return 'ADVERTENCIA';
+    }
+    return 'NORMAL';
   }
 
   textoResumenEjecutivo(): string {
