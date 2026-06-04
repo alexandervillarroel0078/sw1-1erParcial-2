@@ -52,6 +52,8 @@ public class InformeService {
 	private static final float LINE_HEIGHT = 16f;
 	private static final String DOCX_PREFIX = "DOCX_B64:";
 	private static final String YJS_PREFIX = "YJS:";
+	private static final String PREFIJO_TITULO_DOC_COLAB = "Título: ";
+	private static final String MSG_VER_DOC_COLAB_SISTEMA = "Ver documento colaborativo en el sistema";
 	private static final DateTimeFormatter FECHA_FORMAT =
 			DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.systemDefault());
 
@@ -150,12 +152,15 @@ public class InformeService {
 			}
 
 			DocumentoColaborativo docColab = docColabOpt.get();
-			String texto = extraerTextoDocumentoColaborativo(docColab.getPlantillaContenido());
+			String texto = extraerTextoDocumentoColaborativo(docColab);
 			if (texto.isBlank()) {
 				return;
 			}
 
-			byte[] pdf = generarPdfDocumentoColaborativo(docColab.getTitulo(), nodoDocClave, texto);
+			byte[] pdf = generarPdfDocumentoColaborativo(
+					normalizarTituloDocumentoColaborativo(docColab.getTitulo()),
+					nodoDocClave,
+					texto);
 			String nombreArchivo = "doc-colaborativo-" + nodoDocClave + "-" + timestamp + ".pdf";
 			MultipartFile file = new ByteArrayMultipartFile(pdf, nombreArchivo, "application/pdf");
 			documentoService.subir(
@@ -245,17 +250,29 @@ public class InformeService {
 				.orElse(funcionarioId);
 	}
 
-	private String extraerTextoDocumentoColaborativo(String contenido) {
+	private String extraerTextoDocumentoColaborativo(DocumentoColaborativo doc) {
+		String contenido = doc.getPlantillaContenido();
 		if (contenido == null || contenido.isBlank()) {
 			return "";
+		}
+		if (contenido.startsWith(YJS_PREFIX)) {
+			return MSG_VER_DOC_COLAB_SISTEMA;
 		}
 		if (contenido.startsWith(DOCX_PREFIX)) {
 			return extraerTextoDesdeDocxBase64(contenido.substring(DOCX_PREFIX.length()));
 		}
-		if (contenido.startsWith(YJS_PREFIX)) {
-			return extraerTextoDesdeYjs(contenido.substring(YJS_PREFIX.length()));
-		}
 		return contenido;
+	}
+
+	private static String normalizarTituloDocumentoColaborativo(String titulo) {
+		if (titulo == null || titulo.isBlank()) {
+			return "";
+		}
+		String t = titulo.trim();
+		if (t.startsWith(PREFIJO_TITULO_DOC_COLAB)) {
+			return t.substring(PREFIJO_TITULO_DOC_COLAB.length()).trim();
+		}
+		return t;
 	}
 
 	private String extraerTextoDesdeDocxBase64(String base64) {
@@ -278,49 +295,6 @@ public class InformeService {
 			log.warn("No se pudo extraer texto DOCX del documento colaborativo: {}", e.getMessage());
 			return "";
 		}
-	}
-
-	private String extraerTextoDesdeYjs(String base64) {
-		try {
-			byte[] bytes = Base64.getDecoder().decode(base64);
-			StringBuilder fragmento = new StringBuilder();
-			StringBuilder salida = new StringBuilder();
-			for (byte b : bytes) {
-				if (b >= 32 && b < 127) {
-					fragmento.append((char) b);
-				} else {
-					agregarFragmentoYjsSiLegible(fragmento, salida);
-					fragmento.setLength(0);
-				}
-			}
-			agregarFragmentoYjsSiLegible(fragmento, salida);
-			return salida.toString().trim();
-		} catch (Exception e) {
-			log.warn("No se pudo extraer texto YJS del documento colaborativo: {}", e.getMessage());
-			return "";
-		}
-	}
-
-	private static void agregarFragmentoYjsSiLegible(StringBuilder fragmento, StringBuilder salida) {
-		if (fragmento.length() < 3) {
-			return;
-		}
-		String s = fragmento.toString().trim();
-		if (s.isEmpty() || esTokenYjsInterno(s)) {
-			return;
-		}
-		if (!salida.isEmpty()) {
-			salida.append('\n');
-		}
-		salida.append(s);
-	}
-
-	private static boolean esTokenYjsInterno(String s) {
-		return "paragraph".equals(s)
-				|| "default".equals(s)
-				|| "prosemirror".equals(s)
-				|| "xml".equals(s)
-				|| "text".equals(s);
 	}
 
 	private static void agregarTextoMultilinea(List<String> lineas, String texto) {
