@@ -58,12 +58,37 @@ class IaService {
     );
   }
 
+  /// `POST ${AppConfig.iaUrl}/ia/validar-documento` (multipart).
+  Future<Map<String, dynamic>> validarDocumento(
+    String rutaArchivo,
+    String nombreRequisito,
+  ) async {
+    final uri = Uri.parse('${AppConfig.iaUrl}/ia/validar-documento');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['nombre_requisito'] = nombreRequisito.trim();
+    request.files.add(
+      await http.MultipartFile.fromPath('archivo', rutaArchivo),
+    );
+    final streamed = await request.send().timeout(
+      const Duration(seconds: 90),
+      onTimeout: () {
+        throw IaApiException('Tiempo de espera agotado al validar documento', 408);
+      },
+    );
+    final res = await http.Response.fromStream(streamed);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw IaApiException(_mensajeError(res), res.statusCode);
+    }
+    final map = jsonDecode(res.body) as Map<String, dynamic>;
+    return map;
+  }
+
   String _mensajeError(http.Response res) {
     try {
       final m = jsonDecode(res.body);
       if (m is Map && m['detail'] != null) return '${m['detail']}';
     } catch (_) {}
-    return 'Error ${res.statusCode} al sugerir política';
+    return 'Error ${res.statusCode}';
   }
 }
 

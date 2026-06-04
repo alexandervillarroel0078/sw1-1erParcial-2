@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../auth/services/auth_service.dart';
 import '../../config/app_config.dart';
 import '../../core/utils/error_utils.dart';
+import '../../ia/services/ia_service.dart';
 import '../../politica/models/politica.dart';
 import '../services/documento_service.dart';
 import '../services/tramite_service.dart';
@@ -28,11 +29,66 @@ class _ArchivoRequisito {
   }
 }
 
+String _extDeNombre(String filename) {
+  if (!filename.contains('.')) return '';
+  return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+}
+
 bool _esImagen(String filename) {
-  final ext = filename.contains('.')
-      ? filename.substring(filename.lastIndexOf('.') + 1).toLowerCase()
-      : '';
-  return ext == 'jpg' || ext == 'jpeg' || ext == 'png' || ext == 'heic';
+  final ext = _extDeNombre(filename);
+  return ext == 'jpg' ||
+      ext == 'jpeg' ||
+      ext == 'png' ||
+      ext == 'heic' ||
+      ext == 'webp';
+}
+
+bool _requiereValidacionIa(String filename) {
+  final ext = _extDeNombre(filename);
+  return _esImagen(filename) || ext == 'pdf';
+}
+
+/// Resultado de validación IA por requisito.
+class _ValidacionRequisito {
+  const _ValidacionRequisito({
+    required this.estado,
+    this.valido = false,
+    this.confianza = 0,
+    this.mensaje = '',
+    this.confirmadoManual = false,
+  });
+
+  final _EstadoValidacionDoc estado;
+  final bool valido;
+  final int confianza;
+  final String mensaje;
+  final bool confirmadoManual;
+
+  bool get listoParaContinuar {
+    switch (estado) {
+      case _EstadoValidacionDoc.ok:
+        return valido && confianza >= 60;
+      case _EstadoValidacionDoc.advertencia:
+        return true;
+      case _EstadoValidacionDoc.rechazado:
+        return confirmadoManual;
+      case _EstadoValidacionDoc.verificando:
+      case _EstadoValidacionDoc.ninguno:
+        return false;
+    }
+  }
+
+  static const verificando = _ValidacionRequisito(
+    estado: _EstadoValidacionDoc.verificando,
+  );
+}
+
+enum _EstadoValidacionDoc {
+  ninguno,
+  verificando,
+  ok,
+  rechazado,
+  advertencia,
 }
 
 String _contentTypeFor(String filename) {
@@ -84,6 +140,7 @@ class RequisitosTramiteScreen extends StatefulWidget {
 class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
   final ImagePicker _picker = ImagePicker();
   final Map<String, _ArchivoRequisito> _archivosPorRequisito = {};
+  final Map<String, _ValidacionRequisito> _validacionPorRequisito = {};
 
   bool _creando = false;
   String? _errorGlobal;
@@ -91,10 +148,24 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
 
   List<RequisitoInicial> get _requisitos => widget.politica.requisitosIniciales;
 
+  bool get _hayValidacionEnCurso =>
+      _validacionPorRequisito.values.any(
+        (v) => v.estado == _EstadoValidacionDoc.verificando,
+      );
+
+  bool _requisitoListo(String reqId) {
+    if (!_archivosPorRequisito.containsKey(reqId)) return false;
+    final archivo = _archivosPorRequisito[reqId]!;
+    if (!_requiereValidacionIa(archivo.name)) return true;
+    final v = _validacionPorRequisito[reqId];
+    return v != null && v.listoParaContinuar;
+  }
+
   bool get _todosSubidos {
     if (_requisitos.isEmpty) return true;
+    if (_hayValidacionEnCurso) return false;
     for (final r in _requisitos) {
-      if (!_archivosPorRequisito.containsKey(r.id)) return false;
+      if (!_requisitoListo(r.id)) return false;
     }
     return true;
   }
@@ -114,12 +185,15 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
         imageQuality: 85,
       );
       if (file == null || !mounted) return;
+      final seleccionado = _ArchivoRequisito(
+        path: file.path,
+        name: file.name,
+      );
       setState(() {
-        _archivosPorRequisito[req.id] = _ArchivoRequisito(
-          path: file.path,
-          name: file.name,
-        );
+        _archivosPorRequisito[req.id] = seleccionado;
+        _validacionPorRequisito.remove(req.id);
       });
+      await _validarArchivoSeleccionado(req, seleccionado);
     } catch (_) {
       _snack('No se pudo abrir la cámara.');
     }
@@ -139,15 +213,110 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
         _snack('No se pudo leer el archivo seleccionado.');
         return;
       }
+      final seleccionado = _ArchivoRequisito(
+        path: path,
+        name: picked.name,
+      );
       setState(() {
-        _archivosPorRequisito[req.id] = _ArchivoRequisito(
-          path: path,
-          name: picked.name,
-        );
+        _archivosPorRequisito[req.id] = seleccionado;
+        _validacionPorRequisito.remove(req.id);
       });
+      await _validarArchivoSeleccionado(req, seleccionado);
     } catch (_) {
       _snack('No se pudo abrir el selector de archivos.');
     }
+  }
+
+  Future<void> _validarArchivoSeleccionado(
+    RequisitoInicial req,
+    _ArchivoRequisito archivo,
+  ) async {
+    if (!_requiereValidacionIa(archivo.name)) {
+      setState(() => _validacionPorRequisito.remove(req.id));
+      return;
+    }
+
+    setState(() {
+      _validacionPorRequisito[req.id] = _ValidacionRequisito.verificando;
+    });
+
+    try {
+      final res = await context.read<IaService>().validarDocumento(
+            archivo.path,
+            req.nombre,
+          );
+      if (!mounted) return;
+
+      final valido = res['valido'] == true;
+      final confianza = (res['confianza'] is num)
+          ? (res['confianza'] as num).round()
+          : int.tryParse('${res['confianza']}') ?? 0;
+      final mensaje = (res['mensaje'] as String?)?.trim() ?? '';
+
+      if (valido && confianza >= 60) {
+        setState(() {
+          _validacionPorRequisito[req.id] = _ValidacionRequisito(
+            estado: _EstadoValidacionDoc.ok,
+            valido: true,
+            confianza: confianza,
+            mensaje: mensaje,
+          );
+        });
+        return;
+      }
+
+      final subirIgual = await _preguntarSubirDeTodosModos(mensaje);
+      if (!mounted) return;
+      if (subirIgual) {
+        setState(() {
+          _validacionPorRequisito[req.id] = _ValidacionRequisito(
+            estado: _EstadoValidacionDoc.rechazado,
+            valido: valido,
+            confianza: confianza,
+            mensaje: mensaje,
+            confirmadoManual: true,
+          );
+        });
+      } else {
+        setState(() {
+          _archivosPorRequisito.remove(req.id);
+          _validacionPorRequisito.remove(req.id);
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _validacionPorRequisito[req.id] = const _ValidacionRequisito(
+          estado: _EstadoValidacionDoc.advertencia,
+          mensaje:
+              'No se pudo verificar, puedes continuar',
+        );
+      });
+    }
+  }
+
+  Future<bool> _preguntarSubirDeTodosModos(String mensaje) async {
+    final texto = mensaje.isNotEmpty
+        ? mensaje
+        : 'El documento no parece corresponder al requisito.';
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Deseas subir de todas formas?'),
+        content: Text('❌ $texto'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sí'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Future<List<int>> _bytesParaSubir(_ArchivoRequisito archivo) async {
@@ -314,9 +483,11 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
                     itemBuilder: (context, index) {
                       final req = _requisitos[index];
                       final archivo = _archivosPorRequisito[req.id];
+                      final validacion = _validacionPorRequisito[req.id];
                       return _RequisitoCard(
                         requisito: req,
                         archivo: archivo,
+                        validacion: validacion,
                         creando: _creando,
                         onSubirImagen: () => _elegirImagen(req),
                         onSubirArchivo: () => _elegirArchivo(req),
@@ -378,6 +549,7 @@ class _RequisitoCard extends StatelessWidget {
   const _RequisitoCard({
     required this.requisito,
     required this.archivo,
+    required this.validacion,
     required this.creando,
     required this.onSubirImagen,
     required this.onSubirArchivo,
@@ -385,6 +557,7 @@ class _RequisitoCard extends StatelessWidget {
 
   final RequisitoInicial requisito;
   final _ArchivoRequisito? archivo;
+  final _ValidacionRequisito? validacion;
   final bool creando;
   final VoidCallback onSubirImagen;
   final VoidCallback onSubirArchivo;
@@ -393,6 +566,9 @@ class _RequisitoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final subido = archivo != null;
+    final verificando =
+        validacion?.estado == _EstadoValidacionDoc.verificando;
+    final bloquearBotones = creando || verificando;
 
     return Card(
       child: Padding(
@@ -426,13 +602,36 @@ class _RequisitoCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (subido)
+                if (subido &&
+                    (validacion?.estado == _EstadoValidacionDoc.ok ||
+                        (validacion?.confirmadoManual ?? false) ||
+                        validacion?.estado == _EstadoValidacionDoc.advertencia))
                   const Text(
                     '✅',
                     style: TextStyle(fontSize: 22),
                   ),
               ],
             ),
+            if (verificando) ...[
+              const SizedBox(height: 10),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Verificando documento…'),
+                  ),
+                ],
+              ),
+            ],
+            if (validacion != null && !verificando) ...[
+              const SizedBox(height: 8),
+              _ValidacionBanner(validacion: validacion!),
+            ],
             if (subido) ...[
               const SizedBox(height: 10),
               _ArchivoPreview(archivo: archivo!),
@@ -444,12 +643,12 @@ class _RequisitoCard extends StatelessWidget {
               children: [
                 if (requisito.permiteImagen)
                   OutlinedButton(
-                    onPressed: creando ? null : onSubirImagen,
+                    onPressed: bloquearBotones ? null : onSubirImagen,
                     child: const Text('📷 Subir imagen'),
                   ),
                 if (requisito.permiteArchivoDocumento)
                   OutlinedButton(
-                    onPressed: creando ? null : onSubirArchivo,
+                    onPressed: bloquearBotones ? null : onSubirArchivo,
                     child: Text(
                       requisito.tipoArchivoEfectivo == 'pdf'
                           ? '📄 Subir PDF'
@@ -460,6 +659,57 @@ class _RequisitoCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ValidacionBanner extends StatelessWidget {
+  const _ValidacionBanner({required this.validacion});
+
+  final _ValidacionRequisito validacion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color bg;
+    Color fg;
+    String prefix;
+    switch (validacion.estado) {
+      case _EstadoValidacionDoc.ok:
+        bg = Colors.green.shade50;
+        fg = Colors.green.shade900;
+        prefix = '✅';
+        break;
+      case _EstadoValidacionDoc.rechazado:
+        bg = Colors.red.shade50;
+        fg = Colors.red.shade900;
+        prefix = '❌';
+        break;
+      case _EstadoValidacionDoc.advertencia:
+        bg = Colors.amber.shade50;
+        fg = Colors.amber.shade900;
+        prefix = '⚠️';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+    final msg = validacion.mensaje.isNotEmpty
+        ? validacion.mensaje
+        : (validacion.estado == _EstadoValidacionDoc.advertencia
+            ? 'No se pudo verificar, puedes continuar'
+            : '');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: fg.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        '$prefix $msg',
+        style: theme.textTheme.bodySmall?.copyWith(color: fg),
       ),
     );
   }

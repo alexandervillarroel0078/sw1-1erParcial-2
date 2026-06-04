@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.openai_client import MODEL
-from routers import diagrama, formulario, politica, reportes
+from routers import diagrama, documentos, formulario, politica, reportes
 
 load_dotenv()
 
@@ -29,6 +29,7 @@ app.include_router(diagrama.router)
 app.include_router(formulario.router)
 app.include_router(politica.router)
 app.include_router(reportes.router)
+app.include_router(documentos.router)
 
 
 @app.get("/health")
