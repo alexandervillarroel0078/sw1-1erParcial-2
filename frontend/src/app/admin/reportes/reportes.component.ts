@@ -47,11 +47,14 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from '../../core/services/ia.service';
 
 @Component({
   selector: 'app-reportes',
   standalone: true,
+  providers: [provideNativeDateAdapter()],
   imports: [
     NgClass,
     FormsModule,
@@ -63,6 +66,7 @@ import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from 
     MatTableModule,
     MatSnackBarModule,
     MatTooltipModule,
+    MatDatepickerModule,
   ],
   template: `
     <div style="padding: 24px; max-width: 1100px;">
@@ -106,13 +110,48 @@ import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from 
         </button>
       </div>
 
-      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
-        @for (s of sugerencias; track s) {
-          <button mat-stroked-button style="font-size: 13px; border-radius: 20px;" (click)="usarSugerencia(s)">
-            <mat-icon style="font-size:16px;height:16px;width:16px;margin-right:4px;">lightbulb_outline</mat-icon>
-            {{ s }}
-          </button>
+      <div style="margin-bottom: 24px;">
+        <button mat-stroked-button (click)="toggleSugerencias()" style="border-radius: 20px;">
+          <mat-icon>lightbulb_outline</mat-icon>
+          Sugerencias
+          <mat-icon>{{ mostrarSugerencias ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+
+        @if (mostrarSugerencias) {
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+            @for (s of sugerencias; track s) {
+              <button mat-stroked-button style="font-size: 13px; border-radius: 20px;"
+                (click)="usarSugerencia(s); mostrarSugerencias = false">
+                {{ s }}
+              </button>
+            }
+          </div>
         }
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+        <mat-form-field appearance="outline" style="width: 160px;">
+          <mat-label>Desde</mat-label>
+          <input matInput [matDatepicker]="pickerDesde"
+            (dateChange)="fechaInicio.set($event.value)">
+          <mat-datepicker-toggle matIconSuffix [for]="pickerDesde"></mat-datepicker-toggle>
+          <mat-datepicker #pickerDesde></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" style="width: 160px;">
+          <mat-label>Hasta</mat-label>
+          <input matInput [matDatepicker]="pickerHasta"
+            (dateChange)="fechaFin.set($event.value)">
+          <mat-datepicker-toggle matIconSuffix [for]="pickerHasta"></mat-datepicker-toggle>
+          <mat-datepicker #pickerHasta></mat-datepicker>
+        </mat-form-field>
+
+        <button mat-flat-button color="primary"
+          [disabled]="!fechaInicio() || !fechaFin()"
+          (click)="aplicarRangoFechas()">
+          <mat-icon>date_range</mat-icon>
+          Buscar por rango
+        </button>
       </div>
 
       @if (resultado()) {
@@ -254,16 +293,36 @@ export class ReportesComponent {
   }
 
   consulta = '';
+  mostrarSugerencias = false;
   sugerencias = [
-    'Trámites atendidos esta semana por departamento',
+    // 'Trámites atendidos esta semana por departamento',
     'Trámites con más demora en los últimos 30 días',
-    'Clientes con más trámites activos este mes',
-    'Resumen de trámites completados vs pendientes',
+    // 'Clientes con más trámites activos este mes',
+    // 'Resumen de trámites completados vs pendientes',
     'Funcionarios con mayor carga de trabajo',
+    'Trámites creados entre el 1 de abril y el 31 de mayo de 2026',
+    'Compara trámites de abril vs mayo de 2026',
   ];
 
   usarSugerencia(s: string): void {
     this.consulta = s;
+  }
+
+  toggleSugerencias(): void {
+    this.mostrarSugerencias = !this.mostrarSugerencias;
+  }
+
+  readonly fechaInicio = signal<Date | null>(null);
+  readonly fechaFin = signal<Date | null>(null);
+
+  aplicarRangoFechas(): void {
+    const ini = this.fechaInicio();
+    const fin = this.fechaFin();
+    if (!ini || !fin) return;
+    const fmt = (d: Date) =>
+      d.toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+    this.consulta = `Trámites creados entre el ${fmt(ini)} y el ${fmt(fin)}`;
+    this.generarReporte();
   }
 
   readonly cargando = signal(false);
