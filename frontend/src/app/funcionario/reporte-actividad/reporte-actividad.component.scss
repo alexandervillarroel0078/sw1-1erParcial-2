@@ -37,7 +37,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .panel {

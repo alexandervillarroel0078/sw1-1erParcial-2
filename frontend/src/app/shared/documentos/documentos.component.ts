@@ -1,5 +1,14 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, Input, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  EventEmitter,
+  inject,
+  Input,
+  OnInit,
+  Output,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -207,6 +216,12 @@ export class DocumentosComponent implements OnInit {
   @Input() nodoId!: string;
   @Input() permiso: string = 'ACCESO_COMPLETO';
   @Input() auditoriaExpandible = false;
+  @Input() emitirSeleccion = false;
+
+  @Output() documentoSeleccionado = new EventEmitter<{
+    doc: DocumentoDTO;
+    url: string;
+  }>();
 
   private readonly documentoService = inject(DocumentoService);
   private readonly snack = inject(MatSnackBar);
@@ -367,7 +382,13 @@ export class DocumentosComponent implements OnInit {
 
   verDocumento(doc: DocumentoDTO): void {
     this.documentoService.obtenerUrl(doc.id).subscribe({
-      next: (res) => window.open(res.url, '_blank', 'noopener'),
+      next: (res) => {
+        if (this.emitirSeleccion) {
+          this.documentoSeleccionado.emit({ doc, url: res.url });
+        } else {
+          window.open(res.url, '_blank', 'noopener');
+        }
+      },
       error: () => this.snack.open('No se pudo obtener la URL', 'Cerrar', { duration: 3000 }),
     });
   }

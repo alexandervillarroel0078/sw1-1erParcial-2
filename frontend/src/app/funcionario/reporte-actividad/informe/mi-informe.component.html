@@ -249,13 +249,22 @@
                   </div>
 
                   <p class="hint-voz">
-                    Idioma: es-ES. Al detener la grabación, se completa el primer campo de texto amplio
-                    (o el de texto corto si no hay ninguno).
+                    Idioma: es-ES. Al detener la grabación, la IA completará todos los campos
+                    automáticamente.
                   </p>
 
                   <button mat-stroked-button type="button" (click)="limpiarVoz.emit()">
                     Limpiar y volver a grabar
                   </button>
+                </div>
+              }
+
+              @if (procesandoIa) {
+                <div
+                  style="display: flex; align-items: center; gap: 8px; color: #1976d2; margin: 12px 0"
+                >
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Analizando con IA y llenando formulario...</span>
                 </div>
               }
 
@@ -464,12 +473,22 @@
                   </div>
 
                   <p class="hint-voz">
-                    Idioma: es-ES. Al detener la grabación, la descripción se completa automáticamente.
+                    Idioma: es-ES. Al detener la grabación, la IA completará todos los campos
+                    automáticamente.
                   </p>
 
                   <button mat-stroked-button type="button" (click)="limpiarVoz.emit()">
                     Limpiar y volver a grabar
                   </button>
+                </div>
+              }
+
+              @if (procesandoIa) {
+                <div
+                  style="display: flex; align-items: center; gap: 8px; color: #1976d2; margin: 12px 0"
+                >
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Analizando con IA y llenando formulario...</span>
                 </div>
               }
 
@@ -519,7 +538,9 @@
         <app-documentos
           [tramiteId]="tarea!.tramiteId"
           [nodoId]="tarea!.nodoFlujoId"
-          [permiso]="permisoNodoActual">
-        </app-documentos>
+          [permiso]="permisoNodoActual"
+          [emitirSeleccion]="true"
+          (documentoSeleccionado)="onDocumentoSeleccionado($event)"
+        />
       }
 </div>

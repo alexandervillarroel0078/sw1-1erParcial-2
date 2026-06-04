@@ -19,6 +19,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Informe } from '../../../core/models/informe.model';
 import type { CampoFormulario } from '../../../core/models/nodo.model';
 import { Tarea } from '../../../core/models/tarea.model';
+import type { DocumentoDTO } from '../../../core/services/documento.service';
 import { DocumentosComponent } from '../../../shared/documentos/documentos.component';
 
 type ModoEntrada = 'texto' | 'voz';
@@ -58,6 +59,7 @@ export class MiInformeComponent {
   @Input({ required: true }) form!: FormGroup;
   @Input() modo: ModoEntrada = 'texto';
   @Input() grabando = false;
+  @Input() procesandoIa = false;
   @Input() lineaVoz = '';
   @Input() speechDisponible = false;
   @Input() enviando = false;
@@ -72,6 +74,14 @@ export class MiInformeComponent {
   @Output() setModo = new EventEmitter<ModoEntrada>();
   @Output() toggleMic = new EventEmitter<void>();
   @Output() limpiarVoz = new EventEmitter<void>();
+  @Output() documentoSeleccionado = new EventEmitter<{
+    doc: DocumentoDTO;
+    url: string;
+  }>();
+
+  onDocumentoSeleccionado(ev: { doc: DocumentoDTO; url: string }): void {
+    this.documentoSeleccionado.emit(ev);
+  }
 
   campoControlKey(c: CampoFormulario): string {
     const id = (c.id ?? `o${c.orden}`).toString().replace(/[^a-zA-Z0-9_-]/g, '_');

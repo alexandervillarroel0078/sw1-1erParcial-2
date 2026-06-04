@@ -13,6 +13,7 @@ export interface CampoFormularioIa {
   id: string;
   etiqueta: string;
   tipo: string;
+  opciones?: string[];
 }
 
 export interface ValorCampoIa {

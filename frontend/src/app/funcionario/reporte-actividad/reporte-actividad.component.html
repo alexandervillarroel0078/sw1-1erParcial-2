@@ -20,45 +20,97 @@
   </mat-toolbar>
 
   <div class="layout">
-    <mat-card class="panel panel--form" appearance="outlined">
-      <mat-tab-group class="reporte-tabs" animationDuration="0ms">
-        <mat-tab label="Mi informe">
-          <app-mi-informe
-            [tarea]="tarea()"
-            [informe]="informe()"
-            [form]="form"
-            [modo]="modo()"
-            [grabando]="grabando()"
-            [lineaVoz]="lineaVoz()"
-            [speechDisponible]="speechDisponible()"
-            [enviando]="enviando()"
-            [soloLectura]="soloLectura()"
-            [camposFormularioOrdenados]="camposFormularioOrdenados()"
-            [usarFormularioDinamico]="usarFormularioDinamico()"
-            [vistaCamposDinamicos]="vistaCamposDinamicos()"
-            [permisoNodoActual]="permisoNodoActual()"
-            (completar)="completarYEnviar()"
-            (guardarBorrador)="guardarBorrador()"
-            (setModo)="setModo($event)"
-            (toggleMic)="toggleMic()"
-            (limpiarVoz)="limpiarVoz()"
-          />
-        </mat-tab>
-        @if (docColabHabilitado()) {
-          <mat-tab label="Documento colaborativo">
-            <app-documento-colaborativo
-              [docColab]="docColab()"
-              [docColabCargando]="docColabCargando()"
-              [docColabCreando]="docColabCreando()"
-              [soloLectura]="soloLectura()"
-              [tituloDocColaborativo]="tituloDocColaborativo()"
-              (crear)="crearDocumentoColaborativo()"
-            />
-          </mat-tab>
-        }
-      </mat-tab-group>
-    </mat-card>
+    <div
+      style="display: flex; gap: 16px; height: calc(100vh - 120px); min-width: 0;"
+      [style.grid-column]="documentoPreview ? '1 / -1' : null"
+    >
+      <div
+        [style.flex]="documentoPreview ? '1' : 'unset'"
+        [style.width]="documentoPreview ? 'auto' : '100%'"
+        style="overflow-y: auto; min-width: 0;"
+      >
+        <mat-card class="panel panel--form" appearance="outlined">
+          <mat-tab-group class="reporte-tabs" animationDuration="0ms">
+            <mat-tab label="Mi informe">
+              <app-mi-informe
+                [tarea]="tarea()"
+                [informe]="informe()"
+                [form]="form"
+                [modo]="modo()"
+                [grabando]="grabando()"
+                [procesandoIa]="procesandoIa()"
+                [lineaVoz]="lineaVoz()"
+                [speechDisponible]="speechDisponible()"
+                [enviando]="enviando()"
+                [soloLectura]="soloLectura()"
+                [camposFormularioOrdenados]="camposFormularioOrdenados()"
+                [usarFormularioDinamico]="usarFormularioDinamico()"
+                [vistaCamposDinamicos]="vistaCamposDinamicos()"
+                [permisoNodoActual]="permisoNodoActual()"
+                (completar)="completarYEnviar()"
+                (guardarBorrador)="guardarBorrador()"
+                (setModo)="setModo($event)"
+                (toggleMic)="toggleMic()"
+                (limpiarVoz)="limpiarVoz()"
+                (documentoSeleccionado)="onDocumentoSeleccionado($event)"
+              />
+            </mat-tab>
+            @if (docColabHabilitado()) {
+              <mat-tab label="Documento colaborativo">
+                <app-documento-colaborativo
+                  [docColab]="docColab()"
+                  [docColabCargando]="docColabCargando()"
+                  [docColabCreando]="docColabCreando()"
+                  [soloLectura]="soloLectura()"
+                  [tituloDocColaborativo]="tituloDocColaborativo()"
+                  (crear)="crearDocumentoColaborativo()"
+                />
+              </mat-tab>
+            }
+          </mat-tab-group>
+        </mat-card>
+      </div>
 
-    <app-detalle-tarea [tarea]="ta" />
+      @if (documentoPreview) {
+        <div
+          style="flex: 1; min-width: 400px; border-left: 1px solid #e0e0e0; padding-left: 16px; overflow-y: auto; position: sticky; top: 0;"
+        >
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;"
+          >
+            <span style="font-weight: 600; font-size: 14px;">{{ documentoPreview.nombre }}</span>
+            <button mat-icon-button type="button" aria-label="Cerrar vista previa" (click)="cerrarPreview()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          @if (documentoPreview.tipo.includes('image')) {
+            <img
+              [src]="documentoPreview.url"
+              [alt]="documentoPreview.nombre"
+              style="max-width: 100%; border-radius: 8px;"
+            />
+          } @else if (documentoPreview.tipo.includes('pdf')) {
+            <iframe
+              [src]="urlSafePreview(documentoPreview.url)"
+              width="100%"
+              height="80%"
+              [title]="documentoPreview.nombre"
+              style="border: none; border-radius: 8px; min-height: 480px;"
+            ></iframe>
+          } @else {
+            <p style="color: #666;">Vista previa no disponible para este tipo de archivo.</p>
+            <button mat-stroked-button type="button" (click)="abrirPreviewEnNuevaPestana()">
+              <mat-icon>open_in_new</mat-icon>
+              Abrir archivo
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (!documentoPreview) {
+      <app-detalle-tarea [tarea]="ta" />
+    }
   </div>
 }

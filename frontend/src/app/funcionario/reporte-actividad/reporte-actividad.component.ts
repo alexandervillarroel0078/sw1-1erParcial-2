@@ -19,6 +19,7 @@ import {
   Validators,
   type ValidatorFn,
 } from '@angular/forms';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -50,8 +51,9 @@ import { Tarea } from '../../core/models/tarea.model';
 import { AuthService } from '../../core/services/auth.service';
 import { DocColaborativoService } from '../../core/services/doc-colaborativo.service';
 import { FormularioFuncionarioService } from '../../core/services/formulario-funcionario.service';
-import { IaService } from '../../core/services/ia.service';
+import { IaService, type CampoFormularioIa } from '../../core/services/ia.service';
 import { InformeService } from '../../core/services/informe.service';
+import type { DocumentoDTO } from '../../core/services/documento.service';
 import { TareaService } from '../../core/services/tarea.service';
 import { DecisionRamaDialogComponent } from './informe/decision-rama-dialog/decision-rama-dialog.component';
 import { DocumentoColaborativoComponent } from './colaborativo/documento-colaborativo.component';
@@ -103,6 +105,9 @@ export class ReporteActividadComponent implements OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly sanitizer = inject(DomSanitizer);
+
+  documentoPreview: { url: string; nombre: string; tipo: string } | null = null;
 
   readonly cargando = signal(true);
   readonly tarea = signal<Tarea | null>(null);
@@ -156,6 +161,7 @@ export class ReporteActividadComponent implements OnDestroy {
 
   readonly modo = signal<ModoEntrada>('texto');
   readonly grabando = signal(false);
+  readonly procesandoIa = signal(false);
   readonly lineaVoz = signal('');
   readonly speechDisponible = signal(false);
   readonly enviando = signal(false);
@@ -404,13 +410,20 @@ export class ReporteActividadComponent implements OnDestroy {
     return raw.map((o) => (typeof o === 'string' ? o : String(o)));
   }
 
-  private camposPayloadParaIa(): { id: string; etiqueta: string; tipo: string }[] {
+  private camposPayloadParaIa(): CampoFormularioIa[] {
     if (this.usarFormularioDinamico()) {
-      return this.camposFormularioOrdenados().map((c) => ({
-        id: this.campoControlKey(c),
-        etiqueta: (c.etiqueta ?? '').trim(),
-        tipo: this.normalizeTipoCampo(c.tipo),
-      }));
+      return this.camposFormularioOrdenados().map((c) => {
+        const tipo = this.normalizeTipoCampo(c.tipo);
+        const base: CampoFormularioIa = {
+          id: this.campoControlKey(c),
+          etiqueta: (c.etiqueta ?? '').trim(),
+          tipo,
+        };
+        if (tipo === 'select') {
+          return { ...base, opciones: this.opcionesCampoSelect(c) };
+        }
+        return base;
+      });
     }
     return [
       {
@@ -749,6 +762,30 @@ export class ReporteActividadComponent implements OnDestroy {
       });
   }
 
+  abrirPreview(doc: DocumentoDTO, url: string): void {
+    this.documentoPreview = { url, nombre: doc.nombre, tipo: doc.tipo ?? '' };
+    this.cdr.markForCheck();
+  }
+
+  cerrarPreview(): void {
+    this.documentoPreview = null;
+    this.cdr.markForCheck();
+  }
+
+  onDocumentoSeleccionado(ev: { doc: DocumentoDTO; url: string }): void {
+    this.abrirPreview(ev.doc, ev.url);
+  }
+
+  urlSafePreview(url: string): SafeResourceUrl {
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  abrirPreviewEnNuevaPestana(): void {
+    if (this.documentoPreview?.url) {
+      window.open(this.documentoPreview.url, '_blank', 'noopener');
+    }
+  }
+
   volverBandeja(): void {
     void this.router.navigate(['/funcionario/bandeja']);
   }
@@ -824,12 +861,15 @@ export class ReporteActividadComponent implements OnDestroy {
         this.cdr.markForCheck();
         return;
       }
+      this.procesandoIa.set(true);
       this.iaService
         .rellenarFormulario({ textoVoz: texto, campos })
         .pipe(
           take(1),
           finalize(() => {
             this.recognition = null;
+            this.procesandoIa.set(false);
+            this.cdr.markForCheck();
           }),
         )
         .subscribe({
@@ -838,7 +878,7 @@ export class ReporteActividadComponent implements OnDestroy {
           },
           error: () => {
             this.snack.open(
-              'No se pudo interpretar la voz con IA. Se dejó la transcripción en el primer campo.',
+              'No se pudo interpretar la voz con IA. Se dejó la transcripción en el formulario.',
               'Cerrar',
               { duration: 4800 },
             );

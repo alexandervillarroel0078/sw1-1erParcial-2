@@ -19,6 +19,7 @@ Entrada que recibirás en el mensaje del usuario:
    - etiqueta: nombre visible del campo (sirve para interpretar la intención)
    - tipo: texto_corto | texto_largo | select | fecha | checkbox |
            imagen | archivo
+   - opciones (solo en tipo select): array de valores permitidos
 
 Tu tarea:
 - Analizar el texto dictado y extraer la información útil para cada campo.
@@ -27,8 +28,9 @@ Tu tarea:
   "confirmo", "de acuerdo"; como falso "no", "incorrecto".
 - Para fecha: responder en formato ISO yyyy-mm-dd cuando sea posible; si solo hay
   día/mes mencionados en el año actual, inferir fecha razonable.
-- Para select: usa exactamente uno de los valores esperados si el texto lo permite;
-  si no hay opciones en el campo, usa el texto corto más probable.
+- Para campos select, devuelve EXACTAMENTE uno de los valores del array opciones
+  (coincidencia literal, respetando mayúsculas/minúsculas). Si el dictado no encaja
+  con ninguna opción, deja valor "".
 - Si para un campo no hay información suficiente en la transcripción,
   pon valor vacío "" para ese campo (checkbox: "" se interpretará como false en el cliente).
 - imagen/archivo deja valor "" salvo que el texto implique texto descriptivo (opcional).
@@ -48,6 +50,7 @@ class CampoFormularioItem(BaseModel):
     id: str
     etiqueta: str
     tipo: str
+    opciones: list[str] | None = None
 
 
 class RellenarFormularioBody(BaseModel):
@@ -110,11 +113,17 @@ def _llamada_openai_formulario(user: str) -> RellenarFormularioResponse:
 def rellenar_formulario(body: RellenarFormularioBody):
     if not body.campos:
         return RellenarFormularioResponse(valores=[])
-    campos_json = json.dumps(
-        [{"id": c.id, "etiqueta": c.etiqueta, "tipo": c.tipo} for c in body.campos],
-        ensure_ascii=False,
-        indent=2,
-    )
+    campos_payload: list[dict[str, Any]] = []
+    for c in body.campos:
+        item: dict[str, Any] = {
+            "id": c.id,
+            "etiqueta": c.etiqueta,
+            "tipo": c.tipo,
+        }
+        if c.opciones:
+            item["opciones"] = c.opciones
+        campos_payload.append(item)
+    campos_json = json.dumps(campos_payload, ensure_ascii=False, indent=2)
     user_msg = (
         f"Texto dictado por el funcionario:\n{body.textoVoz.strip()}\n\n"
         f"Campos del formulario:\n{campos_json}"
