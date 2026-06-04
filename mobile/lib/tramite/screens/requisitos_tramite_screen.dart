@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../auth/services/auth_service.dart';
 import '../../config/app_config.dart';
+import '../../core/utils/error_utils.dart';
 import '../../politica/models/politica.dart';
 import '../services/documento_service.dart';
 import '../services/tramite_service.dart';
@@ -146,24 +147,25 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
       if (!mounted) return;
       setState(() {
         _creando = false;
-        _errorGlobal = e.message;
+        _errorGlobal = mensajeErrorAmigable(e.message);
         _pasoActual = null;
       });
       _snack('No se pudo crear el trámite. Intente de nuevo.');
     } on DocumentoApiException catch (e) {
       if (!mounted) return;
+      final detalle = mensajeErrorAmigable(e.message);
       setState(() {
         _creando = false;
         _errorGlobal =
-            'Trámite creado, pero falló la subida de archivos: ${e.message}';
+            'Trámite creado, pero falló la subida de archivos.\n$detalle';
         _pasoActual = null;
       });
       _snack(_errorGlobal!);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _creando = false;
-        _errorGlobal = 'Ocurrió un error inesperado.';
+        _errorGlobal = mensajeErrorAmigable(e.toString());
         _pasoActual = null;
       });
       _snack('No se pudo completar la operación.');

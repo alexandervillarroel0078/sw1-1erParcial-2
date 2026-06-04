@@ -6,6 +6,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../../config/app_config.dart';
+import '../../core/utils/error_utils.dart';
 import '../../ia/services/ia_service.dart';
 import '../../politica/models/politica.dart';
 import '../../politica/services/politica_service.dart';
@@ -90,7 +91,7 @@ class _NuevoTramiteScreenState extends State<NuevoTramiteScreen> {
       if (!mounted) return;
       setState(() {
         _cargandoPoliticas = false;
-        _errorPoliticas = e.toString();
+        _errorPoliticas = mensajeErrorAmigable(e.toString());
       });
       _snack('No se pudieron cargar las políticas activas.');
     }

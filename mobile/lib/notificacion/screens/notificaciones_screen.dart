@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/error_utils.dart';
 import '../models/notificacion.dart';
 import '../services/notificacion_service.dart';
 
@@ -75,7 +76,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
+          SnackBar(content: Text(mensajeErrorAmigable(e.toString()))),
         );
       }
     }
@@ -104,7 +105,8 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Text(
-            'No se pudieron cargar las notificaciones.\n$_error',
+            mensajeErrorAmigable(_error.toString()),
+            textAlign: TextAlign.center,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
           const SizedBox(height: 16),

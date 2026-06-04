@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/error_utils.dart';
 import '../../shared/widgets/estado_badge.dart';
 import '../models/tramite.dart';
 import '../services/tramite_service.dart';
@@ -48,7 +49,7 @@ class _TramiteDetalleScreenState extends State<TramiteDetalleScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Error al cargar el detalle.\n${snap.error}',
+                  mensajeErrorAmigable(snap.error.toString()),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
