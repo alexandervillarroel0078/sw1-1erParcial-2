@@ -27,6 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _fillDemoCliente() {
+    setState(() {
+      _emailCtrl.text = 'juan@demo.com';
+      _passCtrl.text = 'cliente_70000001';
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -156,6 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Iniciar sesión'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _loading ? null : _fillDemoCliente,
+                      child: const Text('Demo Cliente'),
                     ),
                   ],
                 ),

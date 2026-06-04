@@ -7,9 +7,10 @@ ng serve
 cd frontend
 npm run collab
 
-cd mobile
 flutter pub get
 flutter devices
+
+cd mobile
 flutter run -d 15187705CJ007699
 
 ng serve --configuration=local --host 0.0.0.0

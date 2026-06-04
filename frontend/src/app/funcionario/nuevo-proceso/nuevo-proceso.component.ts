@@ -112,6 +112,14 @@ export class NuevoProcesoComponent {
     void this.router.navigate(['/funcionario/bandeja']);
   }
 
+  fillDemoCliente(): void {
+    this.form.patchValue({
+      nombreCompleto: 'Juan Pérez',
+      telefono: '70000001',
+      email: 'juan@demo.com',
+    });
+  }
+
   iniciarVoz(): void {
     if (this.escuchando()) {
       const textoFinal = (this.acumuladoFinal + ' ' + this.transcript()).trim();

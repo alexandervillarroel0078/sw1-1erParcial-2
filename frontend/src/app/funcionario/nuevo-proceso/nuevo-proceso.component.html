@@ -4,8 +4,17 @@
   <form [formGroup]="form" (ngSubmit)="iniciarTramite()" class="nuevo-tramite__form">
     <!-- SECCIÓN 1 — Datos del cliente -->
     <mat-card class="nuevo-tramite__card" appearance="outlined">
-      <mat-card-header>
+      <mat-card-header class="nuevo-tramite__card-header">
         <mat-card-title>Datos del cliente</mat-card-title>
+        <button
+          type="button"
+          mat-button
+          class="nuevo-tramite__demo-btn"
+          (click)="fillDemoCliente()"
+          [disabled]="enviando()"
+        >
+          Demo
+        </button>
       </mat-card-header>
       <mat-card-content>
         <div class="nuevo-tramite__grid">
