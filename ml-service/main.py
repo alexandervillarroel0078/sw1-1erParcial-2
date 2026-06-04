@@ -169,6 +169,16 @@ def detectar_anomalias():
     resultado.sort(key=lambda x: x.dias_abierto, reverse=True)
     return resultado
 
+@app.get("/ml/training-history")
+def training_history():
+    import json
+    from pathlib import Path
+    history_path = Path("training/history.json")
+    if not history_path.exists():
+        raise HTTPException(status_code=404, detail="history.json no encontrado")
+    with open(history_path) as f:
+        return json.load(f)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

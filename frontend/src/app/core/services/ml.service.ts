@@ -12,6 +12,14 @@ export interface RiesgoTarea {
 
 export type EstadoAnomalia = 'ANOMALIA' | 'ADVERTENCIA' | 'NORMAL';
 
+export interface TrainingHistory {
+  loss: number[];
+  val_loss: number[];
+  accuracy: number[];
+  val_accuracy: number[];
+  [key: string]: number[];
+}
+
 export interface Anomalia {
   tramite_id: string;
   cliente_nombre: string;
@@ -40,5 +48,9 @@ export class MlService {
 
   getAnomalias(): Observable<Anomalia[]> {
     return this.http.get<Anomalia[]>(`${this.mlUrl}/ml/anomalias`);
+  }
+
+  getTrainingHistory(): Observable<TrainingHistory> {
+    return this.http.get<TrainingHistory>(`${this.mlUrl}/ml/training-history`);
   }
 }

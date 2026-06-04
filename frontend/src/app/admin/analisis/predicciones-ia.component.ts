@@ -1,10 +1,34 @@
 import { NgClass } from '@angular/common';
 import {
+  AfterViewInit,
   Component,
+  ElementRef,
   inject,
+  OnDestroy,
   OnInit,
   signal,
+  ViewChild,
 } from '@angular/core';
+import {
+  Chart,
+  CategoryScale,
+  LinearScale,
+  LineController,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  LineController,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+);
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,6 +40,7 @@ import {
   EstadoAnomalia,
   MlService,
   RiesgoTarea,
+  TrainingHistory,
 } from '../../core/services/ml.service';
 import { TareaService } from '../../core/services/tarea.service';
 import type { Observable } from 'rxjs';
@@ -87,6 +112,43 @@ interface RiesgoConTarea {
           </div>
           @if (riesgos().length > 0) {
             <p class="resumen-ejecutivo__texto">{{ textoResumenEjecutivo() }}</p>
+          }
+        </section>
+
+        <section class="metricas-seccion">
+          <div class="metricas-seccion__header">
+            <h3 class="seccion-titulo">Métricas del modelo</h3>
+            @if (trainingHistory()) {
+              <span class="accuracy-badge">
+                Accuracy validación: {{ accuracyFinalPct() }}
+              </span>
+            }
+          </div>
+          @if (trainingHistory()) {
+            <div class="metricas-grid">
+              <mat-card appearance="outlined" class="metrica-card">
+                <div class="metrica-card__titulo">Accuracy por época</div>
+                <div class="metrica-chart-wrap">
+                  <canvas #canvasAccuracy aria-label="Accuracy por época"></canvas>
+                </div>
+              </mat-card>
+              <mat-card appearance="outlined" class="metrica-card">
+                <div class="metrica-card__titulo">Loss por época</div>
+                <div class="metrica-chart-wrap">
+                  <canvas #canvasLoss aria-label="Loss por época"></canvas>
+                </div>
+              </mat-card>
+            </div>
+          } @else {
+            <p class="metricas-aviso">
+              @if (metricasSinDatos()) {
+                Ejecuta el entrenamiento del modelo para generar
+                <code>training/history.json</code>
+                y ver las curvas de accuracy y loss.
+              } @else {
+                Cargando métricas del entrenamiento...
+              }
+            </p>
           }
         </section>
 
@@ -532,17 +594,75 @@ interface RiesgoConTarea {
         background: #e8f5e9;
         color: #2e7d32;
       }
+      .metricas-seccion {
+        margin-bottom: 28px;
+      }
+      .metricas-seccion__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .accuracy-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        background: #e8eaf6;
+        color: #3949ab;
+      }
+      .metricas-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      @media (max-width: 900px) {
+        .metricas-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .metrica-card {
+        padding: 14px 16px !important;
+      }
+      .metrica-card__titulo {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: rgba(0, 0, 0, 0.8);
+      }
+      .metrica-chart-wrap {
+        height: 220px;
+        position: relative;
+      }
+      .metricas-aviso {
+        margin: 0;
+        font-size: 13px;
+        color: rgba(0, 0, 0, 0.55);
+        line-height: 1.5;
+      }
+      .metricas-aviso code {
+        font-size: 12px;
+      }
     `,
   ],
 })
-export class PrediccionesIaComponent implements OnInit {
+export class PrediccionesIaComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly mlService = inject(MlService);
   private readonly tareaService = inject(TareaService);
+
+  @ViewChild('canvasAccuracy') canvasAccuracy!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvasLoss') canvasLoss!: ElementRef<HTMLCanvasElement>;
 
   readonly cargando = signal(false);
   readonly riesgos = signal<RiesgoConTarea[]>([]);
   readonly anomalias = signal<Anomalia[]>([]);
+  readonly trainingHistory = signal<TrainingHistory | null>(null);
+  readonly metricasSinDatos = signal(false);
   private readonly actividadPorTramite = signal<Map<string, string>>(new Map());
+  private chartAccuracy: Chart | null = null;
+  private chartLoss: Chart | null = null;
 
   readonly columnasAnomalias = [
     'cliente',
@@ -555,17 +675,149 @@ export class PrediccionesIaComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    this.cargarMetricasModelo();
+  }
+
+  ngAfterViewInit(): void {
+    if (this.trainingHistory()) {
+      this.scheduleRenderMetricasCharts();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.chartAccuracy?.destroy();
+    this.chartLoss?.destroy();
+  }
+
+  accuracyFinalPct(): string {
+    const vals = this.trainingHistory()?.val_accuracy;
+    if (!vals?.length) {
+      return '—';
+    }
+    const last = vals[vals.length - 1]!;
+    return `${(last * 100).toFixed(1)}%`;
+  }
+
+  private scheduleRenderMetricasCharts(): void {
+    setTimeout(() => this.renderMetricasCharts(), 100);
+  }
+
+  private finalizarCargaPrincipal(): void {
+    this.cargando.set(false);
+    if (this.trainingHistory()) {
+      this.scheduleRenderMetricasCharts();
+    }
+  }
+
+  cargarMetricasModelo(): void {
+    this.metricasSinDatos.set(false);
+    this.mlService.getTrainingHistory().subscribe({
+      next: (history) => {
+        this.trainingHistory.set(history);
+        this.metricasSinDatos.set(false);
+        this.scheduleRenderMetricasCharts();
+      },
+      error: () => {
+        this.trainingHistory.set(null);
+        this.metricasSinDatos.set(true);
+      },
+    });
+  }
+
+  private renderMetricasCharts(): void {
+    const history = this.trainingHistory();
+    if (!history) {
+      return;
+    }
+
+    const accCanvas = this.canvasAccuracy?.nativeElement;
+    const lossCanvas = this.canvasLoss?.nativeElement;
+    if (!accCanvas || !lossCanvas) {
+      return;
+    }
+
+    const epochs = history.loss.map((_, i) => String(i + 1));
+
+    if (this.chartAccuracy) {
+      this.chartAccuracy.destroy();
+    }
+    if (this.chartLoss) {
+      this.chartLoss.destroy();
+    }
+
+    this.chartAccuracy = new Chart(accCanvas, {
+      type: 'line',
+      data: {
+        labels: epochs,
+        datasets: [
+          {
+            label: 'accuracy',
+            data: history.accuracy,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            tension: 0.25,
+            pointRadius: 2,
+          },
+          {
+            label: 'val_accuracy',
+            data: history.val_accuracy,
+            borderColor: '#dc2626',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            tension: 0.25,
+            pointRadius: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, max: 1 } },
+      },
+    });
+
+    this.chartLoss = new Chart(lossCanvas, {
+      type: 'line',
+      data: {
+        labels: epochs,
+        datasets: [
+          {
+            label: 'loss',
+            data: history.loss,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            tension: 0.25,
+            pointRadius: 2,
+          },
+          {
+            label: 'val_loss',
+            data: history.val_loss,
+            borderColor: '#dc2626',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            tension: 0.25,
+            pointRadius: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
   }
 
   cargar(): void {
     this.cargando.set(true);
     this.riesgos.set([]);
+    this.cargarMetricasModelo();
     this.mlService.getAnomalias().subscribe({
       next: (anomalias) => {
         this.anomalias.set(anomalias);
         this.cargarRiesgos();
       },
-      error: () => this.cargando.set(false),
+      error: () => this.finalizarCargaPrincipal(),
     });
   }
 
@@ -686,7 +938,7 @@ export class PrediccionesIaComponent implements OnInit {
         const pendientes = tareas.filter((t) => t.estado !== 'completado');
         if (!pendientes.length) {
           this.riesgos.set([]);
-          this.cargando.set(false);
+          this.finalizarCargaPrincipal();
           return;
         }
 
@@ -717,7 +969,7 @@ export class PrediccionesIaComponent implements OnInit {
               if (completados === requests.length) {
                 resultados.sort((a, b) => b.probabilidad - a.probabilidad);
                 this.riesgos.set(resultados);
-                this.cargando.set(false);
+                this.finalizarCargaPrincipal();
               }
             },
             error: () => {
@@ -725,13 +977,13 @@ export class PrediccionesIaComponent implements OnInit {
               if (completados === requests.length) {
                 resultados.sort((a, b) => b.probabilidad - a.probabilidad);
                 this.riesgos.set(resultados);
-                this.cargando.set(false);
+                this.finalizarCargaPrincipal();
               }
             },
           });
         });
       },
-      error: () => this.cargando.set(false),
+      error: () => this.finalizarCargaPrincipal(),
     });
   }
 }
