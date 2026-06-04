@@ -48,7 +48,19 @@ public class DocumentoService {
 
     public DocumentoDTO subir(MultipartFile file, String tramiteId, String nodoId,
                                String usuarioId, String usuarioNombre) {
-        validarPermisoFuncionario(tramiteId, nodoId, usuarioId, AccionDocumento.SUBIR, null);
+        return subir(file, tramiteId, nodoId, usuarioId, usuarioNombre, false);
+    }
+
+    public DocumentoDTO subir(
+            MultipartFile file,
+            String tramiteId,
+            String nodoId,
+            String usuarioId,
+            String usuarioNombre,
+            boolean omitirValidacionPermisos) {
+        if (!omitirValidacionPermisos) {
+            validarPermisoFuncionario(tramiteId, nodoId, usuarioId, AccionDocumento.SUBIR, null);
+        }
         try {
             String storageKey = tramiteId + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
             minioClient.putObject(PutObjectArgs.builder()

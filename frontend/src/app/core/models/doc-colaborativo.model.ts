@@ -4,6 +4,7 @@ export interface DocumentoColaborativo {
   nodoId: string;
   titulo: string;
   plantillaContenido?: string;
+  contenidoTexto?: string;
   documentKey: string;
   creadoEn?: string;
 }

@@ -10,6 +10,7 @@ import {
   OnDestroy,
   PLATFORM_ID,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -34,6 +35,8 @@ import {
   catchError,
   EMPTY,
   finalize,
+  firstValueFrom,
+  from,
   map,
   Observable,
   of,
@@ -91,6 +94,9 @@ type TipoCampoReporte =
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReporteActividadComponent implements OnDestroy {
+  @ViewChild(DocumentoColaborativoComponent)
+  docColabTab?: DocumentoColaborativoComponent;
+
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -1012,9 +1018,9 @@ export class ReporteActividadComponent implements OnDestroy {
 
     this.enviando.set(true);
 
-    this.informeService
-      .crearInforme(informe)
+    from(this.guardarContenidoColabAntesDeInforme(t))
       .pipe(
+        switchMap(() => this.informeService.crearInforme(informe)),
         switchMap(() => this.tareaService.completarTarea(t.id!)),
         switchMap((tareaResp) => this.flujoPostCompletar$(t.id!, tareaResp)),
         take(1),
@@ -1026,6 +1032,24 @@ export class ReporteActividadComponent implements OnDestroy {
         },
         error: () => this.enviando.set(false),
       });
+  }
+
+  private async guardarContenidoColabAntesDeInforme(t: Tarea): Promise<void> {
+    if (!this.docColabHabilitado() || !this.docColab()) {
+      return;
+    }
+    const tramiteId = (t.tramiteId ?? '').trim();
+    const nodoId = (this.docColabNodoId ?? '').trim();
+    if (!tramiteId || !nodoId) {
+      return;
+    }
+    const textoColab = this.docColabTab?.getTextoPlano() ?? '';
+    if (textoColab.trim().length === 0) {
+      return;
+    }
+    await firstValueFrom(
+      this.docColabService.guardarContenidoTexto(tramiteId, nodoId, textoColab),
+    );
   }
 
   private flujoPostCompletar$(tareaId: string, resp: Tarea): Observable<unknown> {

@@ -4,6 +4,7 @@ import {
   EventEmitter,
   Input,
   Output,
+  ViewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -20,6 +21,9 @@ import { OnlyofficeEditorComponent } from '../../../shared/onlyoffice-editor/onl
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DocumentoColaborativoComponent {
+  @ViewChild(OnlyofficeEditorComponent)
+  editorColab?: OnlyofficeEditorComponent;
+
   @Input() docColab: DocumentoColaborativo | null = null;
   @Input() docColabCargando = false;
   @Input() docColabCreando = false;
@@ -27,4 +31,8 @@ export class DocumentoColaborativoComponent {
   @Input() tituloDocColaborativo = '';
 
   @Output() crear = new EventEmitter<void>();
+
+  getTextoPlano(): string {
+    return this.editorColab?.getTextoPlano() ?? '';
+  }
 }

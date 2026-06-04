@@ -105,35 +105,66 @@ public class InformeService {
 					informe.getTramiteId(),
 					informe.getNodoActividadId(),
 					informe.getFuncionarioId(),
-					usuarioNombre);
-			subirPdfDocColaborativoSilencioso(informe, usuarioNombre, timestamp);
+					usuarioNombre,
+					true);
+			boolean tareaParalela = informe.getTareaId() != null && !informe.getTareaId().isBlank()
+					&& tareaRepository.findById(informe.getTareaId())
+							.map(Tarea::getForkNodoId)
+							.filter(id -> id != null && !id.isBlank())
+							.isPresent();
+			if (!tareaParalela) {
+				subirPdfDocColaborativoSilencioso(
+						informe.getTramiteId(),
+						null,
+						informe.getNodoActividadId(),
+						informe.getFuncionarioId(),
+						usuarioNombre,
+						timestamp);
+			}
 		} catch (Exception e) {
 			log.warn("No se pudo generar o subir el PDF del informe {}: {}", informe.getId(), e.getMessage());
 		}
 	}
 
-	private void subirPdfDocColaborativoSilencioso(Informe informe, String usuarioNombre, long timestamp) {
+	/**
+	 * Genera y sube el PDF del documento colaborativo al alcanzar el JOIN (todas las ramas paralelas completas).
+	 */
+	public void subirPdfDocColaborativoSilencioso(
+			String tramiteId,
+			String forkNodoId,
+			String funcionarioId,
+			String usuarioNombre) {
+		subirPdfDocColaborativoSilencioso(
+				tramiteId,
+				forkNodoId,
+				forkNodoId,
+				funcionarioId,
+				usuarioNombre,
+				System.currentTimeMillis());
+	}
+
+	private void subirPdfDocColaborativoSilencioso(
+			String tramiteId,
+			String forkNodoId,
+			String nodoActividadIdDocumentos,
+			String funcionarioId,
+			String usuarioNombre,
+			long timestamp) {
 		try {
-			Optional<Tarea> tareaOpt = informe.getTareaId() != null && !informe.getTareaId().isBlank()
-					? tareaRepository.findById(informe.getTareaId())
-					: Optional.empty();
-			String politicaId = tareaOpt.map(Tarea::getPoliticaId).filter(id -> !id.isBlank()).orElse(null);
-			if (politicaId == null) {
-				politicaId = tramiteRepository.findById(informe.getTramiteId())
-						.map(Tramite::getPoliticaId)
-						.filter(id -> id != null && !id.isBlank())
-						.orElse(null);
+			if (tramiteId == null || tramiteId.isBlank()) {
+				return;
 			}
+			String politicaId = tramiteRepository.findById(tramiteId)
+					.map(Tramite::getPoliticaId)
+					.filter(id -> id != null && !id.isBlank())
+					.orElse(null);
 			if (politicaId == null) {
 				return;
 			}
 
-			String nodoFormId = tareaOpt.map(Tarea::getForkNodoId)
-					.filter(id -> id != null && !id.isBlank())
-					.orElse(informe.getNodoActividadId());
-			if (nodoFormId == null || nodoFormId.isBlank()) {
-				nodoFormId = tareaOpt.map(Tarea::getNodoFlujoId).orElse(null);
-			}
+			String nodoFormId = forkNodoId != null && !forkNodoId.isBlank()
+					? forkNodoId
+					: nodoActividadIdDocumentos;
 			if (nodoFormId == null || nodoFormId.isBlank()) {
 				return;
 			}
@@ -144,9 +175,11 @@ public class InformeService {
 				return;
 			}
 
-			String nodoDocClave = nodoFormId;
+			String nodoDocClave = forkNodoId != null && !forkNodoId.isBlank()
+					? forkNodoId
+					: nodoActividadIdDocumentos;
 			Optional<DocumentoColaborativo> docColabOpt = documentoColaborativoRepository
-					.findByTramiteIdAndNodoId(informe.getTramiteId(), nodoDocClave);
+					.findByTramiteIdAndNodoId(tramiteId, nodoDocClave);
 			if (docColabOpt.isEmpty()) {
 				return;
 			}
@@ -157,6 +190,10 @@ public class InformeService {
 				return;
 			}
 
+			String nodoIdSubida = nodoActividadIdDocumentos != null && !nodoActividadIdDocumentos.isBlank()
+					? nodoActividadIdDocumentos
+					: nodoDocClave;
+
 			byte[] pdf = generarPdfDocumentoColaborativo(
 					normalizarTituloDocumentoColaborativo(docColab.getTitulo()),
 					nodoDocClave,
@@ -165,14 +202,16 @@ public class InformeService {
 			MultipartFile file = new ByteArrayMultipartFile(pdf, nombreArchivo, "application/pdf");
 			documentoService.subir(
 					file,
-					informe.getTramiteId(),
-					informe.getNodoActividadId(),
-					informe.getFuncionarioId(),
-					usuarioNombre);
+					tramiteId,
+					nodoIdSubida,
+					funcionarioId,
+					usuarioNombre,
+					true);
 		} catch (Exception e) {
 			log.warn(
-					"No se pudo generar o subir el PDF del documento colaborativo para informe {}: {}",
-					informe.getId(),
+					"No se pudo generar o subir el PDF del documento colaborativo tramite={} forkNodoId={}: {}",
+					tramiteId,
+					forkNodoId,
 					e.getMessage());
 		}
 	}
@@ -251,6 +290,9 @@ public class InformeService {
 	}
 
 	private String extraerTextoDocumentoColaborativo(DocumentoColaborativo doc) {
+		if (doc.getContenidoTexto() != null && !doc.getContenidoTexto().isBlank()) {
+			return doc.getContenidoTexto().trim();
+		}
 		String contenido = doc.getPlantillaContenido();
 		if (contenido == null || contenido.isBlank()) {
 			return "";

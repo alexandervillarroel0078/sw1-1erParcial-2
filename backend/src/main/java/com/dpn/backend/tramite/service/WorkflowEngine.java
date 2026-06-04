@@ -1,8 +1,10 @@
 package com.dpn.backend.tramite.service;
 
+import com.dpn.backend.exception.ApiException;
+import com.dpn.backend.informe.service.InformeService;
 import com.dpn.backend.tarea.dto.AvanzarFlujoResult;
 import com.dpn.backend.tarea.dto.OpcionDecisionDTO;
-import com.dpn.backend.exception.ApiException;
+import com.dpn.backend.usuario.model.Usuario;
 import com.dpn.backend.departamento.model.Departamento;
 import com.dpn.backend.politica.model.Politica;
 import com.dpn.backend.tarea.model.Tarea;
@@ -49,6 +51,8 @@ public class WorkflowEngine {
 	private static final ThreadLocal<Boolean> CREANDO_TAREA_TRAS_DECISION = new ThreadLocal<>();
 	/** Stack de FORK activo durante la expansión del flujo (para marcar tareas hijas con forkNodoId). */
 	private static final ThreadLocal<Deque<String>> FORK_STACK = ThreadLocal.withInitial(ArrayDeque::new);
+	private static final ThreadLocal<String> USUARIO_COMPLETANDO_ID = new ThreadLocal<>();
+	private static final ThreadLocal<String> USUARIO_COMPLETANDO_NOMBRE = new ThreadLocal<>();
 
 	private final PoliticaRepository politicaRepository;
 	private final TramiteRepository tramiteRepository;
@@ -57,6 +61,7 @@ public class WorkflowEngine {
 	private final UsuarioRepository usuarioRepository;
 	private final ObjectProvider<TareaService> tareaServiceProvider;
 	private final NotificacionService notificacionService;
+	private final InformeService informeService;
 
 	/**
 	 * Tras completar una tarea: avanza el flujo según aristas de la política.
@@ -76,6 +81,22 @@ public class WorkflowEngine {
 			return AvanzarFlujoResult.sinDecision();
 		}
 
+		USUARIO_COMPLETANDO_ID.set(usuarioId);
+		USUARIO_COMPLETANDO_NOMBRE.set(resolverNombreUsuario(usuarioId));
+		try {
+			return avanzarFlujoInterno(tramiteId, tareaId, usuarioId, eleccionRama, tarea);
+		} finally {
+			USUARIO_COMPLETANDO_ID.remove();
+			USUARIO_COMPLETANDO_NOMBRE.remove();
+		}
+	}
+
+	private AvanzarFlujoResult avanzarFlujoInterno(
+			String tramiteId,
+			String tareaId,
+			String usuarioId,
+			String eleccionRama,
+			Tarea tarea) {
 		Tramite tramite = tramiteRepository.findById(tramiteId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Trámite no encontrado"));
 		Politica politica = politicaRepository.findById(tramite.getPoliticaId())
@@ -396,6 +417,15 @@ public class WorkflowEngine {
 				// Al salir por el JOIN, ya no queremos que tareas posteriores hereden el forkNodoId de esta región.
 				String forkId = encontrarForkBarParaJoin(politica, nodo.getId());
 				if (forkId != null) {
+					String uid = USUARIO_COMPLETANDO_ID.get();
+					String uname = USUARIO_COMPLETANDO_NOMBRE.get();
+					if (uid != null && !uid.isBlank()) {
+						informeService.subirPdfDocColaborativoSilencioso(
+								tramite.getId(),
+								forkId,
+								uid,
+								uname != null && !uname.isBlank() ? uname : uid);
+					}
 					Deque<String> st = FORK_STACK.get();
 					if (!st.isEmpty() && forkId.equals(st.peekLast())) {
 						st.removeLast();
@@ -633,6 +663,16 @@ public class WorkflowEngine {
 		}
 		String t = s.trim();
 		return t.isEmpty() ? null : t;
+	}
+
+	private String resolverNombreUsuario(String usuarioId) {
+		if (usuarioId == null || usuarioId.isBlank()) {
+			return "";
+		}
+		return usuarioRepository.findById(usuarioId)
+				.map(Usuario::getNombre)
+				.filter(n -> n != null && !n.isBlank())
+				.orElse(usuarioId);
 	}
 
 	/**

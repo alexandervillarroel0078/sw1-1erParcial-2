@@ -1,6 +1,7 @@
 package com.dpn.backend.colaborativo.documento.controller;
 
 import com.dpn.backend.colaborativo.documento.dto.ActualizarContenidoDocumentoRequest;
+import com.dpn.backend.colaborativo.documento.dto.ActualizarContenidoTextoRequest;
 import com.dpn.backend.colaborativo.documento.dto.CrearDocumentoColaborativoRequest;
 import com.dpn.backend.colaborativo.documento.dto.OnlyOfficeCallbackRequest;
 import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
@@ -52,6 +53,17 @@ public class DocumentoColaborativoRestController {
 				tramiteId,
 				nodoId,
 				body.getContenido());
+	}
+
+	@PutMapping("/{tramiteId}/{nodoId}/contenido-texto")
+	public DocumentoColaborativo actualizarContenidoTexto(
+			@PathVariable String tramiteId,
+			@PathVariable String nodoId,
+			@RequestBody ActualizarContenidoTextoRequest body) {
+		return documentoColaborativoService.actualizarContenidoTexto(
+				tramiteId,
+				nodoId,
+				body.getContenidoTexto());
 	}
 
 	@GetMapping("/{tramiteId}/{nodoId}/content")

@@ -107,6 +107,10 @@ export class OnlyofficeEditorComponent implements OnDestroy {
     this.editor?.chain().focus().toggleOrderedList().run();
   }
 
+  getTextoPlano(): string {
+    return this.editor?.getText() ?? '';
+  }
+
   private initEditor(documento: DocumentoColaborativo, soloLectura: boolean): void {
     const host = this.editorHost()?.nativeElement;
     if (!host) {

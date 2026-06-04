@@ -31,4 +31,15 @@ export class DocColaborativoService {
       body,
     );
   }
+
+  guardarContenidoTexto(
+    tramiteId: string,
+    nodoId: string,
+    contenidoTexto: string,
+  ): Observable<DocumentoColaborativo> {
+    return this.http.put<DocumentoColaborativo>(
+      `${this.base}/${tramiteId}/${nodoId}/contenido-texto`,
+      { contenidoTexto },
+    );
+  }
 }

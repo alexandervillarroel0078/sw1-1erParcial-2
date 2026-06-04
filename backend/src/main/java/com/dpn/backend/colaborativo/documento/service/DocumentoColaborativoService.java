@@ -112,6 +112,18 @@ public class DocumentoColaborativoService {
 		return documentoColaborativoRepository.save(doc);
 	}
 
+	public DocumentoColaborativo actualizarContenidoTexto(
+			String tramiteId,
+			String nodoId,
+			String contenidoTexto) {
+		DocumentoColaborativo doc = documentoColaborativoRepository.findByTramiteIdAndNodoId(tramiteId, nodoId)
+				.orElseThrow(() -> new ApiException(
+						HttpStatus.NOT_FOUND,
+						"Documento colaborativo no encontrado"));
+		doc.setContenidoTexto(contenidoTexto != null ? contenidoTexto : "");
+		return documentoColaborativoRepository.save(doc);
+	}
+
 	public ResponseEntity<byte[]> obtenerContenido(String tramiteId, String nodoId) {
 		DocumentoColaborativo doc = obtener(tramiteId, nodoId);
 		String contenido = doc.getPlantillaContenido();

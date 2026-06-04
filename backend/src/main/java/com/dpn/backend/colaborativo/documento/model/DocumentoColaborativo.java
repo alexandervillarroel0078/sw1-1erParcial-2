@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 
@@ -22,6 +23,8 @@ public class DocumentoColaborativo {
 	private String nodoId;
 	private String titulo;
 	private String plantillaContenido;
+	@Field("contenido_texto")
+	private String contenidoTexto;
 	private String documentKey;
 	private Instant creadoEn;
 }
