@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../auth/services/auth_service.dart';
 import '../../config/app_config.dart';
@@ -17,6 +18,7 @@ class DocumentoService {
     required String nodoId,
     required List<int> fileBytes,
     required String filename,
+    String? contentType,
   }) async {
     final uri = Uri.parse(
       '${AppConfig.baseUrl}/documentos/tramite/$tramiteId/nodo/$nodoId/upload',
@@ -32,6 +34,9 @@ class DocumentoService {
         'file',
         fileBytes,
         filename: filename,
+        contentType: contentType != null && contentType.isNotEmpty
+            ? MediaType.parse(contentType)
+            : null,
       ),
     );
     final streamed = await request.send();

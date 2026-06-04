@@ -4,17 +4,55 @@ class RequisitoInicial {
     required this.id,
     required this.nombre,
     this.descripcion,
+    this.tipoArchivo = 'cualquiera',
   });
 
   final String id;
   final String nombre;
   final String? descripcion;
+  /// imagen | pdf | documento | cualquiera
+  final String tipoArchivo;
+
+  /// Valor normalizado para lógica de pickers.
+  String get tipoArchivoEfectivo {
+    switch (tipoArchivo.trim().toLowerCase()) {
+      case 'imagen':
+      case 'pdf':
+      case 'documento':
+        return tipoArchivo.trim().toLowerCase();
+      default:
+        return 'cualquiera';
+    }
+  }
+
+  bool get permiteImagen =>
+      tipoArchivoEfectivo == 'imagen' || tipoArchivoEfectivo == 'cualquiera';
+
+  bool get permiteArchivoDocumento {
+    final t = tipoArchivoEfectivo;
+    return t == 'pdf' || t == 'documento' || t == 'cualquiera';
+  }
+
+  List<String> get extensionesFilePicker {
+    switch (tipoArchivoEfectivo) {
+      case 'pdf':
+        return const ['pdf'];
+      case 'documento':
+        return const ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+      default:
+        return const ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+    }
+  }
 
   factory RequisitoInicial.fromJson(Map<String, dynamic> json) {
+    final rawTipo = json['tipoArchivo'] as String?;
     return RequisitoInicial(
       id: json['id'] as String? ?? '',
       nombre: json['nombre'] as String? ?? '',
       descripcion: json['descripcion'] as String?,
+      tipoArchivo: rawTipo == null || rawTipo.trim().isEmpty
+          ? 'cualquiera'
+          : rawTipo.trim(),
     );
   }
 }

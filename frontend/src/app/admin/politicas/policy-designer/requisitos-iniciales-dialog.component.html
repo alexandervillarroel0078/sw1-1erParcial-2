@@ -32,6 +32,18 @@
                 (ngModelChange)="patchDescripcion(r.id, $event)"
               />
             </mat-form-field>
+            <mat-form-field appearance="outline" class="rid-item__tipo" subscriptSizing="dynamic">
+              <mat-label>Tipo de archivo permitido</mat-label>
+              <mat-select
+                placeholder="Tipo de archivo permitido"
+                [ngModel]="r.tipoArchivo ?? 'cualquiera'"
+                (ngModelChange)="patchTipoArchivo(r.id, $event)"
+              >
+                @for (opt of tipoArchivoOpciones; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
           </div>
           <button
             mat-icon-button

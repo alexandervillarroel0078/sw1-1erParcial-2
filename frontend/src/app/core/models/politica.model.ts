@@ -31,10 +31,15 @@ export function normalizeNodoTipo(t: string | undefined | null): NodoTipo {
   return (NODO_TIPOS_VALIDOS.has(s) ? s : 'ACTIVIDAD') as NodoTipo;
 }
 
+/** Tipo de archivo permitido en requisitos iniciales (nodo START). */
+export type TipoArchivoRequisito = 'imagen' | 'pdf' | 'documento' | 'cualquiera';
+
 export interface RequisitoInicial {
   id: string;
   nombre: string;
   descripcion?: string;
+  /** Default: `cualquiera` */
+  tipoArchivo?: TipoArchivoRequisito;
 }
 
 export interface Nodo {

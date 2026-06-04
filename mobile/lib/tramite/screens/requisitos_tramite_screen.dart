@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,54 @@ import '../../core/utils/error_utils.dart';
 import '../../politica/models/politica.dart';
 import '../services/documento_service.dart';
 import '../services/tramite_service.dart';
+
+/// Archivo seleccionado para un requisito (imagen o documento).
+class _ArchivoRequisito {
+  const _ArchivoRequisito({required this.path, required this.name});
+
+  final String path;
+  final String name;
+
+  String get extension {
+    final i = name.lastIndexOf('.');
+    if (i < 0 || i >= name.length - 1) return '';
+    return name.substring(i + 1).toLowerCase();
+  }
+}
+
+bool _esImagen(String filename) {
+  final ext = filename.contains('.')
+      ? filename.substring(filename.lastIndexOf('.') + 1).toLowerCase()
+      : '';
+  return ext == 'jpg' || ext == 'jpeg' || ext == 'png' || ext == 'heic';
+}
+
+String _contentTypeFor(String filename) {
+  final ext = filename.contains('.')
+      ? filename.substring(filename.lastIndexOf('.') + 1).toLowerCase()
+      : '';
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'doc':
+      return 'application/msword';
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    case 'xls':
+      return 'application/vnd.ms-excel';
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'heic':
+      return 'image/heic';
+    default:
+      return 'application/octet-stream';
+  }
+}
 
 /// Requisitos iniciales antes de crear el trámite (archivos por requisito).
 class RequisitosTramiteScreen extends StatefulWidget {
@@ -34,7 +83,7 @@ class RequisitosTramiteScreen extends StatefulWidget {
 
 class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
   final ImagePicker _picker = ImagePicker();
-  final Map<String, XFile> _archivosPorRequisito = {};
+  final Map<String, _ArchivoRequisito> _archivosPorRequisito = {};
 
   bool _creando = false;
   String? _errorGlobal;
@@ -65,7 +114,12 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
         imageQuality: 85,
       );
       if (file == null || !mounted) return;
-      setState(() => _archivosPorRequisito[req.id] = file);
+      setState(() {
+        _archivosPorRequisito[req.id] = _ArchivoRequisito(
+          path: file.path,
+          name: file.name,
+        );
+      });
     } catch (_) {
       _snack('No se pudo abrir la cámara.');
     }
@@ -74,15 +128,39 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
   Future<void> _elegirArchivo(RequisitoInicial req) async {
     if (_creando) return;
     try {
-      final file = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: req.extensionesFilePicker,
       );
-      if (file == null || !mounted) return;
-      setState(() => _archivosPorRequisito[req.id] = file);
+      if (result == null || result.files.isEmpty || !mounted) return;
+      final picked = result.files.single;
+      final path = picked.path;
+      if (path == null || path.isEmpty) {
+        _snack('No se pudo leer el archivo seleccionado.');
+        return;
+      }
+      setState(() {
+        _archivosPorRequisito[req.id] = _ArchivoRequisito(
+          path: path,
+          name: picked.name,
+        );
+      });
     } catch (_) {
-      _snack('No se pudo abrir la galería.');
+      _snack('No se pudo abrir el selector de archivos.');
     }
+  }
+
+  Future<List<int>> _bytesParaSubir(_ArchivoRequisito archivo) async {
+    if (_esImagen(archivo.name)) {
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        archivo.path,
+        quality: 60,
+        minWidth: 800,
+        minHeight: 800,
+      );
+      return compressedBytes ?? await File(archivo.path).readAsBytes();
+    }
+    return File(archivo.path).readAsBytes();
   }
 
   Future<void> _crearTramite() async {
@@ -123,19 +201,13 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
             _pasoActual =
                 'Subiendo ${i + 1} de ${_requisitos.length}: ${req.nombre}…';
           });
-          final compressedBytes = await FlutterImageCompress.compressWithFile(
-            archivo.path,
-            quality: 60,
-            minWidth: 800,
-            minHeight: 800,
-          );
-          final bytes =
-              compressedBytes ?? await archivo.readAsBytes();
+          final bytes = await _bytesParaSubir(archivo);
           await documentoService.subirArchivo(
             tramiteId: tramite.id,
             nodoId: nodoStartId,
             fileBytes: bytes,
             filename: archivo.name,
+            contentType: _contentTypeFor(archivo.name),
           );
         }
       }
@@ -312,7 +384,7 @@ class _RequisitoCard extends StatelessWidget {
   });
 
   final RequisitoInicial requisito;
-  final XFile? archivo;
+  final _ArchivoRequisito? archivo;
   final bool creando;
   final VoidCallback onSubirImagen;
   final VoidCallback onSubirArchivo;
@@ -370,14 +442,20 @@ class _RequisitoCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton(
-                  onPressed: creando ? null : onSubirImagen,
-                  child: const Text('📷 Subir imagen'),
-                ),
-                OutlinedButton(
-                  onPressed: creando ? null : onSubirArchivo,
-                  child: const Text('📁 Subir archivo'),
-                ),
+                if (requisito.permiteImagen)
+                  OutlinedButton(
+                    onPressed: creando ? null : onSubirImagen,
+                    child: const Text('📷 Subir imagen'),
+                  ),
+                if (requisito.permiteArchivoDocumento)
+                  OutlinedButton(
+                    onPressed: creando ? null : onSubirArchivo,
+                    child: Text(
+                      requisito.tipoArchivoEfectivo == 'pdf'
+                          ? '📄 Subir PDF'
+                          : '📁 Subir archivo',
+                    ),
+                  ),
               ],
             ),
           ],
@@ -390,19 +468,50 @@ class _RequisitoCard extends StatelessWidget {
 class _ArchivoPreview extends StatelessWidget {
   const _ArchivoPreview({required this.archivo});
 
-  final XFile archivo;
+  final _ArchivoRequisito archivo;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final path = archivo.path;
-    final lower = path.toLowerCase();
-    final esImagen = lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.webp') ||
-        lower.endsWith('.heic');
+    final ext = archivo.extension;
+    final esImagen = _esImagen(archivo.name);
+
+    Widget leading;
+    if (esImagen) {
+      leading = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(archivo.path),
+          width: 56,
+          height: 56,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (ext == 'pdf') {
+      leading = const Icon(
+        Icons.picture_as_pdf,
+        size: 40,
+        color: Colors.red,
+      );
+    } else if (ext == 'doc' || ext == 'docx') {
+      leading = const Icon(
+        Icons.description,
+        size: 40,
+        color: Colors.blue,
+      );
+    } else if (ext == 'xls' || ext == 'xlsx') {
+      leading = const Icon(
+        Icons.table_view,
+        size: 40,
+        color: Colors.green,
+      );
+    } else {
+      leading = Icon(
+        Icons.insert_drive_file_outlined,
+        size: 40,
+        color: theme.colorScheme.primary,
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -412,22 +521,7 @@ class _ArchivoPreview extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (esImagen)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                File(path),
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Icon(
-              Icons.insert_drive_file_outlined,
-              size: 40,
-              color: theme.colorScheme.primary,
-            ),
+          leading,
           const SizedBox(width: 10),
           Expanded(
             child: Text(

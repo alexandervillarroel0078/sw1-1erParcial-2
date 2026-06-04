@@ -151,6 +151,9 @@ export class PoliticaService {
           ? normalizeOrientacionCalles(politica.orientacionCalles as string)
           : undefined,
     };
+    const start = body.nodos?.find((n) => normalizeNodoTipo(n.tipo as string) === 'START');
+    console.log('[PoliticaService] PUT política — requisitosIniciales nodo START:', start?.requisitosIniciales);
+    console.log('[PoliticaService] PUT política — body completo:', body);
     return this.http.put<Politica>(`${this.base}/${id}`, body).pipe(
       map((x) => this.mapPolitica(x)),
       catchError((err) => handleApiError(this.auth, this.snack, err)),
