@@ -1,11 +1,21 @@
 package com.dpn.backend.informe.service;
 
+import com.dpn.backend.colaborativo.documento.model.DocumentoColaborativo;
+import com.dpn.backend.colaborativo.documento.repository.DocumentoColaborativoRepository;
 import com.dpn.backend.documento.service.DocumentoService;
+import com.dpn.backend.formulario.model.FormularioActividad;
+import com.dpn.backend.formulario.repository.FormularioActividadRepository;
 import com.dpn.backend.informe.dto.InformeCreateDTO;
 import com.dpn.backend.exception.ApiException;
 import com.dpn.backend.informe.model.Informe;
 import com.dpn.backend.archivo.model.embedded.ArchivoAdjunto;
 import com.dpn.backend.informe.repository.InformeRepository;
+import com.dpn.backend.tarea.model.Tarea;
+import com.dpn.backend.tarea.repository.TareaRepository;
+import com.dpn.backend.tramite.model.Tramite;
+import com.dpn.backend.tramite.repository.TramiteRepository;
+import com.dpn.backend.usuario.model.Usuario;
+import com.dpn.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -13,6 +23,8 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,6 +37,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,11 +50,18 @@ public class InformeService {
 	private static final float MARGIN_LEFT = 50f;
 	private static final float MARGIN_TOP = 750f;
 	private static final float LINE_HEIGHT = 16f;
+	private static final String DOCX_PREFIX = "DOCX_B64:";
+	private static final String YJS_PREFIX = "YJS:";
 	private static final DateTimeFormatter FECHA_FORMAT =
 			DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.systemDefault());
 
 	private final InformeRepository informeRepository;
 	private final DocumentoService documentoService;
+	private final UsuarioRepository usuarioRepository;
+	private final FormularioActividadRepository formularioActividadRepository;
+	private final DocumentoColaborativoRepository documentoColaborativoRepository;
+	private final TareaRepository tareaRepository;
+	private final TramiteRepository tramiteRepository;
 
 	public Informe crear(InformeCreateDTO dto, String funcionarioId, String usuarioNombre) {
 		Instant now = Instant.now();
@@ -84,8 +104,71 @@ public class InformeService {
 					informe.getNodoActividadId(),
 					informe.getFuncionarioId(),
 					usuarioNombre);
+			subirPdfDocColaborativoSilencioso(informe, usuarioNombre, timestamp);
 		} catch (Exception e) {
 			log.warn("No se pudo generar o subir el PDF del informe {}: {}", informe.getId(), e.getMessage());
+		}
+	}
+
+	private void subirPdfDocColaborativoSilencioso(Informe informe, String usuarioNombre, long timestamp) {
+		try {
+			Optional<Tarea> tareaOpt = informe.getTareaId() != null && !informe.getTareaId().isBlank()
+					? tareaRepository.findById(informe.getTareaId())
+					: Optional.empty();
+			String politicaId = tareaOpt.map(Tarea::getPoliticaId).filter(id -> !id.isBlank()).orElse(null);
+			if (politicaId == null) {
+				politicaId = tramiteRepository.findById(informe.getTramiteId())
+						.map(Tramite::getPoliticaId)
+						.filter(id -> id != null && !id.isBlank())
+						.orElse(null);
+			}
+			if (politicaId == null) {
+				return;
+			}
+
+			String nodoFormId = tareaOpt.map(Tarea::getForkNodoId)
+					.filter(id -> id != null && !id.isBlank())
+					.orElse(informe.getNodoActividadId());
+			if (nodoFormId == null || nodoFormId.isBlank()) {
+				nodoFormId = tareaOpt.map(Tarea::getNodoFlujoId).orElse(null);
+			}
+			if (nodoFormId == null || nodoFormId.isBlank()) {
+				return;
+			}
+
+			Optional<FormularioActividad> formOpt =
+					formularioActividadRepository.findByPoliticaIdAndNodoActividadId(politicaId, nodoFormId);
+			if (formOpt.isEmpty() || !formOpt.get().isHabilitadoDocumentoColaborativo()) {
+				return;
+			}
+
+			String nodoDocClave = nodoFormId;
+			Optional<DocumentoColaborativo> docColabOpt = documentoColaborativoRepository
+					.findByTramiteIdAndNodoId(informe.getTramiteId(), nodoDocClave);
+			if (docColabOpt.isEmpty()) {
+				return;
+			}
+
+			DocumentoColaborativo docColab = docColabOpt.get();
+			String texto = extraerTextoDocumentoColaborativo(docColab.getPlantillaContenido());
+			if (texto.isBlank()) {
+				return;
+			}
+
+			byte[] pdf = generarPdfDocumentoColaborativo(docColab.getTitulo(), nodoDocClave, texto);
+			String nombreArchivo = "doc-colaborativo-" + nodoDocClave + "-" + timestamp + ".pdf";
+			MultipartFile file = new ByteArrayMultipartFile(pdf, nombreArchivo, "application/pdf");
+			documentoService.subir(
+					file,
+					informe.getTramiteId(),
+					informe.getNodoActividadId(),
+					informe.getFuncionarioId(),
+					usuarioNombre);
+		} catch (Exception e) {
+			log.warn(
+					"No se pudo generar o subir el PDF del documento colaborativo para informe {}: {}",
+					informe.getId(),
+					e.getMessage());
 		}
 	}
 
@@ -94,7 +177,7 @@ public class InformeService {
 		lineas.add("Informe de actividad");
 		lineas.add("");
 		lineas.add("Nodo: " + nullSafe(informe.getNodoActividadId()));
-		lineas.add("Funcionario: " + nullSafe(informe.getFuncionarioId()));
+		lineas.add("Funcionario: " + nombreFuncionario(informe.getFuncionarioId()));
 		lineas.add("Fecha: " + (informe.getEnviadoEn() != null
 				? FECHA_FORMAT.format(informe.getEnviadoEn())
 				: "-"));
@@ -110,6 +193,22 @@ public class InformeService {
 		lineas.add("Resultado:");
 		agregarTextoMultilinea(lineas, informe.getResultado());
 
+		return generarPdfDesdeLineas(lineas, "Informe de actividad");
+	}
+
+	private byte[] generarPdfDocumentoColaborativo(String titulo, String nodoId, String texto) throws IOException {
+		List<String> lineas = new ArrayList<>();
+		lineas.add("Documento colaborativo");
+		lineas.add("");
+		lineas.add("Título: " + nullSafe(titulo));
+		lineas.add("Nodo: " + nullSafe(nodoId));
+		lineas.add("");
+		lineas.add("Contenido:");
+		agregarTextoMultilinea(lineas, texto);
+		return generarPdfDesdeLineas(lineas, "Documento colaborativo");
+	}
+
+	private byte[] generarPdfDesdeLineas(List<String> lineas, String tituloPrincipal) throws IOException {
 		try (PDDocument document = new PDDocument()) {
 			PDPage page = new PDPage();
 			document.addPage(page);
@@ -121,7 +220,7 @@ public class InformeService {
 					if (y < 50f) {
 						break;
 					}
-					boolean esTitulo = "Informe de actividad".equals(linea);
+					boolean esTitulo = tituloPrincipal.equals(linea);
 					cs.beginText();
 					cs.setFont(esTitulo ? fontTitulo : fontCuerpo, esTitulo ? 16f : 12f);
 					cs.newLineAtOffset(MARGIN_LEFT, y);
@@ -134,6 +233,94 @@ public class InformeService {
 			document.save(out);
 			return out.toByteArray();
 		}
+	}
+
+	private String nombreFuncionario(String funcionarioId) {
+		if (funcionarioId == null || funcionarioId.isBlank()) {
+			return "-";
+		}
+		return usuarioRepository.findById(funcionarioId)
+				.map(Usuario::getNombre)
+				.filter(n -> n != null && !n.isBlank())
+				.orElse(funcionarioId);
+	}
+
+	private String extraerTextoDocumentoColaborativo(String contenido) {
+		if (contenido == null || contenido.isBlank()) {
+			return "";
+		}
+		if (contenido.startsWith(DOCX_PREFIX)) {
+			return extraerTextoDesdeDocxBase64(contenido.substring(DOCX_PREFIX.length()));
+		}
+		if (contenido.startsWith(YJS_PREFIX)) {
+			return extraerTextoDesdeYjs(contenido.substring(YJS_PREFIX.length()));
+		}
+		return contenido;
+	}
+
+	private String extraerTextoDesdeDocxBase64(String base64) {
+		try {
+			byte[] bytes = Base64.getDecoder().decode(base64);
+			try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(bytes))) {
+				StringBuilder sb = new StringBuilder();
+				for (XWPFParagraph paragraph : document.getParagraphs()) {
+					String text = paragraph.getText();
+					if (text != null && !text.isBlank()) {
+						if (!sb.isEmpty()) {
+							sb.append('\n');
+						}
+						sb.append(text.trim());
+					}
+				}
+				return sb.toString();
+			}
+		} catch (Exception e) {
+			log.warn("No se pudo extraer texto DOCX del documento colaborativo: {}", e.getMessage());
+			return "";
+		}
+	}
+
+	private String extraerTextoDesdeYjs(String base64) {
+		try {
+			byte[] bytes = Base64.getDecoder().decode(base64);
+			StringBuilder fragmento = new StringBuilder();
+			StringBuilder salida = new StringBuilder();
+			for (byte b : bytes) {
+				if (b >= 32 && b < 127) {
+					fragmento.append((char) b);
+				} else {
+					agregarFragmentoYjsSiLegible(fragmento, salida);
+					fragmento.setLength(0);
+				}
+			}
+			agregarFragmentoYjsSiLegible(fragmento, salida);
+			return salida.toString().trim();
+		} catch (Exception e) {
+			log.warn("No se pudo extraer texto YJS del documento colaborativo: {}", e.getMessage());
+			return "";
+		}
+	}
+
+	private static void agregarFragmentoYjsSiLegible(StringBuilder fragmento, StringBuilder salida) {
+		if (fragmento.length() < 3) {
+			return;
+		}
+		String s = fragmento.toString().trim();
+		if (s.isEmpty() || esTokenYjsInterno(s)) {
+			return;
+		}
+		if (!salida.isEmpty()) {
+			salida.append('\n');
+		}
+		salida.append(s);
+	}
+
+	private static boolean esTokenYjsInterno(String s) {
+		return "paragraph".equals(s)
+				|| "default".equals(s)
+				|| "prosemirror".equals(s)
+				|| "xml".equals(s)
+				|| "text".equals(s);
 	}
 
 	private static void agregarTextoMultilinea(List<String> lineas, String texto) {
