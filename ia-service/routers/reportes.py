@@ -67,6 +67,21 @@ class ConsultaReporteResponse(BaseModel):
     campo_grafico: str | None = Field(default=None, serialization_alias="campoGrafico")
 
 
+def convertir_fechas(obj: Any) -> Any:
+    from datetime import datetime
+
+    if isinstance(obj, dict):
+        return {k: convertir_fechas(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convertir_fechas(i) for i in obj]
+    if isinstance(obj, str) and "T" in obj:
+        try:
+            return datetime.fromisoformat(obj.replace("Z", "+00:00"))
+        except ValueError:
+            return obj
+    return obj
+
+
 @router.post("/api/ia/consulta-reporte", response_model=ConsultaReporteResponse)
 def consulta_reporte(body: ConsultaReporteBody):
     client_openai = _client()
@@ -94,6 +109,7 @@ def consulta_reporte(body: ConsultaReporteBody):
         proyeccion["_id"] = 0
     else:
         proyeccion = {"_id": 0}
+    filtro = convertir_fechas(filtro)
     try:
         mongo_client = MongoClient(MONGO_URL)
         db = mongo_client[MONGO_DB]
@@ -196,16 +212,7 @@ def comparar_periodos(body: ComparacionPeriodosBody):
 
     def ejecutar_consulta(filtro: dict, label: str) -> PeriodoResult:
         try:
-            from datetime import datetime
-            filtro_procesado = {}
-            for k, v in filtro.items():
-                if isinstance(v, dict):
-                    filtro_procesado[k] = {
-                        op: datetime.fromisoformat(val) if isinstance(val, str) and 'T' in val else val
-                        for op, val in v.items()
-                    }
-                else:
-                    filtro_procesado[k] = v
+            filtro_procesado = convertir_fechas(filtro)
             mongo_client = MongoClient(MONGO_URL)
             db = mongo_client[MONGO_DB]
             col = db[coleccion]

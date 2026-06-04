@@ -49,9 +49,15 @@ public class DataInitializer implements CommandLineRunner {
 	private final InformeRepository informeRepository;
 	private final PasswordEncoder passwordEncoder;
 
+	private static final String POLITICA_ALTA_EMPLEADO = "Alta de empleado";
+	private static final String POLITICA_VACACIONES = "Aprobación de vacaciones";
+	private static final String POLITICA_CORRECCION_INFORME = "Corrección de informe";
 	private static final String POLITICA_ONBOARDING_PROVEEDOR = "Onboarding de proveedor";
+	private static final String POLITICA_SOLICITUD_CREDITO = "Solicitud de crédito";
 	private static final String PROVEEDOR_FORK_NODO_ID = "seed-proveedor-fork";
+	private static final String CREDITO_FORK_NODO_ID = "seed-credito-fork";
 	private static final int PROVEEDOR_TOTAL_PASOS = 7;
+	private static final int CREDITO_TOTAL_PASOS = 7;
 
 	@Override
 	public void run(String... args) {
@@ -198,60 +204,281 @@ public class DataInitializer implements CommandLineRunner {
 			return false;
 		}
 
-		String politicaId = politicaIds.get(POLITICA_ONBOARDING_PROVEEDOR);
-		if (politicaId == null || politicaId.isBlank()) {
-			log.warn("No se encontró la política '{}' para seed de trámites", POLITICA_ONBOARDING_PROVEEDOR);
-			return false;
+		for (String nombrePolitica : List.of(
+				POLITICA_ALTA_EMPLEADO,
+				POLITICA_VACACIONES,
+				POLITICA_CORRECCION_INFORME,
+				POLITICA_ONBOARDING_PROVEEDOR,
+				POLITICA_SOLICITUD_CREDITO)) {
+			if (politicaIds.get(nombrePolitica) == null || politicaIds.get(nombrePolitica).isBlank()) {
+				log.warn("No se encontró la política '{}' para seed de trámites", nombrePolitica);
+				return false;
+			}
 		}
 
 		Cliente juan = clienteRepository.findByEmailIgnoreCase("juan@demo.com").orElse(null);
 		Cliente maria = clienteRepository.findByEmailIgnoreCase("maria@demo.com").orElse(null);
 		Cliente carlos = clienteRepository.findByEmailIgnoreCase("carlos@demo.com").orElse(null);
 		if (juan == null || maria == null || carlos == null) {
-			log.warn("Clientes demo incompletos; no se crean trámites de análisis");
+			log.warn("Clientes demo incompletos; no se crean trámites demo");
 			return false;
 		}
 
-		String funcAc = usuarioIdPorCorreo("ana@demo.com");
-		String funcLegal = usuarioIdPorCorreo("legal@demo.com");
-		String funcFinanzas = usuarioIdPorCorreo("finanzas@demo.com");
-		String funcComercial = usuarioIdPorCorreo("comercial@demo.com");
-		if (funcAc == null || funcLegal == null || funcFinanzas == null || funcComercial == null) {
-			log.warn("Funcionarios demo incompletos; no se crean trámites de análisis");
+		Map<String, String> func = cargarFuncionariosDemo();
+		if (func == null) {
 			return false;
 		}
+
+		String idAlta = politicaIds.get(POLITICA_ALTA_EMPLEADO);
+		String idVacaciones = politicaIds.get(POLITICA_VACACIONES);
+		String idInforme = politicaIds.get(POLITICA_CORRECCION_INFORME);
+		String idProveedor = politicaIds.get(POLITICA_ONBOARDING_PROVEEDOR);
+		String idCredito = politicaIds.get(POLITICA_SOLICITUD_CREDITO);
+
+		String funcAc = func.get("ana@demo.com");
+		String funcLegal = func.get("legal@demo.com");
+		String funcFinanzas = func.get("finanzas@demo.com");
+		String funcComercial = func.get("comercial@demo.com");
+		String funcVt = func.get("luis@demo.com");
+		String funcDireccion = func.get("maria@demo.com");
+		String funcRiesgos = func.get("riesgos@demo.com");
 
 		Instant now = Instant.now();
 		List<Tarea> todasLasTareas = new ArrayList<>();
+		int tramitesCreados = 0;
 
-		// 4 trámites COMPLETADO (30–60 días atrás)
-		crearTramiteCompleto(todasLasTareas, politicaId, juan, funcAc, funcLegal, funcFinanzas, funcComercial,
+		// —— 10 COMPLETADO (últimos 60 días) ——
+		crearTramiteLinealCompleto(todasLasTareas, idAlta, POLITICA_ALTA_EMPLEADO, juan, funcAc,
+				actividadesAltaEmpleado(), now.minus(55, ChronoUnit.DAYS), new int[] { 20, 35, 40, 25 });
+		tramitesCreados++;
+		crearTramiteLinealCompleto(todasLasTareas, idAlta, POLITICA_ALTA_EMPLEADO, maria, funcAc,
+				actividadesAltaEmpleado(), now.minus(48, ChronoUnit.DAYS), new int[] { 15, 30, 45, 20 });
+		tramitesCreados++;
+		crearTramiteLinealCompleto(todasLasTareas, idVacaciones, POLITICA_VACACIONES, carlos, funcAc,
+				actividadesVacacionesLineal(), now.minus(60, ChronoUnit.DAYS), new int[] { 25, 30 });
+		tramitesCreados++;
+		crearTramiteLinealCompleto(todasLasTareas, idVacaciones, POLITICA_VACACIONES, juan, funcAc,
+				actividadesVacacionesLineal(), now.minus(45, ChronoUnit.DAYS), new int[] { 18, 22 });
+		tramitesCreados++;
+		crearTramiteLinealCompleto(todasLasTareas, idInforme, POLITICA_CORRECCION_INFORME, maria, funcAc,
+				actividadesCorreccionInformeLineal(), now.minus(40, ChronoUnit.DAYS), new int[] { 50, 35, 40 });
+		tramitesCreados++;
+		crearTramiteLinealCompleto(todasLasTareas, idInforme, POLITICA_CORRECCION_INFORME, carlos, funcAc,
+				actividadesCorreccionInformeLineal(), now.minus(32, ChronoUnit.DAYS), new int[] { 45, 30, 35 });
+		tramitesCreados++;
+		crearTramiteProveedorCompleto(todasLasTareas, idProveedor, juan, funcAc, funcLegal, funcFinanzas, funcComercial,
 				now.minus(35, ChronoUnit.DAYS), new int[] { 3, 4, 3, 5, 2 });
-		crearTramiteCompleto(todasLasTareas, politicaId, maria, funcAc, funcLegal, funcFinanzas, funcComercial,
+		tramitesCreados++;
+		crearTramiteProveedorCompleto(todasLasTareas, idProveedor, maria, funcAc, funcLegal, funcFinanzas, funcComercial,
 				now.minus(42, ChronoUnit.DAYS), new int[] { 5, 90, 8, 12, 5 });
-		crearTramiteCompleto(todasLasTareas, politicaId, carlos, funcAc, funcLegal, funcFinanzas, funcComercial,
-				now.minus(50, ChronoUnit.DAYS), new int[] { 4, 6, 55, 8, 4 });
-		crearTramiteCompleto(todasLasTareas, politicaId, juan, funcAc, funcLegal, funcFinanzas, funcComercial,
-				now.minus(58, ChronoUnit.DAYS), new int[] { 3, 45, 70, 50, 6 });
+		tramitesCreados++;
+		crearTramiteCreditoCompleto(todasLasTareas, idCredito, carlos, funcAc, funcVt, funcLegal, funcRiesgos, funcDireccion,
+				now.minus(50, ChronoUnit.DAYS), new int[] { 4, 6, 55, 8, 4, 30, 20 });
+		tramitesCreados++;
+		crearTramiteCreditoCompleto(todasLasTareas, idCredito, juan, funcAc, funcVt, funcLegal, funcRiesgos, funcDireccion,
+				now.minus(38, ChronoUnit.DAYS), new int[] { 3, 5, 40, 7, 6, 25, 18 });
+		tramitesCreados++;
 
-		// 2 trámites EN_PROCESO (5–15 días atrás)
-		crearTramiteEnProceso(todasLasTareas, politicaId, maria, funcAc, funcLegal, funcFinanzas, funcComercial,
-				now.minus(8, ChronoUnit.DAYS), new int[] { 4, 5, 6 });
-		crearTramiteEnProceso(todasLasTareas, politicaId, carlos, funcAc, funcLegal, funcFinanzas, funcComercial,
+		// —— 5 EN_PROCESO (últimos 15 días) ——
+		crearTramiteLinealEnProceso(todasLasTareas, idAlta, POLITICA_ALTA_EMPLEADO, carlos, funcAc,
+				actividadesAltaEmpleado(), now.minus(10, ChronoUnit.DAYS), 2, new int[] { 12, 18 });
+		tramitesCreados++;
+		crearTramiteLinealEnProceso(todasLasTareas, idVacaciones, POLITICA_VACACIONES, maria, funcAc,
+				actividadesVacacionesLineal(), now.minus(7, ChronoUnit.DAYS), 1, new int[] { 15 });
+		tramitesCreados++;
+		crearTramiteLinealEnProceso(todasLasTareas, idInforme, POLITICA_CORRECCION_INFORME, juan, funcAc,
+				actividadesCorreccionInformeLineal(), now.minus(12, ChronoUnit.DAYS), 2, new int[] { 30, 25 });
+		tramitesCreados++;
+		crearTramiteProveedorEnProceso(todasLasTareas, idProveedor, carlos, funcAc, funcLegal, funcFinanzas, funcComercial,
+				now.minus(5, ChronoUnit.DAYS), new int[] { 4, 5, 6 });
+		tramitesCreados++;
+		crearTramiteCreditoEnProceso(todasLasTareas, idCredito, maria, funcAc, funcVt, funcLegal, funcRiesgos,
 				now.minus(14, ChronoUnit.DAYS), new int[] { 3, 7, 8 });
+		tramitesCreados++;
 
-		// 2 trámites DEMORADO (20–40 días atrás, diasAbierto > 30)
-		crearTramiteDemorado(todasLasTareas, politicaId, juan, funcAc, funcLegal, funcFinanzas, funcComercial,
-				now.minus(28, ChronoUnit.DAYS), 38);
-		crearTramiteDemorado(todasLasTareas, politicaId, maria, funcAc, funcLegal, funcFinanzas, funcComercial,
-				now.minus(36, ChronoUnit.DAYS), 42);
+		// —— 3 DEMORADO (> 20 días sin completar) ——
+		crearTramiteLinealDemorado(todasLasTareas, idAlta, POLITICA_ALTA_EMPLEADO, juan, funcAc,
+				actividadesAltaEmpleado(), now.minus(28, ChronoUnit.DAYS), 1, 38);
+		tramitesCreados++;
+		crearTramiteLinealDemorado(todasLasTareas, idInforme, POLITICA_CORRECCION_INFORME, maria, funcAc,
+				actividadesCorreccionInformeLineal(), now.minus(32, ChronoUnit.DAYS), 1, 42);
+		tramitesCreados++;
+		crearTramiteProveedorDemorado(todasLasTareas, idProveedor, carlos, funcAc, funcLegal, funcFinanzas, funcComercial,
+				now.minus(36, ChronoUnit.DAYS), 40);
+		tramitesCreados++;
+
+		// —— 2 INICIADO (últimos 3 días) ——
+		crearTramiteLinealIniciado(todasLasTareas, idVacaciones, POLITICA_VACACIONES, juan, funcAc,
+				actividadesVacacionesLineal(), now.minus(2, ChronoUnit.DAYS));
+		tramitesCreados++;
+		crearTramiteCreditoIniciado(todasLasTareas, idCredito, carlos, funcAc, funcVt,
+				now.minus(1, ChronoUnit.DAYS));
+		tramitesCreados++;
 
 		tareaRepository.saveAll(todasLasTareas);
-		log.info("Seed análisis: {} trámites y {} tareas demo creadas", 8, todasLasTareas.size());
+		log.info("Seed demo: {} trámites y {} tareas creadas", tramitesCreados, todasLasTareas.size());
 		return true;
 	}
 
-	private void crearTramiteCompleto(
+	private Map<String, String> cargarFuncionariosDemo() {
+		String[] correos = {
+				"ana@demo.com",
+				"luis@demo.com",
+				"legal@demo.com",
+				"maria@demo.com",
+				"rrhh@demo.com",
+				"redaccion@demo.com",
+				"revision@demo.com",
+				"finanzas@demo.com",
+				"comercial@demo.com",
+				"riesgos@demo.com"
+		};
+		Map<String, String> map = new LinkedHashMap<>();
+		for (String correo : correos) {
+			String id = usuarioIdPorCorreo(correo);
+			if (id == null) {
+				log.warn("Funcionario demo incompleto: {}", correo);
+				return null;
+			}
+			map.put(correo, id);
+		}
+		return map;
+	}
+
+	private List<ActividadSeed> actividadesAltaEmpleado() {
+		return List.of(
+				new ActividadSeed("seed-alta-recibir", "Recibir documentos", "RRHH", "rrhh@demo.com"),
+				new ActividadSeed("seed-alta-verificar", "Verificar identidad", "RRHH", "rrhh@demo.com"),
+				new ActividadSeed("seed-alta-crear-usuario", "Crear usuario en sistema", "RRHH", "rrhh@demo.com"),
+				new ActividadSeed("seed-alta-asignar-equipo", "Asignar equipo", "RRHH", "rrhh@demo.com"));
+	}
+
+	private List<ActividadSeed> actividadesVacacionesLineal() {
+		return List.of(
+				new ActividadSeed("seed-vacaciones-solicitar", "Solicitar vacaciones", "Atención al Cliente", "ana@demo.com"),
+				new ActividadSeed("seed-vacaciones-registrar", "Registrar en sistema", "RRHH", "rrhh@demo.com"));
+	}
+
+	private List<ActividadSeed> actividadesCorreccionInformeLineal() {
+		return List.of(
+				new ActividadSeed("seed-informe-redactar", "Redactar informe", "Redacción", "redaccion@demo.com"),
+				new ActividadSeed("seed-informe-revisar", "Revisar informe", "Revisión", "revision@demo.com"),
+				new ActividadSeed("seed-informe-publicar", "Publicar informe", "Redacción", "redaccion@demo.com"));
+	}
+
+	private void crearTramiteLinealCompleto(
+			List<Tarea> out,
+			String politicaId,
+			String politicaNombre,
+			Cliente cliente,
+			String creadoPorId,
+			List<ActividadSeed> actividades,
+			Instant tramiteCreado,
+			int[] minutosPorPaso) {
+		int total = actividades.size();
+		ActividadSeed ultima = actividades.get(total - 1);
+		Tramite tramite = guardarTramite(politicaId, politicaNombre, cliente, creadoPorId, EstadoTramite.COMPLETADO,
+				tramiteCreado, false, null, ultima.etiqueta(), total, total);
+
+		Instant cursor = tramiteCreado;
+		int paso = 1;
+		for (int i = 0; i < actividades.size(); i++) {
+			ActividadSeed a = actividades.get(i);
+			cursor = agregarTareaCompletada(out, tramite, politicaId, politicaNombre, total, a.nodoId(), a.etiqueta(),
+					a.departamento(), usuarioIdPorCorreo(a.usuarioCorreo()), paso++, null, cursor, minutosPorPaso[i]);
+		}
+		tramite.setActualizadoEn(cursor);
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteLinealEnProceso(
+			List<Tarea> out,
+			String politicaId,
+			String politicaNombre,
+			Cliente cliente,
+			String creadoPorId,
+			List<ActividadSeed> actividades,
+			Instant tramiteCreado,
+			int actividadesCompletadas,
+			int[] minutosCompletados) {
+		int total = actividades.size();
+		ActividadSeed pendiente = actividades.get(actividadesCompletadas);
+		Tramite tramite = guardarTramite(politicaId, politicaNombre, cliente, creadoPorId, EstadoTramite.EN_PROCESO,
+				tramiteCreado, false, null, pendiente.etiqueta(), actividadesCompletadas, total);
+
+		Instant cursor = tramiteCreado;
+		int paso = 1;
+		for (int i = 0; i < actividadesCompletadas; i++) {
+			ActividadSeed a = actividades.get(i);
+			cursor = agregarTareaCompletada(out, tramite, politicaId, politicaNombre, total, a.nodoId(), a.etiqueta(),
+					a.departamento(), usuarioIdPorCorreo(a.usuarioCorreo()), paso++, null, cursor, minutosCompletados[i]);
+		}
+		out.add(tareaBuilder(tramite, politicaId, politicaNombre, total, pendiente.nodoId(), pendiente.etiqueta(),
+				pendiente.departamento(), usuarioIdPorCorreo(pendiente.usuarioCorreo()), paso, null,
+				EstadoTarea.PENDIENTE, cursor, null, null));
+
+		tramite.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteLinealDemorado(
+			List<Tarea> out,
+			String politicaId,
+			String politicaNombre,
+			Cliente cliente,
+			String creadoPorId,
+			List<ActividadSeed> actividades,
+			Instant tramiteCreado,
+			int indiceDemorado,
+			int diasAbiertoDemorados) {
+		int total = actividades.size();
+		ActividadSeed demorada = actividades.get(indiceDemorado);
+		Tramite tramite = guardarTramite(politicaId, politicaNombre, cliente, creadoPorId, EstadoTramite.DEMORADO,
+				tramiteCreado, false, null, demorada.etiqueta(), indiceDemorado + 1, total);
+
+		Instant cursor = tramiteCreado;
+		int paso = 1;
+		for (int i = 0; i < indiceDemorado; i++) {
+			ActividadSeed a = actividades.get(i);
+			cursor = agregarTareaCompletada(out, tramite, politicaId, politicaNombre, total, a.nodoId(), a.etiqueta(),
+					a.departamento(), usuarioIdPorCorreo(a.usuarioCorreo()), paso++, null, cursor, 10 + i * 5);
+		}
+		out.add(tareaBuilder(tramite, politicaId, politicaNombre, total, demorada.nodoId(), demorada.etiqueta(),
+				demorada.departamento(), usuarioIdPorCorreo(demorada.usuarioCorreo()), paso, null,
+				EstadoTarea.DEMORADO, cursor, null, diasAbiertoDemorados));
+		if (indiceDemorado + 1 < actividades.size()) {
+			ActividadSeed siguiente = actividades.get(indiceDemorado + 1);
+			out.add(tareaBuilder(tramite, politicaId, politicaNombre, total, siguiente.nodoId(), siguiente.etiqueta(),
+					siguiente.departamento(), usuarioIdPorCorreo(siguiente.usuarioCorreo()), paso + 1, null,
+					EstadoTarea.PENDIENTE, cursor, null, null));
+		}
+
+		tramite.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteLinealIniciado(
+			List<Tarea> out,
+			String politicaId,
+			String politicaNombre,
+			Cliente cliente,
+			String creadoPorId,
+			List<ActividadSeed> actividades,
+			Instant tramiteCreado) {
+		int total = actividades.size();
+		ActividadSeed primera = actividades.get(0);
+		Tramite tramite = guardarTramite(politicaId, politicaNombre, cliente, creadoPorId, EstadoTramite.INICIADO,
+				tramiteCreado, false, null, primera.etiqueta(), 0, total);
+
+		out.add(tareaBuilder(tramite, politicaId, politicaNombre, total, primera.nodoId(), primera.etiqueta(),
+				primera.departamento(), usuarioIdPorCorreo(primera.usuarioCorreo()), 1, null,
+				EstadoTarea.PENDIENTE, tramiteCreado, null, null));
+
+		tramite.setActualizadoEn(tramiteCreado);
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteProveedorCompleto(
 			List<Tarea> out,
 			String politicaId,
 			Cliente cliente,
@@ -261,33 +488,36 @@ public class DataInitializer implements CommandLineRunner {
 			String funcComercial,
 			Instant tramiteCreado,
 			int[] minutosPorActividad) {
-		Tramite tramite = guardarTramite(politicaId, cliente, funcAc, EstadoTramite.COMPLETADO, tramiteCreado, false, null,
-				"Aprobar proveedor", PROVEEDOR_TOTAL_PASOS, PROVEEDOR_TOTAL_PASOS);
+		Tramite tramite = guardarTramite(politicaId, POLITICA_ONBOARDING_PROVEEDOR, cliente, funcAc,
+				EstadoTramite.COMPLETADO, tramiteCreado, false, null, "Aprobar proveedor", PROVEEDOR_TOTAL_PASOS,
+				PROVEEDOR_TOTAL_PASOS);
 
 		Instant cursor = tramiteCreado;
-		cursor = agregarTareaCompletada(out, tramite, politicaId, "seed-proveedor-registrar", "Registrar proveedor",
-				"Atención al Cliente", funcAc, 1, null, cursor, minutosPorActividad[0]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-registrar", "Registrar proveedor", "Atención al Cliente", funcAc, 1, null, cursor,
+				minutosPorActividad[0]);
 
 		Instant paraleloInicio = cursor;
-		Instant finDocs = agregarTareaCompletadaInstant(out, tramite, politicaId, "seed-proveedor-verificar-docs",
-				"Verificar documentos", "Legal", funcLegal, 3, PROVEEDOR_FORK_NODO_ID, paraleloInicio,
-				minutosPorActividad[1]);
-		Instant finFin = agregarTareaCompletadaInstant(out, tramite, politicaId, "seed-proveedor-evaluar-finanzas",
-				"Evaluar finanzas", "Finanzas", funcFinanzas, 4, PROVEEDOR_FORK_NODO_ID, paraleloInicio,
-				minutosPorActividad[2]);
-		Instant finRefs = agregarTareaCompletadaInstant(out, tramite, politicaId, "seed-proveedor-revisar-referencias",
-				"Revisar referencias", "Comercial", funcComercial, 5, PROVEEDOR_FORK_NODO_ID, paraleloInicio,
-				minutosPorActividad[3]);
+		Instant finDocs = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR,
+				PROVEEDOR_TOTAL_PASOS, "seed-proveedor-verificar-docs", "Verificar documentos", "Legal", funcLegal, 3,
+				PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosPorActividad[1]);
+		Instant finFin = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR,
+				PROVEEDOR_TOTAL_PASOS, "seed-proveedor-evaluar-finanzas", "Evaluar finanzas", "Finanzas", funcFinanzas, 4,
+				PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosPorActividad[2]);
+		Instant finRefs = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR,
+				PROVEEDOR_TOTAL_PASOS, "seed-proveedor-revisar-referencias", "Revisar referencias", "Comercial",
+				funcComercial, 5, PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosPorActividad[3]);
 		cursor = maxInstant(finDocs, finFin, finRefs);
 
-		cursor = agregarTareaCompletada(out, tramite, politicaId, "seed-proveedor-aprobar", "Aprobar proveedor",
-				"Atención al Cliente", funcAc, 7, null, cursor, minutosPorActividad[4]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-aprobar", "Aprobar proveedor", "Atención al Cliente", funcAc, 7, null, cursor,
+				minutosPorActividad[4]);
 
 		tramite.setActualizadoEn(cursor);
 		tramiteRepository.save(tramite);
 	}
 
-	private void crearTramiteEnProceso(
+	private void crearTramiteProveedorEnProceso(
 			List<Tarea> out,
 			String politicaId,
 			Cliente cliente,
@@ -297,27 +527,32 @@ public class DataInitializer implements CommandLineRunner {
 			String funcComercial,
 			Instant tramiteCreado,
 			int[] minutosCompletados) {
-		Tramite tramite = guardarTramite(politicaId, cliente, funcAc, EstadoTramite.EN_PROCESO, tramiteCreado, true,
-				PROVEEDOR_FORK_NODO_ID, "Revisar referencias", 5, PROVEEDOR_TOTAL_PASOS);
+		Tramite tramite = guardarTramite(politicaId, POLITICA_ONBOARDING_PROVEEDOR, cliente, funcAc,
+				EstadoTramite.EN_PROCESO, tramiteCreado, true, PROVEEDOR_FORK_NODO_ID, "Revisar referencias", 5,
+				PROVEEDOR_TOTAL_PASOS);
 
 		Instant cursor = tramiteCreado;
-		cursor = agregarTareaCompletada(out, tramite, politicaId, "seed-proveedor-registrar", "Registrar proveedor",
-				"Atención al Cliente", funcAc, 1, null, cursor, minutosCompletados[0]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-registrar", "Registrar proveedor", "Atención al Cliente", funcAc, 1, null, cursor,
+				minutosCompletados[0]);
 
 		Instant paraleloInicio = cursor;
-		agregarTareaCompletadaInstant(out, tramite, politicaId, "seed-proveedor-verificar-docs", "Verificar documentos",
-				"Legal", funcLegal, 3, PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosCompletados[1]);
-		agregarTareaCompletadaInstant(out, tramite, politicaId, "seed-proveedor-evaluar-finanzas", "Evaluar finanzas",
-				"Finanzas", funcFinanzas, 4, PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosCompletados[2]);
+		agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-verificar-docs", "Verificar documentos", "Legal", funcLegal, 3, PROVEEDOR_FORK_NODO_ID,
+				paraleloInicio, minutosCompletados[1]);
+		agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-evaluar-finanzas", "Evaluar finanzas", "Finanzas", funcFinanzas, 4,
+				PROVEEDOR_FORK_NODO_ID, paraleloInicio, minutosCompletados[2]);
 
-		out.add(tareaBuilder(tramite, politicaId, "seed-proveedor-revisar-referencias", "Revisar referencias", "Comercial",
-				funcComercial, 5, PROVEEDOR_FORK_NODO_ID, EstadoTarea.PENDIENTE, paraleloInicio, null, null));
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-revisar-referencias", "Revisar referencias", "Comercial", funcComercial, 5,
+				PROVEEDOR_FORK_NODO_ID, EstadoTarea.PENDIENTE, paraleloInicio, null, null));
 
 		tramite.setActualizadoEn(Instant.now());
 		tramiteRepository.save(tramite);
 	}
 
-	private void crearTramiteDemorado(
+	private void crearTramiteProveedorDemorado(
 			List<Tarea> out,
 			String politicaId,
 			Cliente cliente,
@@ -327,27 +562,133 @@ public class DataInitializer implements CommandLineRunner {
 			String funcComercial,
 			Instant tramiteCreado,
 			int diasAbiertoDemorados) {
-		Tramite tramite = guardarTramite(politicaId, cliente, funcAc, EstadoTramite.DEMORADO, tramiteCreado, true,
-				PROVEEDOR_FORK_NODO_ID, "Verificar documentos", 3, PROVEEDOR_TOTAL_PASOS);
+		Tramite tramite = guardarTramite(politicaId, POLITICA_ONBOARDING_PROVEEDOR, cliente, funcAc,
+				EstadoTramite.DEMORADO, tramiteCreado, true, PROVEEDOR_FORK_NODO_ID, "Verificar documentos", 3,
+				PROVEEDOR_TOTAL_PASOS);
 
 		Instant cursor = tramiteCreado;
-		cursor = agregarTareaCompletada(out, tramite, politicaId, "seed-proveedor-registrar", "Registrar proveedor",
-				"Atención al Cliente", funcAc, 1, null, cursor, 4);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-registrar", "Registrar proveedor", "Atención al Cliente", funcAc, 1, null, cursor, 4);
 
 		Instant paraleloInicio = cursor;
-		out.add(tareaBuilder(tramite, politicaId, "seed-proveedor-verificar-docs", "Verificar documentos", "Legal",
-				funcLegal, 3, PROVEEDOR_FORK_NODO_ID, EstadoTarea.DEMORADO, paraleloInicio, null, diasAbiertoDemorados));
-		out.add(tareaBuilder(tramite, politicaId, "seed-proveedor-evaluar-finanzas", "Evaluar finanzas", "Finanzas",
-				funcFinanzas, 4, PROVEEDOR_FORK_NODO_ID, EstadoTarea.DEMORADO, paraleloInicio, null, diasAbiertoDemorados - 2));
-		out.add(tareaBuilder(tramite, politicaId, "seed-proveedor-revisar-referencias", "Revisar referencias", "Comercial",
-				funcComercial, 5, PROVEEDOR_FORK_NODO_ID, EstadoTarea.PENDIENTE, paraleloInicio, null, null));
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-verificar-docs", "Verificar documentos", "Legal", funcLegal, 3, PROVEEDOR_FORK_NODO_ID,
+				EstadoTarea.DEMORADO, paraleloInicio, null, diasAbiertoDemorados));
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-evaluar-finanzas", "Evaluar finanzas", "Finanzas", funcFinanzas, 4,
+				PROVEEDOR_FORK_NODO_ID, EstadoTarea.DEMORADO, paraleloInicio, null, diasAbiertoDemorados - 2));
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_ONBOARDING_PROVEEDOR, PROVEEDOR_TOTAL_PASOS,
+				"seed-proveedor-revisar-referencias", "Revisar referencias", "Comercial", funcComercial, 5,
+				PROVEEDOR_FORK_NODO_ID, EstadoTarea.PENDIENTE, paraleloInicio, null, null));
 
 		tramite.setActualizadoEn(Instant.now());
 		tramiteRepository.save(tramite);
 	}
 
+	private void crearTramiteCreditoCompleto(
+			List<Tarea> out,
+			String politicaId,
+			Cliente cliente,
+			String funcAc,
+			String funcVt,
+			String funcLegal,
+			String funcRiesgos,
+			String funcDireccion,
+			Instant tramiteCreado,
+			int[] minutos) {
+		Tramite tramite = guardarTramite(politicaId, POLITICA_SOLICITUD_CREDITO, cliente, funcAc,
+				EstadoTramite.COMPLETADO, tramiteCreado, false, null, "Firma y desembolso", CREDITO_TOTAL_PASOS,
+				CREDITO_TOTAL_PASOS);
+
+		Instant cursor = tramiteCreado;
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-recepcion", "Recepción de solicitud", "Atención al Cliente", funcAc, 1, null, cursor,
+				minutos[0]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-verificacion", "Verificación de datos", "Validación Técnica", funcVt, 2, null, cursor,
+				minutos[1]);
+
+		Instant paraleloInicio = cursor;
+		Instant finLegal = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO,
+				CREDITO_TOTAL_PASOS, "seed-credito-analisis-legal", "Análisis legal", "Legal", funcLegal, 3,
+				CREDITO_FORK_NODO_ID, paraleloInicio, minutos[2]);
+		Instant finRiesgo = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO,
+				CREDITO_TOTAL_PASOS, "seed-credito-evaluacion-riesgo", "Evaluación de riesgo", "Riesgos", funcRiesgos, 4,
+				CREDITO_FORK_NODO_ID, paraleloInicio, minutos[3]);
+		Instant finHist = agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO,
+				CREDITO_TOTAL_PASOS, "seed-credito-historial", "Revisión de historial", "Validación Técnica", funcVt, 5,
+				CREDITO_FORK_NODO_ID, paraleloInicio, minutos[4]);
+		cursor = maxInstant(finLegal, finRiesgo, finHist);
+
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-contrato", "Generación de contrato", "Legal", funcLegal, 6, null, cursor, minutos[5]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-firma-desembolso", "Firma y desembolso", "Dirección", funcDireccion, 7, null, cursor,
+				minutos[6]);
+
+		tramite.setActualizadoEn(cursor);
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteCreditoEnProceso(
+			List<Tarea> out,
+			String politicaId,
+			Cliente cliente,
+			String funcAc,
+			String funcVt,
+			String funcLegal,
+			String funcRiesgos,
+			Instant tramiteCreado,
+			int[] minutosCompletados) {
+		Tramite tramite = guardarTramite(politicaId, POLITICA_SOLICITUD_CREDITO, cliente, funcAc,
+				EstadoTramite.EN_PROCESO, tramiteCreado, true, CREDITO_FORK_NODO_ID, "Revisión de historial", 5,
+				CREDITO_TOTAL_PASOS);
+
+		Instant cursor = tramiteCreado;
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-recepcion", "Recepción de solicitud", "Atención al Cliente", funcAc, 1, null, cursor,
+				minutosCompletados[0]);
+		cursor = agregarTareaCompletada(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-verificacion", "Verificación de datos", "Validación Técnica", funcVt, 2, null, cursor,
+				minutosCompletados[1]);
+
+		Instant paraleloInicio = cursor;
+		agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-analisis-legal", "Análisis legal", "Legal", funcLegal, 3, CREDITO_FORK_NODO_ID,
+				paraleloInicio, minutosCompletados[2]);
+		agregarTareaCompletadaInstant(out, tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-evaluacion-riesgo", "Evaluación de riesgo", "Riesgos", funcRiesgos, 4,
+				CREDITO_FORK_NODO_ID, paraleloInicio, minutosCompletados[2]);
+
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-historial", "Revisión de historial", "Validación Técnica", funcVt, 5, CREDITO_FORK_NODO_ID,
+				EstadoTarea.PENDIENTE, paraleloInicio, null, null));
+
+		tramite.setActualizadoEn(Instant.now());
+		tramiteRepository.save(tramite);
+	}
+
+	private void crearTramiteCreditoIniciado(
+			List<Tarea> out,
+			String politicaId,
+			Cliente cliente,
+			String funcAc,
+			String funcVt,
+			Instant tramiteCreado) {
+		Tramite tramite = guardarTramite(politicaId, POLITICA_SOLICITUD_CREDITO, cliente, funcAc,
+				EstadoTramite.INICIADO, tramiteCreado, false, null, "Recepción de solicitud", 0, CREDITO_TOTAL_PASOS);
+
+		out.add(tareaBuilder(tramite, politicaId, POLITICA_SOLICITUD_CREDITO, CREDITO_TOTAL_PASOS,
+				"seed-credito-recepcion", "Recepción de solicitud", "Atención al Cliente", funcAc, 1, null,
+				EstadoTarea.PENDIENTE, tramiteCreado, null, null));
+
+		tramite.setActualizadoEn(tramiteCreado);
+		tramiteRepository.save(tramite);
+	}
+
 	private Tramite guardarTramite(
 			String politicaId,
+			String politicaNombre,
 			Cliente cliente,
 			String creadoPorUsuarioId,
 			EstadoTramite estado,
@@ -360,7 +701,7 @@ public class DataInitializer implements CommandLineRunner {
 		Tramite tramite = Tramite.builder()
 				.id(UUID.randomUUID().toString())
 				.politicaId(politicaId)
-				.politicaNombre(POLITICA_ONBOARDING_PROVEEDOR)
+				.politicaNombre(politicaNombre)
 				.clienteId(cliente.getId())
 				.clienteNombre(cliente.getNombreCompleto())
 				.creadoPorUsuarioId(creadoPorUsuarioId)
@@ -380,6 +721,8 @@ public class DataInitializer implements CommandLineRunner {
 			List<Tarea> out,
 			Tramite tramite,
 			String politicaId,
+			String politicaNombre,
+			int totalPasos,
 			String nodoId,
 			String etiqueta,
 			String departamentoTexto,
@@ -388,14 +731,16 @@ public class DataInitializer implements CommandLineRunner {
 			String forkNodoId,
 			Instant creadoEn,
 			int duracionMinutos) {
-		return agregarTareaCompletadaInstant(out, tramite, politicaId, nodoId, etiqueta, departamentoTexto,
-				usuarioAsignadoId, pasoActual, forkNodoId, creadoEn, duracionMinutos);
+		return agregarTareaCompletadaInstant(out, tramite, politicaId, politicaNombre, totalPasos, nodoId, etiqueta,
+				departamentoTexto, usuarioAsignadoId, pasoActual, forkNodoId, creadoEn, duracionMinutos);
 	}
 
 	private Instant agregarTareaCompletadaInstant(
 			List<Tarea> out,
 			Tramite tramite,
 			String politicaId,
+			String politicaNombre,
+			int totalPasos,
 			String nodoId,
 			String etiqueta,
 			String departamentoTexto,
@@ -405,14 +750,16 @@ public class DataInitializer implements CommandLineRunner {
 			Instant creadoEn,
 			int duracionMinutos) {
 		Instant completadoEn = creadoEn.plus(duracionMinutos, ChronoUnit.MINUTES);
-		out.add(tareaBuilder(tramite, politicaId, nodoId, etiqueta, departamentoTexto, usuarioAsignadoId, pasoActual,
-				forkNodoId, EstadoTarea.COMPLETADO, creadoEn, completadoEn, null));
+		out.add(tareaBuilder(tramite, politicaId, politicaNombre, totalPasos, nodoId, etiqueta, departamentoTexto,
+				usuarioAsignadoId, pasoActual, forkNodoId, EstadoTarea.COMPLETADO, creadoEn, completadoEn, null));
 		return completadoEn;
 	}
 
 	private Tarea tareaBuilder(
 			Tramite tramite,
 			String politicaId,
+			String politicaNombre,
+			int totalPasos,
 			String nodoId,
 			String etiqueta,
 			String departamentoTexto,
@@ -431,9 +778,9 @@ public class DataInitializer implements CommandLineRunner {
 				.actividadEtiqueta(etiqueta)
 				.departamentoTexto(departamentoTexto)
 				.politicaId(politicaId)
-				.politicaNombre(POLITICA_ONBOARDING_PROVEEDOR)
+				.politicaNombre(politicaNombre)
 				.pasoActual(pasoActual)
-				.totalPasos(PROVEEDOR_TOTAL_PASOS)
+				.totalPasos(totalPasos)
 				.clienteNombre(tramite.getClienteNombre())
 				.tramiteClienteId(tramite.getClienteId())
 				.usuarioAsignadoId(usuarioAsignadoId)
@@ -744,6 +1091,9 @@ public class DataInitializer implements CommandLineRunner {
 	@FunctionalInterface
 	private interface PoliticaFactory {
 		Politica build(Map<String, String> deptIds);
+	}
+
+	private record ActividadSeed(String nodoId, String etiqueta, String departamento, String usuarioCorreo) {
 	}
 
 	private record UsuarioSeed(String correo, String nombre, String password, RolUsuario rol, String departamentoNombre) {

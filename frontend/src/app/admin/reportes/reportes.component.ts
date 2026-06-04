@@ -106,6 +106,15 @@ import { IaService, ConsultaReporteResponse, ComparacionPeriodosResponse } from 
         </button>
       </div>
 
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
+        @for (s of sugerencias; track s) {
+          <button mat-stroked-button style="font-size: 13px; border-radius: 20px;" (click)="usarSugerencia(s)">
+            <mat-icon style="font-size:16px;height:16px;width:16px;margin-right:4px;">lightbulb_outline</mat-icon>
+            {{ s }}
+          </button>
+        }
+      </div>
+
       @if (resultado()) {
         <div style="margin-bottom: 12px;">
           <strong>{{ resultado()!.descripcion }}</strong>
@@ -245,6 +254,18 @@ export class ReportesComponent {
   }
 
   consulta = '';
+  sugerencias = [
+    'Trámites atendidos esta semana por departamento',
+    'Trámites con más demora en los últimos 30 días',
+    'Clientes con más trámites activos este mes',
+    'Resumen de trámites completados vs pendientes',
+    'Funcionarios con mayor carga de trabajo',
+  ];
+
+  usarSugerencia(s: string): void {
+    this.consulta = s;
+  }
+
   readonly cargando = signal(false);
   readonly resultado = signal<ConsultaReporteResponse | null>(null);
   readonly comparacion = signal<ComparacionPeriodosResponse | null>(null);
