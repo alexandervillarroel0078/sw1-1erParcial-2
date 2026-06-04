@@ -21,6 +21,12 @@ function cargarContenido(tramiteId, nodoId) {
         res.on('end', () => {
           try {
             const doc = JSON.parse(data);
+            console.log(
+              '[HOCUSPOCUS] doc obtenido:',
+              doc ? 'SÍ' : 'NO',
+              'plantillaContenido:',
+              doc?.plantillaContenido?.substring(0, 100),
+            );
             resolve(doc.plantillaContenido || '');
           } catch {
             resolve('');
@@ -52,6 +58,12 @@ function guardarContenido(tramiteId, nodoId, contenido) {
 }
 
 function contenidoToYdoc(contenido) {
+  console.log(
+    '[HOCUSPOCUS] contenido recibido:',
+    contenido?.substring(0, 100),
+    'empieza con YJS:',
+    contenido?.startsWith('YJS:'),
+  );
   if (!contenido || contenido.startsWith('DOCX_B64:')) {
     return null;
   }
@@ -60,18 +72,41 @@ function contenidoToYdoc(contenido) {
     Y.applyUpdate(ydoc, Buffer.from(contenido.slice(YJS_PREFIX.length), 'base64'));
     return ydoc;
   }
+  // Texto plano → convertir a Y.Doc
+  if (contenido && typeof contenido === 'string' && contenido.trim().length > 0) {
+    const ydoc = new Y.Doc();
+    const fragment = ydoc.getXmlFragment('default');
+
+    const lineas = contenido.split('\n');
+    for (const linea of lineas) {
+      const paragraph = new Y.XmlElement('paragraph');
+      if (linea.trim().length > 0) {
+        const text = new Y.XmlText();
+        text.insert(0, linea);
+        paragraph.insert(0, [text]);
+      }
+      fragment.push([paragraph]);
+    }
+
+    console.log('[HOCUSPOCUS] texto plano convertido a XmlFragment con', lineas.length, 'párrafos');
+    return ydoc;
+  }
+
   return null;
 }
 
 const server = new Server({
   port: 1234,
   async onLoadDocument({ documentName }) {
+    console.log('[HOCUSPOCUS] onLoadDocument llamado, documentName:', documentName);
     const { tramiteId, nodoId } = parseName(documentName);
     if (!tramiteId || !nodoId) {
       return null;
     }
     const contenido = await cargarContenido(tramiteId, nodoId);
-    return contenidoToYdoc(contenido);
+    const ydoc = contenidoToYdoc(contenido);
+    console.log('[HOCUSPOCUS] retornando ydoc:', ydoc ? 'poblado' : 'null');
+    return ydoc;
   },
   async onStoreDocument({ documentName, document }) {
     const { tramiteId, nodoId } = parseName(documentName);
