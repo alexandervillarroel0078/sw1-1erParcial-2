@@ -29,7 +29,7 @@ cd C:\minio
 
 
 git add .
-git commit -m "feat: analisis con ia en tiempo real"
+git commit -m "feat: sistema completo - todas las mejoras del 2do parcial implementadas"
 git push origin main2
 
 cd onlyoffice
