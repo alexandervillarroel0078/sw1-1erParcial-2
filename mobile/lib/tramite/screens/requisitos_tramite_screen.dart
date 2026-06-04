@@ -71,7 +71,7 @@ class _ValidacionRequisito {
       case _EstadoValidacionDoc.advertencia:
         return true;
       case _EstadoValidacionDoc.rechazado:
-        return confirmadoManual;
+        return false;
       case _EstadoValidacionDoc.verificando:
       case _EstadoValidacionDoc.ninguno:
         return false;
@@ -265,15 +265,33 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
         return;
       }
 
-      final subirIgual = await _preguntarSubirDeTodosModos(mensaje);
+      if (!valido && confianza >= 60) {
+        final detalle = mensaje.isNotEmpty
+            ? mensaje
+            : 'No coincide con el requisito solicitado';
+        setState(() {
+          _archivosPorRequisito.remove(req.id);
+          _validacionPorRequisito[req.id] = _ValidacionRequisito(
+            estado: _EstadoValidacionDoc.rechazado,
+            confianza: confianza,
+            mensaje:
+                'Documento incorrecto: $detalle. Por favor sube el documento correcto.',
+          );
+        });
+        return;
+      }
+
+      final subirIgual = await _preguntarIncertidumbre();
       if (!mounted) return;
       if (subirIgual) {
         setState(() {
           _validacionPorRequisito[req.id] = _ValidacionRequisito(
-            estado: _EstadoValidacionDoc.rechazado,
+            estado: _EstadoValidacionDoc.advertencia,
             valido: valido,
             confianza: confianza,
-            mensaje: mensaje,
+            mensaje: mensaje.isNotEmpty
+                ? mensaje
+                : 'Subida confirmada sin verificación completa.',
             confirmadoManual: true,
           );
         });
@@ -295,15 +313,14 @@ class _RequisitosTramiteScreenState extends State<RequisitosTramiteScreen> {
     }
   }
 
-  Future<bool> _preguntarSubirDeTodosModos(String mensaje) async {
-    final texto = mensaje.isNotEmpty
-        ? mensaje
-        : 'El documento no parece corresponder al requisito.';
+  Future<bool> _preguntarIncertidumbre() async {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('¿Deseas subir de todas formas?'),
-        content: Text('❌ $texto'),
+        title: const Text('Verificación incierta'),
+        content: const Text(
+          '⚠️ No se pudo verificar con certeza. ¿Deseas subir de todas formas?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -576,40 +593,25 @@ class _RequisitoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        requisito.nombre,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (requisito.descripcion != null &&
-                          requisito.descripcion!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          requisito.descripcion!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
+                Text(
+                  requisito.nombre,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (subido &&
-                    (validacion?.estado == _EstadoValidacionDoc.ok ||
-                        (validacion?.confirmadoManual ?? false) ||
-                        validacion?.estado == _EstadoValidacionDoc.advertencia))
-                  const Text(
-                    '✅',
-                    style: TextStyle(fontSize: 22),
+                if (requisito.descripcion != null &&
+                    requisito.descripcion!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    requisito.descripcion!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
+                ],
               ],
             ),
             if (verificando) ...[
@@ -628,7 +630,9 @@ class _RequisitoCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (validacion != null && !verificando) ...[
+            if (validacion != null &&
+                !verificando &&
+                (subido || validacion!.estado == _EstadoValidacionDoc.rechazado)) ...[
               const SizedBox(height: 8),
               _ValidacionBanner(validacion: validacion!),
             ],
@@ -698,7 +702,10 @@ class _ValidacionBanner extends StatelessWidget {
         ? validacion.mensaje
         : (validacion.estado == _EstadoValidacionDoc.advertencia
             ? 'No se pudo verificar, puedes continuar'
-            : '');
+            : 'Documento incorrecto. Por favor sube el documento correcto.');
+    final texto = validacion.estado == _EstadoValidacionDoc.rechazado
+        ? '❌ $msg'
+        : '$prefix $msg';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -708,7 +715,7 @@ class _ValidacionBanner extends StatelessWidget {
         border: Border.all(color: fg.withValues(alpha: 0.35)),
       ),
       child: Text(
-        '$prefix $msg',
+        texto,
         style: theme.textTheme.bodySmall?.copyWith(color: fg),
       ),
     );
