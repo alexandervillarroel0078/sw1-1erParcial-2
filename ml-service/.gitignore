@@ -17,11 +17,6 @@ training/datos_entrenamiento.csv
 training/history.json
 training/graficos/
 
-# Model artifacts (generated)
-modelo_demora.keras
-scaler.pkl
-
 # OS/editor noise
 .DS_Store
 Thumbs.db
- 
