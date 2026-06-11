@@ -29,7 +29,7 @@ cd C:\minio
 
 
 git add .
-git commit -m "feat: sistema completo - todas las mejoras del 2do parcial implementadas"
+git commit -m "fix: validar consultas inválidas en reportes por lenguaje natural"
 git push origin main2
 
 cd onlyoffice

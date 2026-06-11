@@ -71,8 +71,70 @@ El dashboard que ya existe se extiende con análisis predictivo usando TensorFlo
 
 ## Fechas
 
-- Entrega: 16 de Junio, 16:00h
+- Entrega: 11 de Junio, 16:00h
 - Presentación: aproximadamente 2 semanas después
+
+## CLASE #2
+
+Les voy a publicar dos importantes. Eso implica un incremento en todo, en todo significa por lo menos los siguientes puntos:
+
+Primero, en el proceso de desarrollo, es un nuevo ciclo.
+Dos, es un incremento también en el software, porque es la funcionalidad que han introducido y también algunos ajustes que seguramente van a hacer.
+Tres, se supone que también es la documentación.
+
+El software prácticamente está definido, ya lo hemos comentado en el caso anterior. El proceso también, porque lo hemos dicho antes, lo que tenemos que hacer es aplicar el nuevo ciclo y obviamente colocar toda la documentación que se haya generado.
+
+Parte 1 — Fundamentación Teórica
+En la fundamentación teórica van a colocar todos los temas que se han tratado en los primeros parciales. Es decir, desde arquitectura de software, desarrollo de software, etc. Esos puntos tienen que ir. Los mismos puntos van a ir, pero vamos a agregar nuevos:
+1. Sistema de Gestión Documental
+Todo referente a lo más esencial dentro del ámbito de los sistemas de gestión documental. Porque se supone que dentro del software que estamos desarrollando hay algo que tiene que ver con eso. Hablen de lo que está aplicado en el proyecto.
+2. Deep Learning
+Pero no hablen de todo lo que es Deep Learning. Hablen de lo que está aplicado en el proyecto. Por ejemplo, seguramente van a hablar de NLP, procesamiento de texto. Seguramente también van a hablar de alguna herramienta o componente que se va a utilizar.
+3. Infraestructura basada en AWS
+Por lo menos tienen que hacerse especialistas en los siguientes servicios:
+
+Elastic Beanstalk — para desplegar aplicaciones (obligatorio)
+S3 — con todas sus características (obligatorio)
+Base de datos en AWS / RDS — opcional
+
+Ustedes pueden agregar otros temas si les es conveniente, de acuerdo a lo que hayan realizado.
+
+Parte 2 — Proceso de Desarrollo
+El proceso de desarrollo está basado en dos ciclos. La documentación tiene que mostrar los dos ciclos:
+
+El primer ciclo, que hicieron en el primer parcial.
+El segundo ciclo, que están haciendo ahora.
+
+Todo lo que es la arquitectura lo van a modelar utilizando C4. Todo lo demás — diagramas, etc. — lo van a modelar utilizando UML 2.5.
+
+Parte 3 — Mecanismo de soporte al usuario
+Todo mecanismo que consideren conveniente para lograr que los usuarios utilicen correctamente la aplicación. Habíamos planteado varias opciones:
+
+Desde lo más básico: manual de usuario
+Pasando por tutoriales
+Llegando a lo más óptimo: un asistente para dar soporte, monitoreando lo que está haciendo el usuario para asistirlo
+
+
+Recomendaciones
+En la sección de recomendaciones van a colocar todo lo que han utilizado — 100% de las herramientas, todos los modelos. Bien descrito. Todo debe funcionar en línea.
+En la carátula van a colocar los nombres del equipo, y también links para:
+
+Acceder a su código en el repositorio
+Acceder a sus tutoriales (deberían tenerlo)
+
+
+Entrega
+
+Fecha límite: día 11, hasta las 8:00 a.m.
+No tienen que imprimir el documento completo, solo las características de la documentación.
+El proyecto debe estar accesible en línea. La aplicación móvil va a estar disponible en un Drive para descargar.
+
+
+
+
+
+
+
 
 
  ✅ Ya tenés hecho

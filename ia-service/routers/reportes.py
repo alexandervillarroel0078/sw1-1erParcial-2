@@ -66,7 +66,15 @@ Además del JSON actual, agrega:
 IMPORTANTE: El JSON debe ser 100% válido. Los operadores MongoDB DEBEN ir entre comillas dobles:
 CORRECTO: { "$gte": "fecha", "$in": ["A", "B"] }
 INCORRECTO: { $gte: "fecha", $in: ["A", "B"] }
-Todos los keys del JSON deben estar entre comillas dobles sin excepción."""
+Todos los keys del JSON deben estar entre comillas dobles sin excepción.
+
+Si la consulta del usuario no tiene relación con trámites o tareas, 
+es un saludo, texto sin sentido o irrelevante, responde EXACTAMENTE con este JSON:
+{"error": "consulta_invalida", "mensaje": "No entendí la consulta. Describe qué reporte necesitas, por ejemplo: trámites completados este mes."}
+No inventes una consulta MongoDB para inputs inválidos. 
+
+
+"""
 
 
 class ConsultaReporteBody(BaseModel):
@@ -142,6 +150,8 @@ def consulta_reporte(body: ConsultaReporteBody):
         raise HTTPException(status_code=502, detail="Respuesta vacía del modelo")
     print(f">>> CHOICE: {choice}")
     data = _extraer_json(choice)
+    if data.get("error") == "consulta_invalida":
+        raise HTTPException(status_code=400, detail=data.get("mensaje"))
     print(f">>> DATA EXTRAIDA: {data}")
     coleccion = data.get("coleccion", "tramites")
     filtro = data.get("filtro", {})
