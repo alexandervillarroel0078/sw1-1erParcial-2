@@ -13,7 +13,7 @@ from routers import diagrama, documentos, formulario, politica, reportes
 
 load_dotenv()
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200,https://frontend-734852757342.us-central1.run.app").split(",")
 
 app = FastAPI(title="IA Diagramas", version="1.0.0")
 

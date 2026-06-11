@@ -34,7 +34,7 @@ export interface Anomalia {
 @Injectable({ providedIn: 'root' })
 export class MlService {
   private readonly http = inject(HttpClient);
-  private readonly mlUrl = (environment as any).mlUrl || 'http://localhost:8001';
+  private readonly mlUrl = (environment as any).mlUrl || 'https://ml-service-734852757342.us-central1.run.app';
 
   getRiesgo(tareaId: string, diasAbierto: number, slaMinutos: number, pasoActual: number, totalPasos: number): Observable<RiesgoTarea> {
     return this.http.post<RiesgoTarea>(`${this.mlUrl}/ml/riesgo-demora`, {

@@ -17,7 +17,7 @@ load_dotenv()
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 MONGO_DB = os.getenv("MONGO_DB", "dpn_workflow")
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:4200,https://frontend-734852757342.us-central1.run.app").split(",")
 
 # Cargar modelo y scaler
 import tensorflow as tf

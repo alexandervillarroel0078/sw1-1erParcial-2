@@ -14,7 +14,7 @@ cd mobile
 flutter run -d 15187705CJ007699
 
 ng serve --configuration=local --host 0.0.0.0
-
+flutter build apk --release
 cd ml-service
 venv\Scripts\activate
 python main.py

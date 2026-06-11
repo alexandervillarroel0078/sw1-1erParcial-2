@@ -3,8 +3,7 @@ spring:
     name: backend
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017}
-      database: ${MONGODB_DATABASE:dpn_workflow}
+      uri: ${MONGODB_URI:mongodb://localhost:27017/dpn_workflow}
   servlet:
     # Límites para POST multipart (p. ej. /api/archivos/upload)
     multipart:
@@ -18,11 +17,14 @@ jwt:
   secret: dpn-workflow-secret-key-2025
   expiration: 86400000
 
+storage:
+  bucket: ${AWS_S3_BUCKET:flowgov-docs}
+
 minio:
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket: flowgov-docs
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  region: ${MINIO_REGION:us-east-1}
 
 logging:
   file:

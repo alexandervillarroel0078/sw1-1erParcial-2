@@ -12,8 +12,6 @@ import com.dpn.backend.tarea.model.Tarea;
 import com.dpn.backend.tarea.model.enums.EstadoTarea;
 import com.dpn.backend.tarea.repository.TareaRepository;
 import com.dpn.backend.usuario.repository.UsuarioRepository;
-import io.minio.*;
-import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -21,11 +19,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,14 +40,15 @@ public class DocumentoService {
     private static final String MSG_NO_ELIMINAR_CLIENTE = "No se pueden eliminar documentos del cliente";
     private static final String MSG_NO_ELIMINAR_OTRO = "No puedes eliminar documentos de otro usuario";
 
-    private final MinioClient minioClient;
+    private final S3Client s3Client;
+    private final S3Presigner presigner;
     private final DocumentoRepository documentoRepository;
     private final AuditoriaDocumentoRepository auditoriaRepository;
     private final TareaRepository tareaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
 
-    @Value("${minio.bucket}")
+    @Value("${storage.bucket}")
     private String bucket;
 
     public DocumentoDTO subir(MultipartFile file, String tramiteId, String nodoId,
@@ -63,12 +68,14 @@ public class DocumentoService {
         }
         try {
             String storageKey = tramiteId + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucket)
-                    .object(storageKey)
-                    .stream(file.getInputStream(), file.getSize(), -1)
-                    .contentType(file.getContentType())
-                    .build());
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(storageKey)
+                            .contentType(file.getContentType())
+                            .contentLength(file.getSize())
+                            .build(),
+                    RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
             Documento doc = Documento.builder()
                     .id(UUID.randomUUID().toString())
@@ -116,12 +123,12 @@ public class DocumentoService {
         validarPermisoFuncionario(doc.getTramiteId(), doc.getNodoId(), usuarioId, AccionDocumento.VER, null);
         try {
             registrarAuditoria(documentoId, doc.getTramiteId(), doc.getNodoId(), usuarioId, usuarioNombre, "DESCARGA");
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .bucket(bucket)
-                    .object(doc.getStorageKey())
-                    .method(Method.GET)
-                    .expiry(1, TimeUnit.HOURS)
-                    .build());
+            return presigner.presignGetObject(
+                    GetObjectPresignRequest.builder()
+                            .signatureDuration(Duration.ofHours(1))
+                            .getObjectRequest(r -> r.bucket(bucket).key(doc.getStorageKey()))
+                            .build())
+                    .url().toString();
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
@@ -142,9 +149,9 @@ public class DocumentoService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Documento no encontrado"));
         validarPermisoFuncionario(doc.getTramiteId(), doc.getNodoId(), usuarioId, AccionDocumento.ELIMINAR, doc);
         try {
-            minioClient.removeObject(RemoveObjectArgs.builder()
+            s3Client.deleteObject(DeleteObjectRequest.builder()
                     .bucket(bucket)
-                    .object(doc.getStorageKey())
+                    .key(doc.getStorageKey())
                     .build());
             registrarAuditoria(documentoId, doc.getTramiteId(), doc.getNodoId(), usuarioId, usuarioNombre, "ELIMINACION");
             documentoRepository.deleteById(documentoId);
