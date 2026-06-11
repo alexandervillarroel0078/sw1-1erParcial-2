@@ -42,7 +42,27 @@ Voz — IA:
  MENSAJE: "La actividad fue completada satisfactoriamente. Se verificaron todos los documentos del proveedor incluyendo carnet de identidad y factura de luz. Como observación, el carnet presentaba fecha de vencimiento próxima pero sigue siendo válido."
 
 
+REPORTES:
+Básicos:
 
+trámites completados este mes
+trámites demorados
+tareas pendientes del departamento Revisión
+
+Con filtro de cliente:
+
+trámites de Juan Perez
+tareas de Carlos Mendez
+
+Con fecha:
+
+trámites creados esta semana
+trámites de abril
+
+Para el gráfico:
+
+trámites agrupados por estado → debería devolver tipo_grafico: pie
+tareas por departamento → debería devolver tipo_grafico: bar
 
 
 
