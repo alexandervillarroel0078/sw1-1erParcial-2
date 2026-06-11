@@ -1,5 +1,4 @@
 const { Server } = require('@hocuspocus/server');
-const http = require('http');
 const Y = require('yjs');
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
@@ -10,51 +9,27 @@ function parseName(documentName) {
   return { tramiteId: parts[0], nodoId: parts[1] };
 }
 
-function cargarContenido(tramiteId, nodoId) {
-  return new Promise((resolve) => {
-    http
-      .get(`${BACKEND_URL}/api/doc-colaborativo/${tramiteId}/${nodoId}`, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const doc = JSON.parse(data);
-            console.log(
-              '[HOCUSPOCUS] doc obtenido:',
-              doc ? 'SÍ' : 'NO',
-              'plantillaContenido:',
-              doc?.plantillaContenido?.substring(0, 100),
-            );
-            resolve(doc.plantillaContenido || '');
-          } catch {
-            resolve('');
-          }
-        });
-      })
-      .on('error', () => resolve(''));
-  });
+async function cargarContenido(tramiteId, nodoId) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/doc-colaborativo/${tramiteId}/${nodoId}`);
+    const doc = await res.json();
+    console.log('[HOCUSPOCUS] doc obtenido:', doc ? 'SÍ' : 'NO', 'plantillaContenido:', doc?.plantillaContenido?.substring(0, 100));
+    return doc.plantillaContenido || '';
+  } catch {
+    return '';
+  }
 }
 
-function guardarContenido(tramiteId, nodoId, contenido) {
-  return new Promise((resolve) => {
-    const body = JSON.stringify({ contenido });
-    const req = http.request(
-      `${BACKEND_URL}/api/doc-colaborativo/${tramiteId}/${nodoId}/contenido`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      () => resolve(),
-    );
-    req.on('error', () => resolve());
-    req.write(body);
-    req.end();
-  });
+async function guardarContenido(tramiteId, nodoId, contenido) {
+  try {
+    await fetch(`${BACKEND_URL}/api/doc-colaborativo/${tramiteId}/${nodoId}/contenido`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contenido }),
+    });
+  } catch {
+    // ignorar errores de red
+  }
 }
 
 function contenidoToYdoc(contenido) {
